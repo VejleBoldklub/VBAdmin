@@ -12,14 +12,14 @@ export const baneplaner: readonly Baneplan[] = [
   {
     slug: "efteraar-foraar",
     name: "Efterår / Forår",
-    seasonTitle: "Efterår '26 / Forår '27",
+    seasonTitle: "Efterår / Forår",
     adminPath: "/admin/baneplan/efteraar-foraar",
     publicPath: "/baneplan/efteraar-foraar",
   },
   {
     slug: "vinter",
     name: "Vinter",
-    seasonTitle: "Vinter '26 / '27",
+    seasonTitle: "Vinter",
     adminPath: "/admin/baneplan/vinter",
     publicPath: "/baneplan/vinter",
   },
