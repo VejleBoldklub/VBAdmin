@@ -1,5 +1,14 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: "/baneplan/efteraar-foraar",
+        destination: "/legacy/efteraar-foraar.html",
+      },
+    ];
+  },
+};
 
 export default nextConfig;
