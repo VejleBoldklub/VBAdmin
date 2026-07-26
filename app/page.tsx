@@ -1,88 +1,82 @@
-const modules = [
+import { ModuleCard, type ModuleCardProps } from "@/components/module-card";
+
+const modules: ModuleCardProps[] = [
   {
     title: "Baneplan",
-    description: "Få overblik over træningstider og baner.",
-    icon: "▦",
+    description: "Administrér klubbens baneplaner.",
+    status: "Klar til næste fase",
+    index: 1,
   },
   {
     title: "Lokalebooking",
-    description: "Book og administrer klubbens lokaler.",
-    icon: "⌂",
+    description: "Administrér klubbens lokaler og bookinger.",
+    status: "Kommer senere",
+    index: 2,
   },
   {
     title: "Historik",
-    description: "Se tidligere aktiviteter og ændringer.",
-    icon: "↶",
+    description: "Se tidligere udgivelser og ændringer.",
+    status: "Kommer senere",
+    index: 3,
   },
   {
     title: "Administration",
-    description: "Håndter brugere, roller og indstillinger.",
-    icon: "⚙",
+    description: "Administrér brugere, roller og systemindstillinger.",
+    status: "Kommer senere",
+    index: 4,
   },
 ];
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
-      <div className="relative isolate min-h-screen overflow-hidden">
-        <div className="absolute inset-x-0 top-0 -z-10 h-80 bg-gradient-to-b from-red-950/80 to-transparent" />
-        <div className="absolute -right-40 top-24 -z-10 h-96 w-96 rounded-full bg-red-700/10 blur-3xl" />
-
-        <div className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-10 sm:px-10 lg:px-12 lg:py-14">
-          <header className="flex items-center gap-4 border-b border-white/10 pb-8">
-            <div
-              aria-label="VB-logo placeholder"
-              className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-red-700 text-xl font-black tracking-tight shadow-lg shadow-red-950/40 ring-1 ring-white/20"
-            >
-              VB
-            </div>
+    <main className="min-h-screen bg-slate-50 text-slate-950">
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-8 sm:px-8 lg:px-12 lg:py-10">
+        <header className="flex items-center justify-between gap-6 border-b border-slate-200 pb-7">
+          <div className="flex items-center gap-4">
+            <span aria-hidden="true" className="h-10 w-1 rounded-full bg-red-700" />
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-400">Klubportal</p>
-              <p className="mt-1 text-sm text-slate-400">Vejle Boldklub</p>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-red-700">Vejle Boldklub</p>
+              <p className="mt-1 text-sm font-medium text-slate-500">Administration</p>
             </div>
-          </header>
+          </div>
+          <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 ring-1 ring-inset ring-slate-200">
+            Fundament
+          </span>
+        </header>
 
-          <section className="flex flex-1 flex-col justify-center py-16 sm:py-20">
-            <div className="mb-10 max-w-3xl sm:mb-14">
-              <p className="mb-4 text-sm font-bold uppercase tracking-[0.25em] text-red-500">Velkommen</p>
-              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-                Vejle Boldklub <span className="text-red-600">Admin</span>
-              </h1>
-              <p className="mt-5 max-w-xl text-base leading-7 text-slate-400 sm:text-lg">
-                Ét samlet sted til klubbens daglige planlægning og administration.
-              </p>
+        <section className="py-14 sm:py-18 lg:py-20" aria-labelledby="dashboard-title">
+          <div className="max-w-3xl">
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-red-700">Dashboard</p>
+            <h1 id="dashboard-title" className="mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">
+              Vejle Boldklub Admin
+            </h1>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
+              Klubbens fælles indgang til administrative værktøjer. Moduler aktiveres ét ad gangen, når de er klar.
+            </p>
+          </div>
+        </section>
+
+        <section className="pb-16" aria-labelledby="modules-title">
+          <div className="mb-6 flex items-end justify-between gap-6">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-red-700">Overblik</p>
+              <h2 id="modules-title" className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+                Moduler
+              </h2>
             </div>
+            <p className="hidden text-sm text-slate-500 sm:block">4 moduler</p>
+          </div>
 
-            <nav aria-label="Administrationsmoduler" className="grid gap-4 sm:grid-cols-2 lg:gap-6">
-              {modules.map((module, index) => (
-                <a
-                  key={module.title}
-                  href="#"
-                  className="group relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/80 p-6 transition duration-300 hover:-translate-y-1 hover:border-red-600/60 hover:bg-slate-900 hover:shadow-2xl hover:shadow-red-950/30 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-red-500 sm:p-8"
-                >
-                  <div className="flex items-start justify-between gap-5">
-                    <div>
-                      <span className="mb-6 grid h-12 w-12 place-items-center rounded-xl bg-red-700/15 text-2xl text-red-400 ring-1 ring-red-600/20 transition group-hover:bg-red-700 group-hover:text-white">
-                        {module.icon}
-                      </span>
-                      <h2 className="text-xl font-bold sm:text-2xl">{module.title}</h2>
-                      <p className="mt-2 text-sm leading-6 text-slate-400 sm:text-base">{module.description}</p>
-                    </div>
-                    <span className="text-2xl text-slate-600 transition group-hover:translate-x-1 group-hover:text-red-500" aria-hidden="true">
-                      →
-                    </span>
-                  </div>
-                  <div className="absolute inset-x-0 bottom-0 h-1 origin-left scale-x-0 bg-red-700 transition-transform duration-300 group-hover:scale-x-100" />
-                  <span className="absolute right-5 top-4 -z-10 text-7xl font-black text-white/[0.025]">0{index + 1}</span>
-                </a>
-              ))}
-            </nav>
-          </section>
+          <div className="grid gap-5 sm:grid-cols-2 lg:gap-6">
+            {modules.map((module) => (
+              <ModuleCard key={module.title} {...module} />
+            ))}
+          </div>
+        </section>
 
-          <footer className="border-t border-white/10 pt-6 text-xs text-slate-500">
-            © {new Date().getFullYear()} Vejle Boldklub
-          </footer>
-        </div>
+        <footer className="mt-auto border-t border-slate-200 py-6 text-sm text-slate-500">
+          © {new Date().getFullYear()} Vejle Boldklub
+        </footer>
       </div>
     </main>
   );
