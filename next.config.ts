@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
         source: "/baneplan/efteraar-foraar",
         destination: "/legacy/efteraar-foraar.html",
       },
+      {
+        source: "/baneplan/vinter",
+        destination: "/legacy/vinter.html",
+      },
     ];
   },
 };
