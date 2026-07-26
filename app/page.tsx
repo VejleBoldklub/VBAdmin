@@ -6,6 +6,7 @@ const modules: ModuleCardProps[] = [
     title: "Baneplan",
     description: "Administrér klubbens baneplaner.",
     status: "Klar til næste fase",
+    href: "/admin/baneplan",
     index: 1,
   },
   {
