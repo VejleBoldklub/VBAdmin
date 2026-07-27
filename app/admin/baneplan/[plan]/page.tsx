@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AdminPageShell } from "@/components/admin-page-shell";
 import { baneplaner, findBaneplan } from "@/features/baneplan/plans";
 import { hentLivePlan, hentKladde, opretKladdeFraLive } from "@/features/baneplan/actions";
+import ScheduleView from "./schedule-view";
 import KladdeEditor from "./kladde-editor";
 
 type BaneplanAdminPageProps = {
@@ -51,34 +52,9 @@ export default async function BaneplanAdminPage({ params }: BaneplanAdminPagePro
                 <> · i kraft fra {livePlan.ikrafttraedelsesdato}</>
               )}
             </p>
-            {livePlan.data.tildelinger.length > 0 ? (
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full min-w-[560px] border-collapse text-sm">
-                  <thead>
-                    <tr>
-                      <th className="border-b-2 border-slate-200 p-2 text-left text-xs font-bold uppercase text-slate-500">Bane</th>
-                      <th className="border-b-2 border-slate-200 p-2 text-left text-xs font-bold uppercase text-slate-500">Dag</th>
-                      <th className="border-b-2 border-slate-200 p-2 text-left text-xs font-bold uppercase text-slate-500">Tid</th>
-                      <th className="border-b-2 border-slate-200 p-2 text-left text-xs font-bold uppercase text-slate-500">Hold</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {livePlan.data.tildelinger.map((t, i) => (
-                      <tr key={i}>
-                        <td className="border-b border-slate-100 p-2 text-slate-700">{t.bane}</td>
-                        <td className="border-b border-slate-100 p-2 text-slate-700">{t.dag}</td>
-                        <td className="border-b border-slate-100 p-2 text-slate-700">
-                          {t.starttid}–{t.sluttid}
-                        </td>
-                        <td className="border-b border-slate-100 p-2 text-slate-700">{t.hold}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="mt-3 text-sm text-slate-500">Live-planen har endnu ingen tildelinger.</p>
-            )}
+            <div className="mt-4">
+              <ScheduleView fields={livePlan.data.fields} events={livePlan.data.events} />
+            </div>
           </>
         ) : (
           <p className="mt-3 text-sm text-slate-500">
@@ -92,7 +68,8 @@ export default async function BaneplanAdminPage({ params }: BaneplanAdminPagePro
           kladdeId={kladde.id}
           slug={plan.slug}
           initialSaesontitel={kladde.saesontitel}
-          initialTildelinger={kladde.data.tildelinger}
+          initialFields={kladde.data.fields}
+          initialEvents={kladde.data.events}
         />
       ) : (
         <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center sm:p-6">
