@@ -65,18 +65,17 @@ function layoutEvents(events: ScheduleEvent[]): LaidOutEvent[] {
   const out: LaidOutEvent[] = [];
   for (const c of clusters) {
     const cols: ScheduleEvent[][] = [];
+    const laidOut: LaidOutEvent[] = [];
     c.events
       .sort((a, b) => a.start - b.start || a.end - b.end)
       .forEach((ev) => {
         let col = 0;
         while (cols[col] && cols[col].some((x) => overlaps(x, ev))) col++;
         (cols[col] ||= []).push(ev);
-        out.push({ ...ev, col, cols: 0 }); // cols filled below
+        laidOut.push({ ...ev, col, cols: 0 }); // cols udfyldes, når klyngens bredde kendes
       });
-    const n = cols.length;
-    for (const ev of out) {
-      if (c.events.includes(ev)) ev.cols = n;
-    }
+    for (const ev of laidOut) ev.cols = cols.length;
+    out.push(...laidOut);
   }
   return out;
 }
