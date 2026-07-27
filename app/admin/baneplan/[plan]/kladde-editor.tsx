@@ -34,20 +34,20 @@ export default function KladdeEditor({
   const [arbejder, setArbejder] = useState(false);
 
   function tilfoejBane() {
-    const navn = prompt("Navn paa ny bane (fx 'Bane 12'):");
+    const navn = prompt("Navn på ny bane (fx 'Bane 12'):");
     if (!navn) return;
     setFields((prev) => [...prev, { name: navn }]);
   }
 
   function fjernBane(navn: string) {
-    if (!confirm(`Fjern "${navn}"? Alle tildelinger paa denne bane fjernes ogsaa.`)) return;
+    if (!confirm(`Fjern "${navn}"? Alle tildelinger på denne bane fjernes også.`)) return;
     setFields((prev) => prev.filter((f) => f.name !== navn));
     setEvents((prev) => prev.filter((e) => e.field !== navn));
   }
 
   function tilfoejEvent() {
     if (fields.length === 0) {
-      setFejl("Opret mindst en bane, foer du tilfoejer en tildeling.");
+      setFejl("Opret mindst en bane, før du tilføjer en tildeling.");
       return;
     }
     setEvents((prev) => [
@@ -100,14 +100,14 @@ export default function KladdeEditor({
   async function handlePublicer() {
     setFejl(null);
     if (!ikrafttraedelsesdato) {
-      setFejl("Angiv en ikrafttraedelsesdato foer publicering.");
+      setFejl("Angiv en ikrafttrædelsesdato før publicering.");
       return;
     }
     setArbejder(true);
     try {
       await gemKladde(kladdeId, slug, saesontitel, fields, events);
       await publicerKladde(kladdeId, slug, ikrafttraedelsesdato);
-      setStatus("Planen er publiceret og er nu den offentlige, gaeldende plan.");
+      setStatus("Planen er publiceret og er nu den offentlige, gældende plan.");
     } catch (e) {
       setFejl(e instanceof Error ? e.message : "Kunne ikke publicere kladden.");
     } finally {
@@ -116,7 +116,7 @@ export default function KladdeEditor({
   }
 
   async function handleKasser() {
-    if (!confirm("Er du sikker paa, at du vil kassere denne kladde?")) return;
+    if (!confirm("Er du sikker på, at du vil kassere denne kladde?")) return;
     setArbejder(true);
     try {
       await kasserKladde(kladdeId, slug);
@@ -135,17 +135,17 @@ export default function KladdeEditor({
         </span>
       </div>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-        Aendringer her paavirker ikke den offentlige plan, foer du publicerer. Forhaandsvisningen nedenfor viser,
+        Ændringer her påvirker ikke den offentlige plan, før du publicerer. Forhåndsvisningen nedenfor viser,
         hvordan planen kommer til at se ud.
       </p>
 
       <div className="mt-5">
         <label className="block text-sm font-semibold text-slate-700">
-          Saesontitel
+          Sæsontitel
           <input
             value={saesontitel}
             onChange={(e) => setSaesontitel(e.target.value)}
-            placeholder="Efteraar '26 / Foraar '27"
+            placeholder="Efterår '26 / Forår '27"
             className="mt-1 block w-full max-w-sm rounded-lg border border-slate-200 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
           />
         </label>
@@ -170,7 +170,7 @@ export default function KladdeEditor({
             onClick={tilfoejBane}
             className="rounded-full border border-dashed border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-50"
           >
-            + Tilfoej bane
+            + Tilføj bane
           </button>
         </div>
       </div>
@@ -275,13 +275,13 @@ export default function KladdeEditor({
           onClick={tilfoejEvent}
           className="mt-3 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
-          + Tilfoej tildeling
+          + Tilføj tildeling
         </button>
       </div>
 
       {fields.length > 0 && (
         <div className="mt-6">
-          <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">Forhaandsvisning</h3>
+          <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">Forhåndsvisning</h3>
           <ScheduleView fields={fields} events={events} />
         </div>
       )}
@@ -290,7 +290,7 @@ export default function KladdeEditor({
 
       <div className="flex flex-wrap items-end gap-4">
         <label className="text-sm font-semibold text-slate-700">
-          Ikrafttraedelsesdato
+          Ikrafttrædelsesdato
           <input
             type="date"
             value={ikrafttraedelsesdato}
