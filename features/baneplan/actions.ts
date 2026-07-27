@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import type { PlanSlug } from "./plans";
-import type { BaneplanVersion, Tildeling } from "./types";
+import type { BaneplanData, BaneplanVersion, ScheduleEvent, ScheduleField } from "./types";
 
 function adminPathFor(slug: PlanSlug) {
   return `/admin/baneplan/${slug}`;
 }
+
+const TOM_DATA: BaneplanData = { fields: [], events: [] };
 
 export async function hentLivePlan(
   slug: PlanSlug
@@ -57,7 +59,7 @@ export async function opretKladdeFraLive(slug: PlanSlug) {
   const { error } = await supabaseAdmin.from("baneplan_versioner").insert({
     plan_slug: slug,
     saesontitel: livePlan?.saesontitel ?? "",
-    data: livePlan?.data ?? { tildelinger: [] },
+    data: livePlan?.data ?? TOM_DATA,
     status: "draft",
   });
 
@@ -72,13 +74,14 @@ export async function gemKladde(
   id: string,
   slug: PlanSlug,
   saesontitel: string,
-  tildelinger: Tildeling[]
+  fields: ScheduleField[],
+  events: ScheduleEvent[]
 ) {
   const { error } = await supabaseAdmin
     .from("baneplan_versioner")
     .update({
       saesontitel,
-      data: { tildelinger },
+      data: { fields, events },
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
