@@ -65,7 +65,7 @@ De offentlige ruter er faste og må ikke indeholde årstal:
 - `/baneplan/efteraar-foraar`
 - `/baneplan/vinter`
 
-Begge ruter skal kunne anvendes samtidig i Klub CMS i overgangsperioder. URL'erne genbruges fra sæson til sæson.
+Begge ruter skal kunne anvendes samtidig i Klub CMS i overgangsperioder. URL'erne genbruges fra sæson til sæson, og disse offentlige sider i VBAdmin er dem, der fortsat vises i DBU Klub CMS' iframe.
 
 De synlige sæsontitler må ændres årligt, eksempelvis:
 
@@ -76,11 +76,15 @@ Sæsontitlen er indhold og må ikke bruges som en del af den permanente URL.
 
 ### Dataflow for baneplan
 
-Baneplanens faste dataflow er:
+Baneplanen redigeres direkte i VBAdmin, ikke i et eksternt system. Det faste dataflow er:
 
-`KlubOffice → Excel-eksport → VBAdmin → validering → preview → publicering`
+`Live plan → kopi til kladde ("sandkasse") → redigering → preview → publicering → manuel indtastning i KlubOffice`
 
-Baneplanen skal fortsat tage udgangspunkt i Excel-eksport fra KlubOffice. Systemet skal senere kunne kontrollere, sammenligne og forhåndsvise data, før en bruger aktivt publicerer dem.
+En redigering tager altid udgangspunkt i en kopi af den aktuelt gældende (live) plan. Kladden ligger i en afgrænset "sandkasse" og påvirker aldrig den offentlige/live plan, før den aktivt publiceres af en bruger.
+
+Når en kladde publiceres, bliver den den nye live-plan på den faste offentlige rute, og den forrige live-plan arkiveres (den overskrives ikke, men bevares i historikken).
+
+Efter publicering i VBAdmin indtaster brugeren planen manuelt i KlubOffice, så den vises korrekt på de enkelte holds undersider. **KlubOffice er ikke en datakilde til VBAdmin**, og der skal ikke bygges nogen import eller synkronisering fra KlubOffice til VBAdmin.
 
 Airtable må **ikke** anvendes som datakilde til baneplanen.
 
@@ -171,7 +175,7 @@ Følgende må aldrig committes:
 - private nøgler
 - produktionsdata med personoplysninger
 
-Hemmeligheder gemmes som miljøvariabler i Vercel og bruges kun server-side. Alle input fra Excel, Airtable og fremtidige API'er skal valideres, før de anvendes eller gemmes.
+Hemmeligheder gemmes som miljøvariabler i Vercel og bruges kun server-side. Alt input, der kommer ind i systemet, skal valideres, før det anvendes eller gemmes.
 
 Dependencies skal holdes opdaterede, især når der offentliggøres sikkerhedsrettelser til Next.js, React eller andre centrale pakker.
 
@@ -250,8 +254,9 @@ En ændring er først færdig, når:
 - integration af den eksisterende visuelle baneplan i VBAdmin
 - permanente offentlige ruter for Efterår / Forår og Vinter
 - redigerbare sæsontitler
-- Excel-import fra KlubOffice
-- validering, diff, preview og kontrolleret publicering
+- "kopiér live til kladde"-funktion, så redigering altid sker i en afgrænset sandkasse
+- validering, preview og kontrolleret publicering af kladden til den offentlige, faste rute
+- historik over tidligere live-versioner ved publicering
 
 ### Fase 3 — Lokalebooking
 
