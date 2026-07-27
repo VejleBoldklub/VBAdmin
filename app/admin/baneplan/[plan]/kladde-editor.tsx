@@ -2,58 +2,93 @@
 
 import { useState } from "react";
 import type { PlanSlug } from "@/features/baneplan/plans";
-import type { Tildeling } from "@/features/baneplan/types";
+import { CATEGORIES, DAGE, type Category, type ScheduleEvent, type ScheduleField } from "@/features/baneplan/types";
 import { gemKladde, publicerKladde, kasserKladde } from "@/features/baneplan/actions";
-
-const DAGE = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"];
-
-const TOM_RAEKKE: Tildeling = {
-  bane: "",
-  dag: "Mandag",
-  starttid: "16:00",
-  sluttid: "17:00",
-  hold: "",
-};
+import ScheduleView from "./schedule-view";
 
 type KladdeEditorProps = {
   kladdeId: string;
   slug: PlanSlug;
   initialSaesontitel: string;
-  initialTildelinger: Tildeling[];
+  initialFields: ScheduleField[];
+  initialEvents: ScheduleEvent[];
 };
+
+function nytId() {
+  return `e${Date.now()}${Math.floor(Math.random() * 1000)}`;
+}
 
 export default function KladdeEditor({
   kladdeId,
   slug,
   initialSaesontitel,
-  initialTildelinger,
+  initialFields,
+  initialEvents,
 }: KladdeEditorProps) {
   const [saesontitel, setSaesontitel] = useState(initialSaesontitel);
-  const [rows, setRows] = useState<Tildeling[]>(
-    initialTildelinger.length > 0 ? initialTildelinger : [{ ...TOM_RAEKKE }]
-  );
+  const [fields, setFields] = useState<ScheduleField[]>(initialFields);
+  const [events, setEvents] = useState<ScheduleEvent[]>(initialEvents);
   const [ikrafttraedelsesdato, setIkrafttraedelsesdato] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [fejl, setFejl] = useState<string | null>(null);
   const [arbejder, setArbejder] = useState(false);
 
-  function opdaterRaekke(index: number, felt: keyof Tildeling, vaerdi: string) {
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, [felt]: vaerdi } : r)));
+  function tilfoejBane() {
+    const navn = prompt("Navn på ny bane (fx 'Bane 12'):");
+    if (!navn) return;
+    setFields((prev) => [...prev, { name: navn }]);
   }
 
-  function tilfoejRaekke() {
-    setRows((prev) => [...prev, { ...TOM_RAEKKE }]);
+  function fjernBane(navn: string) {
+    if (!confirm(`Fjern "${navn}"? Alle tildelinger på denne bane fjernes også.`)) return;
+    setFields((prev) => prev.filter((f) => f.name !== navn));
+    setEvents((prev) => prev.filter((e) => e.field !== navn));
   }
 
-  function fjernRaekke(index: number) {
-    setRows((prev) => prev.filter((_, i) => i !== index));
+  function tilfoejEvent() {
+    if (fields.length === 0) {
+      setFejl("Opret mindst én bane, før du tilføjer en tildeling.");
+      return;
+    }
+    setEvents((prev) => [
+      ...prev,
+      {
+        id: nytId(),
+        day: "Mandag",
+        team: "",
+        start: 16 * 60,
+        end: 17 * 60,
+        field: fields[0].name,
+        room: "",
+        category: "piger",
+      },
+    ]);
+  }
+
+  function opdaterEvent(id: string, felt: keyof ScheduleEvent, vaerdi: string | number) {
+    setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, [felt]: vaerdi } : e)));
+  }
+
+  function fjernEvent(id: string) {
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+  }
+
+  function tidTilMinutter(tekst: string): number {
+    const [t, m] = tekst.split(":").map(Number);
+    return (t || 0) * 60 + (m || 0);
+  }
+
+  function minutterTilTid(min: number): string {
+    const t = Math.floor(min / 60);
+    const m = min % 60;
+    return `${String(t).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   }
 
   async function handleGem() {
     setFejl(null);
     setArbejder(true);
     try {
-      await gemKladde(kladdeId, slug, saesontitel, rows);
+      await gemKladde(kladdeId, slug, saesontitel, fields, events);
       setStatus("Kladden er gemt.");
     } catch (e) {
       setFejl(e instanceof Error ? e.message : "Kunne ikke gemme kladden.");
@@ -70,7 +105,7 @@ export default function KladdeEditor({
     }
     setArbejder(true);
     try {
-      await gemKladde(kladdeId, slug, saesontitel, rows);
+      await gemKladde(kladdeId, slug, saesontitel, fields, events);
       await publicerKladde(kladdeId, slug, ikrafttraedelsesdato);
       setStatus("Planen er publiceret og er nu den offentlige, gældende plan.");
     } catch (e) {
@@ -81,9 +116,7 @@ export default function KladdeEditor({
   }
 
   async function handleKasser() {
-    if (!confirm("Er du sikker på, at du vil kassere denne kladde? Ændringerne kan ikke fortrydes.")) {
-      return;
-    }
+    if (!confirm("Er du sikker på, at du vil kassere denne kladde?")) return;
     setArbejder(true);
     try {
       await kasserKladde(kladdeId, slug);
@@ -102,149 +135,4 @@ export default function KladdeEditor({
         </span>
       </div>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-        Ændringer her påvirker ikke den offentlige plan, før du publicerer.
-      </p>
-
-      <div className="mt-5">
-        <label className="block text-sm font-semibold text-slate-700">
-          Sæsontitel
-          <input
-            value={saesontitel}
-            onChange={(e) => setSaesontitel(e.target.value)}
-            placeholder="Efterår '26 / Forår '27"
-            className="mt-1 block w-full max-w-sm rounded-lg border border-slate-200 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
-          />
-        </label>
-      </div>
-
-      <div className="mt-6 overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
-          <thead>
-            <tr>
-              <th className="border-b-2 border-slate-200 p-2 text-left text-xs font-bold uppercase text-slate-500">Bane</th>
-              <th className="border-b-2 border-slate-200 p-2 text-left text-xs font-bold uppercase text-slate-500">Dag</th>
-              <th className="border-b-2 border-slate-200 p-2 text-left text-xs font-bold uppercase text-slate-500">Start</th>
-              <th className="border-b-2 border-slate-200 p-2 text-left text-xs font-bold uppercase text-slate-500">Slut</th>
-              <th className="border-b-2 border-slate-200 p-2 text-left text-xs font-bold uppercase text-slate-500">Hold</th>
-              <th className="border-b-2 border-slate-200 p-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => (
-              <tr key={index}>
-                <td className="border-b border-slate-100 p-1.5">
-                  <input
-                    value={row.bane}
-                    onChange={(e) => opdaterRaekke(index, "bane", e.target.value)}
-                    placeholder="Bane 1"
-                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
-                  />
-                </td>
-                <td className="border-b border-slate-100 p-1.5">
-                  <select
-                    value={row.dag}
-                    onChange={(e) => opdaterRaekke(index, "dag", e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
-                  >
-                    {DAGE.map((dag) => (
-                      <option key={dag} value={dag}>
-                        {dag}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="border-b border-slate-100 p-1.5">
-                  <input
-                    type="time"
-                    value={row.starttid}
-                    onChange={(e) => opdaterRaekke(index, "starttid", e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
-                  />
-                </td>
-                <td className="border-b border-slate-100 p-1.5">
-                  <input
-                    type="time"
-                    value={row.sluttid}
-                    onChange={(e) => opdaterRaekke(index, "sluttid", e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
-                  />
-                </td>
-                <td className="border-b border-slate-100 p-1.5">
-                  <input
-                    value={row.hold}
-                    onChange={(e) => opdaterRaekke(index, "hold", e.target.value)}
-                    placeholder="U15 Drenge"
-                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
-                  />
-                </td>
-                <td className="border-b border-slate-100 p-1.5 text-right">
-                  {rows.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => fjernRaekke(index)}
-                      className="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50"
-                    >
-                      Fjern
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <button
-        type="button"
-        onClick={tilfoejRaekke}
-        className="mt-3 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
-      >
-        + Tilføj tildeling
-      </button>
-
-      <hr className="my-6 border-slate-200" />
-
-      <div className="flex flex-wrap items-end gap-4">
-        <label className="text-sm font-semibold text-slate-700">
-          Ikrafttrædelsesdato
-          <input
-            type="date"
-            value={ikrafttraedelsesdato}
-            onChange={(e) => setIkrafttraedelsesdato(e.target.value)}
-            className="mt-1 block rounded-lg border border-slate-200 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
-          />
-        </label>
-      </div>
-
-      {fejl && <p className="mt-4 text-sm font-semibold text-red-700">{fejl}</p>}
-      {status && !fejl && <p className="mt-4 text-sm font-semibold text-emerald-700">{status}</p>}
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={handleGem}
-          disabled={arbejder}
-          className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 disabled:opacity-50"
-        >
-          Gem kladde
-        </button>
-        <button
-          type="button"
-          onClick={handlePublicer}
-          disabled={arbejder}
-          className="rounded-lg bg-red-700 px-3.5 py-2 text-sm font-bold text-white hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2 disabled:opacity-50"
-        >
-          Publicér som live-plan
-        </button>
-        <button
-          type="button"
-          onClick={handleKasser}
-          disabled={arbejder}
-          className="rounded-lg px-3.5 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 disabled:opacity-50"
-        >
-          Kassér kladde
-        </button>
-      </div>
-    </div>
-  );
-}
+        Ændringer her påvirker ikke den
