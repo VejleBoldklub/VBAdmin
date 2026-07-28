@@ -18,6 +18,68 @@ export const HEADER_H = 56;
 // Værdien er valgt, så syv baner kan vises uden vandret scroll på en 1280 px
 // skærm: 84 + 7 * 160 = 1204 px, mod 1216 px tilgængeligt indhold.
 export const MIN_FIELD_W = 160;
+
+// Tildelinger placeres altid på et kvarter. Både træk, ændring af varighed og
+// tastaturbetjening runder til nærmeste 15 minutter, så planen ikke ender med
+// skæve tider, der ikke kan indtastes i KlubOffice.
+export const SNAP = 15;
+export const MIN_DURATION = 15;
+
+export function snapTilKvarter(minutter: number): number {
+  return Math.round(minutter / SNAP) * SNAP;
+}
+
+export type Tidsrum = { start: number; end: number };
+
+// Ny placering når en tildeling trækkes. Varigheden bevares, og tildelingen
+// holdes inde i dagens tidsvindue.
+//
+// Er varigheden længere end vinduet — hvilket kun kan komme fra eksisterende
+// data, ikke fra redigering — lægges starten på vinduets begyndelse, og
+// tildelingen rager ud i bunden som før. Et træk må ikke forkorte noget.
+export function flytTidsrum(
+  orig: Tidsrum,
+  deltaMinutter: number,
+  range: { min: number; max: number }
+): Tidsrum {
+  const varighed = orig.end - orig.start;
+  const start = Math.max(range.min, Math.min(snapTilKvarter(orig.start + deltaMinutter), range.max - varighed));
+  return { start, end: start + varighed };
+}
+
+// Ny placering når der trækkes i boksens øverste eller nederste kant. Den
+// modsatte kant står fast, og varigheden kan ikke komme under MIN_DURATION.
+export function aendreVarighed(
+  orig: Tidsrum,
+  deltaMinutter: number,
+  kant: "top" | "bottom",
+  range: { min: number; max: number }
+): Tidsrum {
+  if (kant === "bottom") {
+    const end = Math.max(
+      orig.start + MIN_DURATION,
+      Math.min(snapTilKvarter(orig.end + deltaMinutter), range.max)
+    );
+    return { start: orig.start, end };
+  }
+  const start = Math.min(
+    orig.end - MIN_DURATION,
+    Math.max(snapTilKvarter(orig.start + deltaMinutter), range.min)
+  );
+  return { start, end: orig.end };
+}
+
+// Flyttes en tildeling til en anden dag, kan tidsvinduet være et andet —
+// weekender går 09.00-14.00 mod hverdagenes 14.30-21.00. Her forkortes
+// tildelingen om nødvendigt, fordi den ellers ville ligge uden for gitteret på
+// den dag den landede.
+export function tilpasTilDag(tid: Tidsrum, dag: string): Tidsrum {
+  const r = rangeForDay(dag);
+  const varighed = tid.end - tid.start;
+  const start = Math.max(r.min, Math.min(tid.start, r.max - varighed));
+  return { start, end: Math.min(start + varighed, r.max) };
+}
+
 // Omklædningsrum, der frit kan tildeles, og som indgår i "Ledige omkl."
 //
 // Rum 7 og 9 er bevidst IKKE med. De er permanent låst til hhv.

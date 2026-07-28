@@ -12,6 +12,7 @@ import {
   ROW_H,
   TIME_W,
 } from "@/features/baneplan/layout";
+import { categoryClass } from "./event-styles";
 
 type ScheduleViewProps = {
   fields: ScheduleField[];
@@ -189,19 +190,3 @@ export default function ScheduleView({ fields, events }: ScheduleViewProps) {
   );
 }
 
-function categoryClass(category: ScheduleEvent["category"]): string {
-  switch (category) {
-    case "piger":
-      return "bg-green-100 border-green-600 text-green-950";
-    case "drenge":
-      return "bg-amber-100 border-amber-500 text-amber-950";
-    case "akademi":
-      return "bg-sky-100 border-sky-500 text-sky-950";
-    case "future":
-      return "bg-blue-100 border-blue-400 text-blue-950";
-    case "reserveret":
-      return "bg-slate-100 border-slate-500 text-slate-800 [background-image:repeating-linear-gradient(135deg,#f1f2f4_0,#f1f2f4_8px,#e2e5e9_8px,#e2e5e9_16px)]";
-    default:
-      return "bg-slate-100 border-slate-400 text-slate-900";
-  }
-}
