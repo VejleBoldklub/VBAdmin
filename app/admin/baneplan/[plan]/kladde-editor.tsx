@@ -28,7 +28,6 @@ export default function KladdeEditor({
   const [saesontitel, setSaesontitel] = useState(initialSaesontitel);
   const [fields, setFields] = useState<ScheduleField[]>(initialFields);
   const [events, setEvents] = useState<ScheduleEvent[]>(initialEvents);
-  const [ikrafttraedelsesdato, setIkrafttraedelsesdato] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [fejl, setFejl] = useState<string | null>(null);
   const [arbejder, setArbejder] = useState(false);
@@ -99,14 +98,10 @@ export default function KladdeEditor({
 
   async function handlePublicer() {
     setFejl(null);
-    if (!ikrafttraedelsesdato) {
-      setFejl("Angiv en ikrafttrædelsesdato før publicering.");
-      return;
-    }
     setArbejder(true);
     try {
       await gemKladde(kladdeId, slug, saesontitel, fields, events);
-      await publicerKladde(kladdeId, slug, ikrafttraedelsesdato);
+      await publicerKladde(kladdeId, slug);
       setStatus("Planen er publiceret og er nu den offentlige, gældende plan.");
     } catch (e) {
       setFejl(e instanceof Error ? e.message : "Kunne ikke publicere kladden.");
@@ -287,18 +282,6 @@ export default function KladdeEditor({
       )}
 
       <hr className="my-6 border-slate-200" />
-
-      <div className="flex flex-wrap items-end gap-4">
-        <label className="text-sm font-semibold text-slate-700">
-          Ikrafttrædelsesdato
-          <input
-            type="date"
-            value={ikrafttraedelsesdato}
-            onChange={(e) => setIkrafttraedelsesdato(e.target.value)}
-            className="mt-1 block rounded-lg border border-slate-200 px-3 py-2 text-sm"
-          />
-        </label>
-      </div>
 
       {fejl && <p className="mt-4 text-sm font-semibold text-red-700">{fejl}</p>}
       {status && !fejl && <p className="mt-4 text-sm font-semibold text-emerald-700">{status}</p>}

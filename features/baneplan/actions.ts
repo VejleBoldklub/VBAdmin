@@ -94,15 +94,9 @@ export async function gemKladde(
   revalidatePath(adminPathFor(slug));
 }
 
-export async function publicerKladde(
-  id: string,
-  slug: PlanSlug,
-  ikrafttraedelsesdato: string
-) {
-  if (!ikrafttraedelsesdato) {
-    throw new Error("Ikrafttrædelsesdato er påkrævet ved publicering.");
-  }
-
+// En kladde bliver live med det samme ved publicering. Der findes ikke
+// planlagt publicering; den offentlige synlighed styres manuelt i klubbens CMS.
+export async function publicerKladde(id: string, slug: PlanSlug) {
   const { error: arkivFejl } = await supabaseAdmin
     .from("baneplan_versioner")
     .update({ status: "archived" })
@@ -115,7 +109,7 @@ export async function publicerKladde(
 
   const { error } = await supabaseAdmin
     .from("baneplan_versioner")
-    .update({ status: "live", ikrafttraedelsesdato })
+    .update({ status: "live" })
     .eq("id", id)
     .eq("plan_slug", slug)
     .eq("status", "draft");

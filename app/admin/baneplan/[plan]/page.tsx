@@ -48,9 +48,6 @@ export default async function BaneplanAdminPage({ params }: BaneplanAdminPagePro
           <>
             <p className="mt-2 text-sm text-slate-600">
               {livePlan.saesontitel || "(ingen sæsontitel angivet)"}
-              {livePlan.ikrafttraedelsesdato && (
-                <> · i kraft fra {livePlan.ikrafttraedelsesdato}</>
-              )}
             </p>
             <div className="mt-4">
               <ScheduleView fields={livePlan.data.fields} events={livePlan.data.events} />
