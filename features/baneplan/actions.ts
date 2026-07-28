@@ -3,10 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import type { PlanSlug } from "./plans";
-import type { BaneplanData, BaneplanVersion, ScheduleEvent, ScheduleField } from "./types";
+import type { BaneplanData, BaneplanVersion } from "./types";
 
 function adminPathFor(slug: PlanSlug) {
   return `/admin/baneplan/${slug}`;
+}
+
+// Den offentlige rute caches. Publicering skal derfor sige til, ellers viser
+// klubbens iframe den forrige plan indtil næste automatiske fornyelse.
+function publicPathFor(slug: PlanSlug) {
+  return `/baneplan/${slug}`;
 }
 
 const TOM_DATA: BaneplanData = { fields: [], events: [] };
@@ -75,17 +81,12 @@ export async function opretKladdeFraLive(slug: PlanSlug) {
 // pr. gemning ville udløse en serverrundtur og en gennemtegning af hele siden
 // uden at ændre noget synligt. Live-planen på samme side er upåvirket af, at en
 // kladde gemmes. Publicering og kassering revaliderer fortsat.
-export async function gemKladde(
-  id: string,
-  saesontitel: string,
-  fields: ScheduleField[],
-  events: ScheduleEvent[]
-) {
+export async function gemKladde(id: string, saesontitel: string, data: BaneplanData) {
   const { error } = await supabaseAdmin
     .from("baneplan_versioner")
     .update({
       saesontitel,
-      data: { fields, events },
+      data,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
@@ -121,6 +122,9 @@ export async function publicerKladde(id: string, slug: PlanSlug) {
   }
 
   revalidatePath(adminPathFor(slug));
+  // Kun publicering ændrer, hvad offentligheden ser. At gemme eller kassere en
+  // kladde rører ikke live-planen og skal derfor ikke revalidere den her.
+  revalidatePath(publicPathFor(slug));
 }
 
 export async function kasserKladde(id: string, slug: PlanSlug) {

@@ -67,6 +67,7 @@ export default async function BaneplanAdminPage({ params }: BaneplanAdminPagePro
           initialSaesontitel={kladde.saesontitel}
           initialFields={kladde.data.fields}
           initialEvents={kladde.data.events}
+          initialMaaltavle={kladde.data.maaltavle}
         />
       ) : (
         <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center sm:p-6">
