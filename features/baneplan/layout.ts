@@ -8,7 +8,11 @@ export const FIELD_W = 170;
 export const HEADER_H = 56;
 
 // Omklædningsrum, der indgår i beregningen af ledige rum.
-export const ALL_ROOMS = [1, 2, 3, 4, 5, 6, 8, 10, 12];
+// Rum 11 findes ikke i VB Parken og skal ikke tilføjes.
+// Rum 7 og 9 bruges fast af U19 Drenge Ligaen hhv. Kvinde Senior 1, men er
+// ledige for andre hold de dage, holdet ikke selv har rummet. Det følger af
+// den almindelige optaget-beregning og kræver ingen særregel.
+export const ALL_ROOMS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12];
 
 const weekdayMap = ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"];
 
