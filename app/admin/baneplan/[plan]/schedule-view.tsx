@@ -202,7 +202,7 @@ export default function ScheduleView({ fields, events }: ScheduleViewProps) {
                   return (
                     <div
                       key={ev.id}
-                      className={`absolute overflow-hidden rounded-md border-2 px-1.5 py-1 text-center shadow-sm ${categoryClass(
+                      className={`absolute flex flex-col items-center justify-center overflow-hidden rounded-md border-2 px-1.5 py-1 text-center shadow-sm ${categoryClass(
                         ev.category
                       )}`}
                       style={{
