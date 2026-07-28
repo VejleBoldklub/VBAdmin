@@ -14,7 +14,10 @@ export const HEADER_H = 56;
 // Bemærk at banekolonnernes faktiske bredde derfor ikke kan udregnes af denne
 // konstant. Skal den kendes — fx til at afgøre hvilken bane en markør er over —
 // skal den måles på DOM'en.
-export const MIN_FIELD_W = 170;
+//
+// Værdien er valgt, så syv baner kan vises uden vandret scroll på en 1280 px
+// skærm: 84 + 7 * 160 = 1204 px, mod 1216 px tilgængeligt indhold.
+export const MIN_FIELD_W = 160;
 
 // Omklædningsrum, der indgår i beregningen af ledige rum.
 export const ALL_ROOMS = [1, 2, 3, 4, 5, 6, 8, 10, 12];
