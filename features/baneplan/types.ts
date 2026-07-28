@@ -41,7 +41,6 @@ export type BaneplanVersion = {
   saesontitel: string;
   data: BaneplanData;
   status: BaneplanStatus;
-  ikrafttraedelsesdato: string | null;
   oprettet_af: string | null;
   created_at: string;
   updated_at: string;
