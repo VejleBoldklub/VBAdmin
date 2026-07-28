@@ -69,6 +69,30 @@ export function aendreVarighed(
   return { start, end: orig.end };
 }
 
+// Finder det første ledige tidsrum til en ny tildeling, så knappen ikke lægger
+// alt oven i hinanden. Banerne gennemgås i rækkefølge, og for hver bane
+// kvarterene fra dagens begyndelse, så en ny tildeling lander så tidligt og så
+// langt til venstre som muligt.
+//
+// Returnerer null, hvis der ikke er plads nogen steden. Kalderen må så placere
+// tildelingen oven i en anden — overlap er tilladt i en baneplan, men det skal
+// ikke være det man får uden at bede om det.
+export function foersteLedigePlads(
+  optagede: { field: string; start: number; end: number }[],
+  baner: string[],
+  range: { min: number; max: number },
+  varighed: number
+): { field: string; start: number; end: number } | null {
+  for (const field of baner) {
+    const paaBanen = optagede.filter((e) => e.field === field);
+    for (let start = range.min; start + varighed <= range.max; start += SNAP) {
+      const kandidat = { start, end: start + varighed };
+      if (!paaBanen.some((e) => overlaps(e, kandidat))) return { field, ...kandidat };
+    }
+  }
+  return null;
+}
+
 // Flyttes en tildeling til en anden dag, kan tidsvinduet være et andet —
 // weekender går 09.00-14.00 mod hverdagenes 14.30-21.00. Her forkortes
 // tildelingen om nødvendigt, fordi den ellers ville ligge uden for gitteret på
