@@ -36,9 +36,18 @@ type ScheduleEditorProps = {
 type LaneRect = { name: string; left: number; right: number };
 type TabRect = { day: string; left: number; right: number; top: number; bottom: number };
 
-// Foreløbig placering under et træk. Lægges oven på de rigtige data, så
-// kolonneopdelingen genberegnes løbende og boksene flytter sig for hinanden.
-type Preview = { id: string; start: number; end: number; field: string };
+// Foreløbig placering under et træk.
+//
+// Preview'et fodres bevidst IKKE ind i layoutEvents. Gjorde vi det, ville
+// kolonnerne genberegnes ved hver bevægelse: trækkes en boks ind i overlap med
+// en anden, skiftede begge fra fuld til halv bredde midt i sigtet, og den trukne
+// boks ville hoppe under markøren. Derfor fastholdes de øvrige bokses layout
+// under et træk, og kolonnerne falder først på plads ved slip.
+//
+// dx er den vandrette forskydning i pixels til den bane markøren er over.
+// Boksen bliver i sin egen banes DOM-node og forskydes visuelt, så et træk
+// henover en banegrænse ikke river elementet ned og op igen.
+type Preview = { id: string; start: number; end: number; field: string; dx: number };
 
 // Igangværende oprettelse ved træk på tomt gitter.
 type NyBoks = { field: string; start: number; end: number };
@@ -152,24 +161,38 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
 
     const lanes = maalLanes();
     const tabs = maalTabs();
+    const egenBane = lanes.find((l) => l.name === ev.field);
     const startY = e.clientY;
     const dagVedStart = activeDay;
     let sidste: Preview | null = null;
     let sidsteDag: string | null = null;
 
+    // Pointer capture, så alle videre hændelser for netop denne pointer havner
+    // hos elementet, uanset hvad markøren bevæger sig hen over. Uden den
+    // overtager browseren berøringen på touch.
+    const fanget = e.currentTarget;
+    try {
+      fanget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ældre browsere uden pointer capture klarer sig med window-lytterne.
+    }
+
     function flyt(pe: globalThis.PointerEvent) {
       const dMin = (pe.clientY - startY) / ppm;
       if (kind === "move") {
+        const maalBane = baneUnder(pe.clientX, lanes, ev.field);
+        const maal = lanes.find((l) => l.name === maalBane);
         sidste = {
           id: ev.id,
           ...flytTidsrum(ev, dMin, range),
-          field: baneUnder(pe.clientX, lanes, ev.field),
+          field: maalBane,
+          dx: maal && egenBane ? maal.left - egenBane.left : 0,
         };
         sidsteDag = dagUnder(pe.clientX, pe.clientY, tabs);
         setMaalDag(sidsteDag);
       } else {
         const kant = kind === "resize-bottom" ? "bottom" : "top";
-        sidste = { id: ev.id, ...aendreVarighed(ev, dMin, kant, range), field: ev.field };
+        sidste = { id: ev.id, ...aendreVarighed(ev, dMin, kant, range), field: ev.field, dx: 0 };
       }
       setPreview(sidste);
     }
@@ -178,6 +201,11 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
       window.removeEventListener("pointermove", flyt);
       window.removeEventListener("pointerup", slip);
       window.removeEventListener("pointercancel", annuller);
+      try {
+        fanget.releasePointerCapture(e.pointerId);
+      } catch {
+        // Capture kan allerede være sluppet, fx hvis pointeren blev afbrudt.
+      }
       setPreview(null);
       setTraekkerId(null);
       setMaalDag(null);
@@ -282,14 +310,11 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
     }
   }
 
-  const dagensEvents = useMemo(() => {
-    const grundlag = preview
-      ? events.map((e) =>
-          e.id === preview.id ? { ...e, start: preview.start, end: preview.end, field: preview.field } : e
-        )
-      : events;
-    return grundlag.filter((e) => e.day === activeDay && e.end > range.min && e.start < range.max);
-  }, [events, preview, activeDay, range.min, range.max]);
+  // Bevidst uden preview: kolonnerne må ikke genberegnes midt i et træk.
+  const dagensEvents = useMemo(
+    () => events.filter((e) => e.day === activeDay && e.end > range.min && e.start < range.max),
+    [events, activeDay, range.min, range.max]
+  );
 
   const freeRooms = useMemo(() => {
     const brugt = new Set(
@@ -416,13 +441,20 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
                 className="relative border-r border-slate-200 last:border-r-0"
                 style={{ gridColumn: i + 2, gridRow: 2, height: bodyH, ...laneBaggrund }}
               >
-                {laneEvents.map((ev) => (
+                {laneEvents.map((ev) => {
+                  // Under et træk vises den trukne boks på preview'ets tid og
+                  // forskydes vandret, men beholder sin kolonne og sin plads i
+                  // DOM'en. Derfor kan den ikke rives ned og op af et re-render.
+                  const trukket = preview?.id === ev.id ? preview : null;
+                  const visEv = trukket ? { ...ev, start: trukket.start, end: trukket.end } : ev;
+                  return (
                   <EventBox
                     key={ev.id}
-                    ev={ev}
-                    top={(Math.max(ev.start, range.min) - range.min) * ppm + 3}
+                    ev={visEv}
+                    offsetX={trukket?.dx ?? 0}
+                    top={(Math.max(visEv.start, range.min) - range.min) * ppm + 3}
                     height={Math.max(
-                      (Math.min(ev.end, range.max) - Math.max(ev.start, range.min)) * ppm - 6,
+                      (Math.min(visEv.end, range.max) - Math.max(visEv.start, range.min)) * ppm - 6,
                       24
                     )}
                     leftPct={ev.col * (100 / ev.cols)}
@@ -437,7 +469,8 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
                     onOpenMenu={(x, y) => setMenu({ id: ev.id, x, y })}
                     onKeyDown={(e) => taster(e, ev)}
                   />
-                ))}
+                  );
+                })}
 
                 {nyBoks?.field === f.name && (
                   <div

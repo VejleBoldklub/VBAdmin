@@ -12,6 +12,10 @@ type EventBoxProps = {
   height: number;
   leftPct: number;
   widthPct: number;
+  // Vandret forskydning i pixels under et træk. Boksen bliver i sin egen banes
+  // DOM-node og forskydes visuelt til den bane markøren er over, så et træk
+  // henover en banegrænse ikke unmounter elementet og afbryder trækket.
+  offsetX: number;
   selected: boolean;
   dragging: boolean;
   onPointerDownBody: (e: PointerEvent<HTMLDivElement>) => void;
@@ -32,6 +36,7 @@ export default function EventBox({
   height,
   leftPct,
   widthPct,
+  offsetX,
   selected,
   dragging,
   onPointerDownBody,
@@ -129,6 +134,7 @@ export default function EventBox({
         height,
         left: `calc(${leftPct}% + 3px)`,
         width: `calc(${widthPct}% - 6px)`,
+        transform: offsetX ? `translateX(${offsetX}px)` : undefined,
         // Uden dette overtager browseren berøringen til scroll, og træk på touch
         // bliver umuligt. Konsekvensen er, at man ikke kan scrolle ved at starte
         // fingeren på en boks — det gøres på det tomme gitter i stedet.
