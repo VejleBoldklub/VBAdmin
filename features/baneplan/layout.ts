@@ -4,8 +4,17 @@ import type { ScheduleEvent } from "./types";
 // udgangspunktet for al omregning mellem pixels og tid.
 export const ROW_H = 26; // px pr. 15 min
 export const TIME_W = 84;
-export const FIELD_W = 170;
 export const HEADER_H = 56;
+
+// Mindste bredde pr. banekolonne. Kolonnerne er fraktionelle og deler den
+// tilgængelige bredde ligeligt, så gitteret altid udfylder adminfladen. Denne
+// værdi er kun et gulv: er der ikke plads til alle baner, vokser gitteret ud
+// over sin beholder, og den vandrette scroll tager over.
+//
+// Bemærk at banekolonnernes faktiske bredde derfor ikke kan udregnes af denne
+// konstant. Skal den kendes — fx til at afgøre hvilken bane en markør er over —
+// skal den måles på DOM'en.
+export const MIN_FIELD_W = 170;
 
 // Omklædningsrum, der indgår i beregningen af ledige rum.
 export const ALL_ROOMS = [1, 2, 3, 4, 5, 6, 8, 10, 12];

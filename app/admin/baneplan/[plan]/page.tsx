@@ -35,7 +35,7 @@ export default async function BaneplanAdminPage({ params }: BaneplanAdminPagePro
   }
 
   return (
-    <AdminPageShell eyebrow={`Baneplan · ${plan.name}`} title={plan.seasonTitle}>
+    <AdminPageShell eyebrow={`Baneplan · ${plan.name}`} title={plan.seasonTitle} wide>
       <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-950">Nuværende live-plan</h2>

@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import { DAGE, minutesToLabel, type ScheduleEvent, type ScheduleField } from "@/features/baneplan/types";
 import {
   ALL_ROOMS,
-  FIELD_W,
   HEADER_H,
   layoutEvents,
+  MIN_FIELD_W,
   pickInitialDay,
   rangeForDay,
   ROW_H,
@@ -71,9 +71,9 @@ export default function ScheduleView({ fields, events }: ScheduleViewProps) {
         <div
           className="relative grid rounded-lg border border-slate-200 bg-white"
           style={{
-            gridTemplateColumns: `${TIME_W}px repeat(${fields.length}, ${FIELD_W}px)`,
+            gridTemplateColumns: `${TIME_W}px repeat(${fields.length}, minmax(${MIN_FIELD_W}px, 1fr))`,
             gridTemplateRows: `${HEADER_H}px ${bodyH}px`,
-            minWidth: TIME_W + fields.length * FIELD_W,
+            minWidth: TIME_W + fields.length * MIN_FIELD_W,
           }}
         >
           <div

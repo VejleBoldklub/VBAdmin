@@ -6,12 +6,20 @@ type AdminPageShellProps = {
   children: ReactNode;
   eyebrow: string;
   title: string;
+  // Bredere indholdsramme til sider med et tidsgitter, som har brug for al
+  // tilgængelig bredde for at undgå vandret scroll. Standardbredden passer til
+  // tekst og kort, men er for smal til en baneplan med mange baner.
+  wide?: boolean;
 };
 
-export function AdminPageShell({ children, eyebrow, title }: AdminPageShellProps) {
+export function AdminPageShell({ children, eyebrow, title, wide = false }: AdminPageShellProps) {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
-      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-5 py-5 sm:px-8 sm:py-7">
+      <div
+        className={`mx-auto flex min-h-screen w-full flex-col px-5 py-5 sm:px-8 sm:py-7 ${
+          wide ? "max-w-[1536px]" : "max-w-5xl"
+        }`}
+      >
         <header className="flex items-center justify-between gap-5 border-b border-slate-200 pb-5">
           <Link
             href="/"
