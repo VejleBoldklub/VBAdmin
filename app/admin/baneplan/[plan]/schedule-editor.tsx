@@ -12,6 +12,7 @@ import {
   aendreVarighed,
   ALL_ROOMS,
   flytTidsrum,
+  foersteLedigePlads,
   HEADER_H,
   layoutEvents,
   MIN_DURATION,
@@ -55,6 +56,10 @@ type NyBoks = { field: string; start: number; end: number };
 function nytId() {
   return `e${Date.now()}${Math.floor(Math.random() * 1000)}`;
 }
+
+// Varighed for en tildeling oprettet med knappen. Træk på gitteret bestemmer
+// selv varigheden.
+const NY_VARIGHED = 60;
 
 export default function ScheduleEditor({ fields, events, onChange }: ScheduleEditorProps) {
   const [activeDay, setActiveDay] = useState<string>(() => pickInitialDay(DAGE));
@@ -323,6 +328,19 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
     return ALL_ROOMS.filter((n) => !brugt.has(n));
   }, [dagensEvents]);
 
+  function tilfoejTildeling() {
+    const plads = foersteLedigePlads(
+      dagensEvents,
+      fields.map((f) => f.name),
+      range,
+      NY_VARIGHED
+    );
+    // Er dagen fuldt booket, lægges tildelingen ved dagens begyndelse og
+    // overlapper. Det er bedre end ingen reaktion på et klik.
+    if (plads) opret(plads.field, plads.start, plads.end);
+    else opret(fields[0].name, range.min, range.min + NY_VARIGHED);
+  }
+
   const menuEvent = menu ? events.find((e) => e.id === menu.id) : undefined;
 
   // Timelinjerne ligger som baggrund frem for som elementer, så et gitter med
@@ -353,7 +371,7 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
         </p>
         <button
           type="button"
-          onClick={() => opret(fields[0].name, range.min + 60, range.min + 120)}
+          onClick={tilfoejTildeling}
           className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
         >
           + Tilføj tildeling
