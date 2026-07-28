@@ -2,88 +2,21 @@
 
 import { useMemo, useState } from "react";
 import { DAGE, minutesToLabel, type ScheduleEvent, type ScheduleField } from "@/features/baneplan/types";
+import {
+  ALL_ROOMS,
+  FIELD_W,
+  HEADER_H,
+  layoutEvents,
+  pickInitialDay,
+  rangeForDay,
+  ROW_H,
+  TIME_W,
+} from "@/features/baneplan/layout";
 
 type ScheduleViewProps = {
   fields: ScheduleField[];
   events: ScheduleEvent[];
 };
-
-const ALL_ROOMS = [1, 2, 3, 4, 5, 6, 8, 10, 12];
-const LOCKED_ROOMS = new Set([7, 9]);
-
-const weekdayMap = ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"];
-
-function pickInitialDay(availableDays: string[]): string {
-  const today = weekdayMap[new Date().getDay()];
-  return availableDays.includes(today) ? today : availableDays[0] ?? "Mandag";
-}
-
-function rangeForDay(day: string) {
-  return day === "Lørdag" || day === "Søndag"
-    ? { min: 9 * 60, max: 14 * 60 }
-    : { min: 14 * 60 + 30, max: 21 * 60 };
-}
-
-function overlaps(a: { start: number; end: number }, b: { start: number; end: number }) {
-  return a.start < b.end && b.start < a.end;
-}
-
-type LaidOutEvent = ScheduleEvent & { col: number; cols: number };
-
-function layoutEvents(events: ScheduleEvent[]): LaidOutEvent[] {
-  const sorted = [...events].sort((a, b) => a.start - b.start || a.end - b.end);
-  const clusters: { start: number; end: number; events: ScheduleEvent[] }[] = [];
-
-  for (const ev of sorted) {
-    const hit = clusters.find((c) => c.events.some((x) => overlaps(x, ev)));
-    if (hit) {
-      hit.events.push(ev);
-      hit.start = Math.min(hit.start, ev.start);
-      hit.end = Math.max(hit.end, ev.end);
-    } else {
-      clusters.push({ start: ev.start, end: ev.end, events: [ev] });
-    }
-  }
-
-  let changed = true;
-  while (changed) {
-    changed = false;
-    outer: for (let i = 0; i < clusters.length; i++) {
-      for (let j = i + 1; j < clusters.length; j++) {
-        if (clusters[i].events.some((a) => clusters[j].events.some((b) => overlaps(a, b)))) {
-          clusters[i].events.push(...clusters[j].events);
-          clusters[i].start = Math.min(clusters[i].start, clusters[j].start);
-          clusters[i].end = Math.max(clusters[i].end, clusters[j].end);
-          clusters.splice(j, 1);
-          changed = true;
-          break outer;
-        }
-      }
-    }
-  }
-
-  const out: LaidOutEvent[] = [];
-  for (const c of clusters) {
-    const cols: ScheduleEvent[][] = [];
-    const laidOut: LaidOutEvent[] = [];
-    c.events
-      .sort((a, b) => a.start - b.start || a.end - b.end)
-      .forEach((ev) => {
-        let col = 0;
-        while (cols[col] && cols[col].some((x) => overlaps(x, ev))) col++;
-        (cols[col] ||= []).push(ev);
-        laidOut.push({ ...ev, col, cols: 0 }); // cols udfyldes, når klyngens bredde kendes
-      });
-    for (const ev of laidOut) ev.cols = cols.length;
-    out.push(...laidOut);
-  }
-  return out;
-}
-
-const ROW_H = 26; // px per 15 min
-const TIME_W = 84;
-const FIELD_W = 170;
-const HEADER_H = 56;
 
 export default function ScheduleView({ fields, events }: ScheduleViewProps) {
   const days = useMemo(() => {
@@ -108,7 +41,7 @@ export default function ScheduleView({ fields, events }: ScheduleViewProps) {
         .map((e) => Number(String(e.room ?? "").trim()))
         .filter((n) => Number.isFinite(n))
     );
-    return ALL_ROOMS.filter((n) => !LOCKED_ROOMS.has(n) && !used.has(n));
+    return ALL_ROOMS.filter((n) => !used.has(n));
   }, [dayEvents]);
 
   if (fields.length === 0) {
