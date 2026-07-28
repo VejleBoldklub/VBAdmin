@@ -18,8 +18,15 @@ export const HEADER_H = 56;
 // Værdien er valgt, så syv baner kan vises uden vandret scroll på en 1280 px
 // skærm: 84 + 7 * 160 = 1204 px, mod 1216 px tilgængeligt indhold.
 export const MIN_FIELD_W = 160;
-
-// Omklædningsrum, der indgår i beregningen af ledige rum.
+// Omklædningsrum, der frit kan tildeles, og som indgår i "Ledige omkl."
+//
+// Rum 7 og 9 er bevidst IKKE med. De er permanent låst til hhv.
+// U19 Drenge Ligaen og Kvinde Senior 1 og må aldrig tildeles andre hold —
+// heller ikke på dage, hvor det faste hold ikke selv har en tildeling i rummet.
+// Udeladelsen her ER implementeringen af den lås. Tilføj dem ikke, selv om de
+// optræder i planens data og derfor kan se ud som en forglemmelse.
+//
+// Rum 11 findes ikke i VB Parken.
 export const ALL_ROOMS = [1, 2, 3, 4, 5, 6, 8, 10, 12];
 
 const weekdayMap = ["Søndag", "Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag"];

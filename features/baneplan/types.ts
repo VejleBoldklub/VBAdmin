@@ -46,8 +46,21 @@ export type BaneplanVersion = {
   updated_at: string;
 };
 
+// Visningsformat i baneplanen: 1005 -> "16.45"
 export function minutesToLabel(m: number): string {
   const h = Math.floor(m / 60);
   const min = m % 60;
   return `${String(h).padStart(2, "0")}.${String(min).padStart(2, "0")}`;
+}
+
+// Til og fra <input type="time">, som kræver kolon: "16:45" <-> 1005
+export function tidTilMinutter(tekst: string): number {
+  const [t, m] = tekst.split(":").map(Number);
+  return (t || 0) * 60 + (m || 0);
+}
+
+export function minutterTilTid(min: number): string {
+  const t = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(t).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }

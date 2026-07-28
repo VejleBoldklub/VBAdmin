@@ -2,7 +2,15 @@
 
 import { useState } from "react";
 import type { PlanSlug } from "@/features/baneplan/plans";
-import { CATEGORIES, DAGE, type Category, type ScheduleEvent, type ScheduleField } from "@/features/baneplan/types";
+import {
+  CATEGORIES,
+  DAGE,
+  minutterTilTid,
+  tidTilMinutter,
+  type Category,
+  type ScheduleEvent,
+  type ScheduleField,
+} from "@/features/baneplan/types";
 import { gemKladde, publicerKladde, kasserKladde } from "@/features/baneplan/actions";
 import ScheduleView from "./schedule-view";
 
@@ -70,17 +78,6 @@ export default function KladdeEditor({
 
   function fjernEvent(id: string) {
     setEvents((prev) => prev.filter((e) => e.id !== id));
-  }
-
-  function tidTilMinutter(tekst: string): number {
-    const [t, m] = tekst.split(":").map(Number);
-    return (t || 0) * 60 + (m || 0);
-  }
-
-  function minutterTilTid(min: number): string {
-    const t = Math.floor(min / 60);
-    const m = min % 60;
-    return `${String(t).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   }
 
   async function handleGem() {

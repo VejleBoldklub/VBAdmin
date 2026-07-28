@@ -77,7 +77,7 @@ values (
 -- Hvad testdataene dækker
 -- =======================
 --
--- Kategorier (alle fem farvekoder i categoryClass(), schedule-view.tsx:260):
+-- Kategorier (alle fem farvekoder i categoryClass() i schedule-view.tsx):
 --   piger       grøn      t01, t02, t08, t09, t11, t12, t17, t18, t19
 --   drenge      ravgul    t04, t07, t13, t14, t15
 --   akademi     lyseblå   t03, t22
@@ -86,9 +86,9 @@ values (
 --
 -- Dage som faner: Mandag, Tirsdag, Onsdag, Lørdag, Søndag.
 --   Hverdage bruger tidsgitteret 14.30-21.00, weekend 09.00-14.00
---   (rangeForDay(), schedule-view.tsx:21).
+--   (rangeForDay() i features/baneplan/layout.ts).
 --
--- Overlap og kolonneopdeling i layoutEvents():
+-- Overlap og kolonneopdeling i layoutEvents() i features/baneplan/layout.ts:
 --   t08 + t09  to samtidige tildelinger på Bane 10/11 mandag   -> 2 kolonner
 --   t11+t12+t13 tre overlappende på Bane 3 tirsdag             -> 3 kolonner
 --
@@ -98,12 +98,17 @@ values (
 --   t21 slutter præcis 14.00, weekendgitterets slut            -> kant uden beskæring
 --
 -- Omklædningsrum og "Ledige omkl.":
---   ALL_ROOMS er 1,2,3,4,5,6,8,10,12 og 7+9 er permanent låst
---   (schedule-view.tsx:11-12).
+--   ALL_ROOMS er 1,2,3,4,5,6,8,10,12 (features/baneplan/layout.ts).
+--   Rum 7 og 9 er permanent låst til U19 Drenge Ligaen hhv. Kvinde Senior 1 og
+--   kan aldrig blive ledige for andre hold, uanset dag. Rum 11 findes ikke.
+--   Ingen af dem kan derfor optræde i "Ledige omkl.", og testdataene bruger
+--   dem ikke.
 --   Mandag optages 1,2,3,6,10 -> forventet ledigt: 4, 5, 8, 12
 --   Tirsdag optages 4,5,8,12  -> forventet ledigt: 1, 2, 3, 6, 10
+--   Onsdag optages 1,2        -> forventet ledigt: 3, 4, 5, 6, 8, 10, 12
+--   Lørdag optages 1,3        -> forventet ledigt: 2, 4, 5, 6, 8, 10, 12
 --   Søndag optages ingen      -> forventet ledigt: alle ni
 --
 -- Kolonnen "room" bruger "-" for ingen omklædning, som i den nuværende
 -- produktionsplan. ScheduleView skjuler feltet når værdien er "-"
--- (hasRoom, schedule-view.tsx:202).
+-- (hasRoom i schedule-view.tsx).
