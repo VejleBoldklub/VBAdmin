@@ -1,18 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlanSlug } from "@/features/baneplan/plans";
-import {
-  CATEGORIES,
-  DAGE,
-  minutterTilTid,
-  tidTilMinutter,
-  type Category,
-  type ScheduleEvent,
-  type ScheduleField,
-} from "@/features/baneplan/types";
+import type { ScheduleEvent, ScheduleField } from "@/features/baneplan/types";
 import { gemKladde, publicerKladde, kasserKladde } from "@/features/baneplan/actions";
-import ScheduleView from "./schedule-view";
+import ScheduleEditor from "./schedule-editor";
 
 type KladdeEditorProps = {
   kladdeId: string;
@@ -22,9 +14,12 @@ type KladdeEditorProps = {
   initialEvents: ScheduleEvent[];
 };
 
-function nytId() {
-  return `e${Date.now()}${Math.floor(Math.random() * 1000)}`;
-}
+type GemStatus = "gemt" | "ugemt" | "gemmer" | "fejl";
+
+// Hvor længe der ventes efter sidste ændring, før kladden gemmes. Kort nok til
+// at arbejde ikke kan tabes ved et uheld, langt nok til at et træk med mange
+// mellemtrin kun udløser én gemning.
+const AUTOSAVE_MS = 1000;
 
 export default function KladdeEditor({
   kladdeId,
@@ -36,73 +31,87 @@ export default function KladdeEditor({
   const [saesontitel, setSaesontitel] = useState(initialSaesontitel);
   const [fields, setFields] = useState<ScheduleField[]>(initialFields);
   const [events, setEvents] = useState<ScheduleEvent[]>(initialEvents);
-  const [status, setStatus] = useState<string | null>(null);
+  const [gemStatus, setGemStatus] = useState<GemStatus>("gemt");
+  const [sidstGemt, setSidstGemt] = useState<string | null>(null);
   const [fejl, setFejl] = useState<string | null>(null);
   const [arbejder, setArbejder] = useState(false);
+
+  // Revisionstæller, så en gemning, der bliver overhalet af nye ændringer, ikke
+  // melder "Gemt" for noget, der endnu ikke er sendt afsted.
+  const revision = useRef(0);
+
+  function markerAendret() {
+    revision.current += 1;
+    setGemStatus("ugemt");
+  }
+
+  const gem = useCallback(async () => {
+    const rev = revision.current;
+    setGemStatus("gemmer");
+    try {
+      await gemKladde(kladdeId, saesontitel, fields, events);
+      setFejl(null);
+      setSidstGemt(new Date().toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" }));
+      // Kom der ændringer, mens vi gemte, er kladden stadig ugemt.
+      setGemStatus(revision.current === rev ? "gemt" : "ugemt");
+    } catch (e) {
+      setGemStatus("fejl");
+      setFejl(e instanceof Error ? e.message : "Kunne ikke gemme kladden.");
+    }
+  }, [kladdeId, saesontitel, fields, events]);
+
+  // Autosave. Nulstilles ved hver ændring, så et træk kun gemmer én gang.
+  useEffect(() => {
+    if (gemStatus !== "ugemt") return;
+    const t = setTimeout(() => {
+      void gem();
+    }, AUTOSAVE_MS);
+    return () => clearTimeout(t);
+  }, [gemStatus, gem]);
+
+  // Advar hvis fanen lukkes med ugemte ændringer.
+  useEffect(() => {
+    if (gemStatus === "gemt") return;
+    function advar(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", advar);
+    return () => window.removeEventListener("beforeunload", advar);
+  }, [gemStatus]);
 
   function tilfoejBane() {
     const navn = prompt("Navn på ny bane (fx 'Bane 12'):");
     if (!navn) return;
+    if (fields.some((f) => f.name === navn)) {
+      setFejl(`Der findes allerede en bane med navnet "${navn}".`);
+      return;
+    }
     setFields((prev) => [...prev, { name: navn }]);
+    markerAendret();
   }
 
   function fjernBane(navn: string) {
     if (!confirm(`Fjern "${navn}"? Alle tildelinger på denne bane fjernes også.`)) return;
     setFields((prev) => prev.filter((f) => f.name !== navn));
     setEvents((prev) => prev.filter((e) => e.field !== navn));
+    markerAendret();
   }
 
-  function tilfoejEvent() {
-    if (fields.length === 0) {
-      setFejl("Opret mindst en bane, før du tilføjer en tildeling.");
-      return;
-    }
-    setEvents((prev) => [
-      ...prev,
-      {
-        id: nytId(),
-        day: "Mandag",
-        team: "",
-        start: 16 * 60,
-        end: 17 * 60,
-        field: fields[0].name,
-        room: "",
-        category: "piger",
-      },
-    ]);
-  }
-
-  function opdaterEvent(id: string, felt: keyof ScheduleEvent, vaerdi: string | number) {
-    setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, [felt]: vaerdi } : e)));
-  }
-
-  function fjernEvent(id: string) {
-    setEvents((prev) => prev.filter((e) => e.id !== id));
-  }
-
-  async function handleGem() {
-    setFejl(null);
-    setArbejder(true);
-    try {
-      await gemKladde(kladdeId, slug, saesontitel, fields, events);
-      setStatus("Kladden er gemt.");
-    } catch (e) {
-      setFejl(e instanceof Error ? e.message : "Kunne ikke gemme kladden.");
-    } finally {
-      setArbejder(false);
-    }
+  function opdaterEvents(naeste: ScheduleEvent[]) {
+    setEvents(naeste);
+    markerAendret();
   }
 
   async function handlePublicer() {
     setFejl(null);
     setArbejder(true);
     try {
-      await gemKladde(kladdeId, slug, saesontitel, fields, events);
+      await gemKladde(kladdeId, saesontitel, fields, events);
+      setGemStatus("gemt");
       await publicerKladde(kladdeId, slug);
-      setStatus("Planen er publiceret og er nu den offentlige, gældende plan.");
     } catch (e) {
       setFejl(e instanceof Error ? e.message : "Kunne ikke publicere kladden.");
-    } finally {
       setArbejder(false);
     }
   }
@@ -110,6 +119,8 @@ export default function KladdeEditor({
   async function handleKasser() {
     if (!confirm("Er du sikker på, at du vil kassere denne kladde?")) return;
     setArbejder(true);
+    // Kladden forsvinder, så ugemte ændringer skal ikke udløse en advarsel.
+    setGemStatus("gemt");
     try {
       await kasserKladde(kladdeId, slug);
     } catch (e) {
@@ -120,15 +131,18 @@ export default function KladdeEditor({
 
   return (
     <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-bold text-slate-950">Kladde (sandkasse)</h2>
-        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-800">
-          Kladde
-        </span>
+        <div className="flex items-center gap-2">
+          <GemBadge status={gemStatus} sidstGemt={sidstGemt} />
+          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-800">
+            Kladde
+          </span>
+        </div>
       </div>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-        Ændringer her påvirker ikke den offentlige plan, før du publicerer. Forhåndsvisningen nedenfor viser,
-        hvordan planen kommer til at se ud.
+        Ændringer her påvirker ikke den offentlige plan, før du publicerer. Kladden gemmes
+        automatisk, mens du arbejder.
       </p>
 
       <div className="mt-5">
@@ -136,7 +150,10 @@ export default function KladdeEditor({
           Sæsontitel
           <input
             value={saesontitel}
-            onChange={(e) => setSaesontitel(e.target.value)}
+            onChange={(e) => {
+              setSaesontitel(e.target.value);
+              markerAendret();
+            }}
             placeholder="Efterår '26 / Forår '27"
             className="mt-1 block w-full max-w-sm rounded-lg border border-slate-200 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
           />
@@ -152,7 +169,12 @@ export default function KladdeEditor({
               className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700"
             >
               {f.name}
-              <button type="button" onClick={() => fjernBane(f.name)} className="text-slate-400 hover:text-red-700">
+              <button
+                type="button"
+                onClick={() => fjernBane(f.name)}
+                aria-label={`Fjern ${f.name}`}
+                className="text-slate-400 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+              >
                 x
               </button>
             </span>
@@ -160,143 +182,36 @@ export default function KladdeEditor({
           <button
             type="button"
             onClick={tilfoejBane}
-            className="rounded-full border border-dashed border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-50"
+            className="rounded-full border border-dashed border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
           >
             + Tilføj bane
           </button>
         </div>
       </div>
 
-      <div className="mt-6 overflow-x-auto">
+      <div className="mt-6">
         <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">Tildelinger</h3>
-        <table className="w-full min-w-[820px] border-collapse text-sm">
-          <thead>
-            <tr>
-              {["Hold", "Bane", "Dag", "Start", "Slut", "Omkl.", "Kategori", ""].map((th) => (
-                <th key={th} className="border-b-2 border-slate-200 p-2 text-left text-xs font-bold uppercase text-slate-500">
-                  {th}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {events.map((ev) => (
-              <tr key={ev.id}>
-                <td className="border-b border-slate-100 p-1.5">
-                  <input
-                    value={ev.team}
-                    onChange={(e) => opdaterEvent(ev.id, "team", e.target.value)}
-                    placeholder="U15 Drenge"
-                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5"
-                  />
-                </td>
-                <td className="border-b border-slate-100 p-1.5">
-                  <select
-                    value={ev.field}
-                    onChange={(e) => opdaterEvent(ev.id, "field", e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5"
-                  >
-                    {fields.map((f) => (
-                      <option key={f.name} value={f.name}>
-                        {f.name}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="border-b border-slate-100 p-1.5">
-                  <select
-                    value={ev.day}
-                    onChange={(e) => opdaterEvent(ev.id, "day", e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5"
-                  >
-                    {DAGE.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="border-b border-slate-100 p-1.5">
-                  <input
-                    type="time"
-                    value={minutterTilTid(ev.start)}
-                    onChange={(e) => opdaterEvent(ev.id, "start", tidTilMinutter(e.target.value))}
-                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5"
-                  />
-                </td>
-                <td className="border-b border-slate-100 p-1.5">
-                  <input
-                    type="time"
-                    value={minutterTilTid(ev.end)}
-                    onChange={(e) => opdaterEvent(ev.id, "end", tidTilMinutter(e.target.value))}
-                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5"
-                  />
-                </td>
-                <td className="border-b border-slate-100 p-1.5">
-                  <input
-                    value={ev.room ?? ""}
-                    onChange={(e) => opdaterEvent(ev.id, "room", e.target.value)}
-                    placeholder="-"
-                    className="w-16 rounded-lg border border-slate-200 px-2 py-1.5"
-                  />
-                </td>
-                <td className="border-b border-slate-100 p-1.5">
-                  <select
-                    value={ev.category}
-                    onChange={(e) => opdaterEvent(ev.id, "category", e.target.value as Category)}
-                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c.value} value={c.value}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="border-b border-slate-100 p-1.5 text-right">
-                  <button type="button" onClick={() => fjernEvent(ev.id)} className="text-xs font-semibold text-slate-500 hover:text-red-700">
-                    Fjern
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <button
-          type="button"
-          onClick={tilfoejEvent}
-          className="mt-3 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        >
-          + Tilføj tildeling
-        </button>
+        <ScheduleEditor fields={fields} events={events} onChange={opdaterEvents} />
       </div>
-
-      {fields.length > 0 && (
-        <div className="mt-6">
-          <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">Forhåndsvisning</h3>
-          <ScheduleView fields={fields} events={events} />
-        </div>
-      )}
 
       <hr className="my-6 border-slate-200" />
 
-      {fejl && <p className="mt-4 text-sm font-semibold text-red-700">{fejl}</p>}
-      {status && !fejl && <p className="mt-4 text-sm font-semibold text-emerald-700">{status}</p>}
+      {fejl && <p className="mb-4 text-sm font-semibold text-red-700">{fejl}</p>}
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={handleGem}
-          disabled={arbejder}
-          className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          onClick={() => void gem()}
+          disabled={arbejder || gemStatus === "gemmer"}
+          className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
         >
-          Gem kladde
+          Gem nu
         </button>
         <button
           type="button"
           onClick={handlePublicer}
           disabled={arbejder}
-          className="rounded-lg bg-red-700 px-3.5 py-2 text-sm font-bold text-white hover:bg-red-800 disabled:opacity-50"
+          className="rounded-lg bg-red-700 px-3.5 py-2 text-sm font-bold text-white hover:bg-red-800 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
         >
           Publicer som live-plan
         </button>
@@ -304,11 +219,43 @@ export default function KladdeEditor({
           type="button"
           onClick={handleKasser}
           disabled={arbejder}
-          className="rounded-lg px-3.5 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+          className="rounded-lg px-3.5 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
         >
           Kasser kladde
         </button>
       </div>
     </div>
+  );
+}
+
+function GemBadge({ status, sidstGemt }: { status: GemStatus; sidstGemt: string | null }) {
+  const tekst =
+    status === "gemmer"
+      ? "Gemmer…"
+      : status === "ugemt"
+        ? "Ikke gemt"
+        : status === "fejl"
+          ? "Kunne ikke gemme"
+          : sidstGemt
+            ? `Gemt kl. ${sidstGemt}`
+            : "Gemt";
+
+  const farve =
+    status === "fejl"
+      ? "bg-red-100 text-red-800"
+      : status === "ugemt"
+        ? "bg-slate-100 text-slate-600"
+        : status === "gemmer"
+          ? "bg-sky-100 text-sky-800"
+          : "bg-emerald-100 text-emerald-800";
+
+  return (
+    <span
+      role="status"
+      aria-live="polite"
+      className={`rounded-full px-3 py-1 text-xs font-semibold ${farve}`}
+    >
+      {tekst}
+    </span>
   );
 }

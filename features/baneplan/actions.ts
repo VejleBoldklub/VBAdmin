@@ -70,9 +70,13 @@ export async function opretKladdeFraLive(slug: PlanSlug) {
   revalidatePath(adminPathFor(slug));
 }
 
+// Kaldes løbende af kladde-editorens autosave. Revaliderer bevidst IKKE ruten:
+// editoren holder selv kladdens tilstand, mens der redigeres, så en revalidering
+// pr. gemning ville udløse en serverrundtur og en gennemtegning af hele siden
+// uden at ændre noget synligt. Live-planen på samme side er upåvirket af, at en
+// kladde gemmes. Publicering og kassering revaliderer fortsat.
 export async function gemKladde(
   id: string,
-  slug: PlanSlug,
   saesontitel: string,
   fields: ScheduleField[],
   events: ScheduleEvent[]
@@ -90,8 +94,6 @@ export async function gemKladde(
   if (error) {
     throw new Error(`Kunne ikke gemme kladde: ${error.message}`);
   }
-
-  revalidatePath(adminPathFor(slug));
 }
 
 // En kladde bliver live med det samme ved publicering. Der findes ikke
