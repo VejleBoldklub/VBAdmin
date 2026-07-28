@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlanSlug } from "@/features/baneplan/plans";
-import type { ScheduleEvent, ScheduleField } from "@/features/baneplan/types";
+import type { Maaltavle, ScheduleEvent, ScheduleField } from "@/features/baneplan/types";
 import { gemKladde, publicerKladde, kasserKladde } from "@/features/baneplan/actions";
+import MaaltavleEditor from "./maaltavle-editor";
 import ScheduleEditor from "./schedule-editor";
 
 type KladdeEditorProps = {
@@ -12,6 +13,7 @@ type KladdeEditorProps = {
   initialSaesontitel: string;
   initialFields: ScheduleField[];
   initialEvents: ScheduleEvent[];
+  initialMaaltavle: Maaltavle | undefined;
 };
 
 type GemStatus = "gemt" | "ugemt" | "gemmer" | "fejl";
@@ -27,10 +29,12 @@ export default function KladdeEditor({
   initialSaesontitel,
   initialFields,
   initialEvents,
+  initialMaaltavle,
 }: KladdeEditorProps) {
   const [saesontitel, setSaesontitel] = useState(initialSaesontitel);
   const [fields, setFields] = useState<ScheduleField[]>(initialFields);
   const [events, setEvents] = useState<ScheduleEvent[]>(initialEvents);
+  const [maaltavle, setMaaltavle] = useState<Maaltavle | undefined>(initialMaaltavle);
   const [gemStatus, setGemStatus] = useState<GemStatus>("gemt");
   const [sidstGemt, setSidstGemt] = useState<string | null>(null);
   const [fejl, setFejl] = useState<string | null>(null);
@@ -49,7 +53,7 @@ export default function KladdeEditor({
     const rev = revision.current;
     setGemStatus("gemmer");
     try {
-      await gemKladde(kladdeId, saesontitel, fields, events);
+      await gemKladde(kladdeId, saesontitel, { fields, events, maaltavle });
       setFejl(null);
       setSidstGemt(new Date().toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" }));
       // Kom der ændringer, mens vi gemte, er kladden stadig ugemt.
@@ -58,7 +62,7 @@ export default function KladdeEditor({
       setGemStatus("fejl");
       setFejl(e instanceof Error ? e.message : "Kunne ikke gemme kladden.");
     }
-  }, [kladdeId, saesontitel, fields, events]);
+  }, [kladdeId, saesontitel, fields, events, maaltavle]);
 
   // Autosave. Nulstilles ved hver ændring, så et træk kun gemmer én gang.
   useEffect(() => {
@@ -107,7 +111,7 @@ export default function KladdeEditor({
     setFejl(null);
     setArbejder(true);
     try {
-      await gemKladde(kladdeId, saesontitel, fields, events);
+      await gemKladde(kladdeId, saesontitel, { fields, events, maaltavle });
       setGemStatus("gemt");
       await publicerKladde(kladdeId, slug);
     } catch (e) {
@@ -192,6 +196,20 @@ export default function KladdeEditor({
       <div className="mt-6">
         <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">Tildelinger</h3>
         <ScheduleEditor fields={fields} events={events} onChange={opdaterEvents} />
+      </div>
+
+      <div className="mt-6">
+        <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">
+          Måloversigt
+        </h3>
+        <MaaltavleEditor
+          maaltavle={maaltavle}
+          fields={fields}
+          onChange={(naeste) => {
+            setMaaltavle(naeste);
+            markerAendret();
+          }}
+        />
       </div>
 
       <hr className="my-6 border-slate-200" />

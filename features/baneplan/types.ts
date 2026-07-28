@@ -28,9 +28,35 @@ export type ScheduleEvent = {
   category: Category;
 };
 
+// Måloversigten nederst på den offentlige baneplan: hvilke måltyper der står på
+// hvilke baner. Det er stamdata om parken, ikke en del af sæsonens tildelinger,
+// og ændres derfor sjældent.
+//
+// En celle peger på de baner den dækker ved navn frem for ved kolonneposition.
+// To fordele: den oprindelige tavle har celler slået sammen over to baner, og
+// navneopslag gør tavlen robust, når en bane tilføjes eller fjernes — en ny bane
+// får ingen værdi, og en fjernet bane forsvinder af sig selv.
+export type MaaltavleCelle = {
+  baner: string[];
+  vaerdi: string;
+};
+
+export type MaaltavleRaekke = {
+  // Måltypen, fx "3-mands" eller "11-mands".
+  type: string;
+  celler: MaaltavleCelle[];
+};
+
+export type Maaltavle = {
+  raekker: MaaltavleRaekke[];
+};
+
 export type BaneplanData = {
   fields: ScheduleField[];
   events: ScheduleEvent[];
+  // Valgfri. Vinterplanen har ingen måloversigt, fordi alle mål om vinteren er
+  // samlet på to baner, og der derfor ikke er en fordeling at vise.
+  maaltavle?: Maaltavle;
 };
 
 export type BaneplanStatus = "draft" | "live" | "archived";
