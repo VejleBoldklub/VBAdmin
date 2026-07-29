@@ -95,10 +95,15 @@ create table if not exists lokale_bookinger (
 -- tidsrummet. Ellers kunne to personer få hver sin afventende booking på samme
 -- tid, og den ene ville uundgåeligt få et afslag efter at have fået håb.
 -- Afviste og aflyste bookinger frigiver tiden igen.
+-- conrelid er med i tjekket, fordi conname ikke er unik på tværs af tabeller.
+-- Uden den ville reglen blive sprunget over, hvis en anden tabel senere fik en
+-- constraint med samme navn.
 do $$
 begin
   if not exists (
-    select 1 from pg_constraint where conname = 'ingen_dobbeltbooking'
+    select 1 from pg_constraint
+     where conname = 'ingen_dobbeltbooking'
+       and conrelid = 'lokale_bookinger'::regclass
   ) then
     alter table lokale_bookinger
       add constraint ingen_dobbeltbooking
@@ -135,6 +140,27 @@ create table if not exists booking_forsoeg (
 
 create index if not exists booking_forsoeg_opslag
   on booking_forsoeg (ip_hash, tidspunkt desc);
+
+
+-- 4b) updated_at holdes sand
+-- ==========================
+--
+-- Kolonnen har en default ved oprettelse, men uden en trigger ville den blive
+-- stående på oprettelsestidspunktet og altså lyve efter enhver opdatering. En
+-- tidsstempelkolonne, der ikke er sand, er værre end ingen: den bruges til at
+-- vurdere hvornår noget sidst blev rørt, fx når en booking godkendes.
+create or replace function saet_updated_at() returns trigger
+language plpgsql as $$
+begin
+  new.updated_at := now();
+  return new;
+end $$;
+
+drop trigger if exists lokale_bookinger_updated_at on lokale_bookinger;
+
+create trigger lokale_bookinger_updated_at
+  before update on lokale_bookinger
+  for each row execute function saet_updated_at();
 
 
 -- 5) Rækkesikkerhed
@@ -196,7 +222,19 @@ create policy "offentlig oprettelse af bookinger"
 -- service_role omgår rækkesikkerhed og bruges kun af adminfladen bag login.
 
 grant select on lokale_optagethed to anon;
-grant insert on lokale_bookinger  to anon;
+
+-- Kolonnebegrænset med vilje. Et almindeligt "grant insert on lokale_bookinger"
+-- ville give anon ret til at forsøge at sætte enhver kolonne, og så er policyens
+-- WITH CHECK den eneste spærre foran token-felterne. Med to spærrer kan én
+-- fremtidig fejl i policyen ikke i sig selv eksponere godkend_token_hash eller
+-- slet_token_hash — rettigheden findes simpelthen ikke.
+--
+-- Nye kolonner, som brugeren skal kunne udfylde, skal tilføjes her. Glemmes det,
+-- fejler oprettelsen tydeligt frem for at åbne noget.
+grant insert (
+  lokale, start_tid, slut_tid, status,
+  formaal, navn, email, mobil, besked
+) on lokale_bookinger to anon;
 
 
 -- 6) Sletning af egen booking
@@ -210,6 +248,16 @@ grant insert on lokale_bookinger  to anon;
 -- Derfor en security definer-funktion, hvor sammenligningen sker inde i
 -- databasen. Anon har ingen delete-rettighed på tabellen — kun ret til at kalde
 -- denne funktion, hvis logik er spærren.
+--
+-- VIGTIGT om hvad funktionen IKKE beskytter mod. Returværdien afslører, om
+-- mailen matchede. Med et kendt booking-id er funktionen derfor et orakel, der
+-- kan gætte sig frem til bookerens mailadresse, ét forsøg ad gangen. Selve
+-- bookingerne kan ikke opregnes — id'et er et UUID med 122 bits entropi — men
+-- har man først et id, kan mailen afsløres.
+--
+-- Kaldet skal derfor gå gennem registrer_bookingforsoeg, ligesom oprettelse, så
+-- gætteforsøg begrænses pr. IP. Det er et krav til den rute, der kalder
+-- funktionen, ikke noget funktionen selv kan håndhæve.
 create or replace function slet_egen_booking(p_id uuid, p_email text)
 returns boolean
 language plpgsql
@@ -284,6 +332,16 @@ grant execute on function registrer_bookingforsoeg(text, int) to anon;
 -- Findes udelukkelsesreglen?
 --   select conname, pg_get_constraintdef(oid) from pg_constraint
 --    where conrelid = 'lokale_bookinger'::regclass and contype = 'x';
+--
+-- Er insert-rettigheden kolonnebegrænset? Token-kolonnerne må IKKE optræde:
+--   select column_name from information_schema.column_privileges
+--    where table_name = 'lokale_bookinger' and grantee = 'anon'
+--      and privilege_type = 'INSERT' order by column_name;
+--
+-- Opdateres updated_at? Tidsstemplet skal ændre sig:
+--   select updated_at from lokale_bookinger where email = 'test@example.com';
+--   update lokale_bookinger set formaal = 'Rettet' where email = 'test@example.com';
+--   select updated_at from lokale_bookinger where email = 'test@example.com';
 --
 -- Afvises overlap? Andet kald skal fejle med 23P01 exclusion_violation:
 --   insert into lokale_bookinger (lokale,start_tid,slut_tid,status,formaal,navn,email,mobil)
