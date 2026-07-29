@@ -93,7 +93,6 @@ Airtable må **ikke** anvendes som datakilde til baneplanen.
 Airtable kan senere anvendes som database til administrative moduler, blandt andet:
 
 - brugere, roller og rettigheder
-- lokaler og lokalebooking
 - cafeteria og kassesystem
 - varer, kategorier og priser
 - lager
@@ -101,6 +100,8 @@ Airtable kan senere anvendes som database til administrative moduler, blandt and
 - dagsafslutninger og rapporter
 
 Airtable-integrationer skal ligge bag serverkode. API-nøgler eller andre legitimationsoplysninger må aldrig sendes til browseren eller gemmes i repositoryet.
+
+Airtable må **ikke** anvendes som datakilde til lokalebooking. Modulet bruger Supabase, ligesom baneplanen. Begrundelsen er, at bookinger skal håndhæve regler, som kun en database kan garantere — særligt at dobbeltbooking er umulig, hvilket kræver en udelukkelsesregel på tabellen, ikke en kontrol i applikationen. Dertil kommer, at endnu en datakilde ville betyde endnu et integrationslag og endnu en nøgle at beskytte.
 
 ## 8. Hosting, deployment og miljøer
 
@@ -260,9 +261,14 @@ En ændring er først færdig, når:
 
 ### Fase 3 — Lokalebooking
 
-- afklaring af eksisterende SuperSaaS-flow og fremtidige integrationer
-- lokalemodel og bookingregler
-- Airtable som mulig datakilde bag et server-side integrationslag
+Modulet erstatter den nuværende SuperSaaS-baserede rumbooking. Der migreres ingen historik fra SuperSaaS.
+
+- Supabase som datakilde, med dobbeltbooking forhindret af en udelukkelsesregel i databasen
+- to bookbare ressourcer: mødelokale og cafeteria, med hver sine regler for godkendelse
+- offentlig, indlejringsegnet rute til brug i en iframe på klubbens hjemmeside, adskilt fra adminfladen
+- den offentlige rute skal kunne oprette bookinger, ikke kun læse. Det sker med en anon-nøgle bag rækkesikkerhed, adskilt fra adminfladens service_role-klient
+- godkendelsesflow for cafeteria, både fra adminfladen og fra et link i en notifikationsmail
+- e-mail som eneste identitetsmekanisme indtil videre. Sporing af hvem der booker via DBU-login er udskudt, indtil adgangen til DBU's API er afklaret
 
 ### Fase 4 — Historik
 
