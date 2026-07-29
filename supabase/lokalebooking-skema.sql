@@ -41,6 +41,13 @@ create table if not exists lokale_bookinger (
                         ('afventer','bekraeftet','afvist','aflyst')),
 
   formaal             text not null check (length(btrim(formaal)) between 1 and 200),
+
+  -- Frit tekstfelt, valgfrit. Klubben bruger det til at se hvilket hold en
+  -- booking hører til, men mange bookinger har intet hold, og feltet må derfor
+  -- ikke kunne blokere en oprettelse. Tom streng normaliseres til null i
+  -- serverkoden, så "ikke udfyldt" kun har én repræsentation i databasen.
+  hold                text check (hold is null or length(btrim(hold)) between 1 and 100),
+
   navn                text not null check (length(btrim(navn)) between 2 and 100),
   email               text not null check (email ~* '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$'),
   mobil               text not null check (length(btrim(mobil)) between 6 and 20),
@@ -79,6 +86,37 @@ create table if not exists lokale_bookinger (
 -- immutable udtryk. De regler ligger i rækkesikkerhedspolicyen nedenfor, hvor
 -- volatile funktioner er tilladt — og hvor de gælder selv ved et direkte
 -- API-kald.
+
+
+-- 1b) Kolonner tilføjet efter første kørsel
+-- =========================================
+--
+-- Kolonner, der kommer til senere, skal stå her OG i create table ovenfor.
+-- Grunden er, at tabellen oprettes med "create table if not exists": på en
+-- database, hvor filen allerede har været kørt, springes hele blokken over, og
+-- en kolonne tilføjet deroppe ville aldrig blive oprettet. Omvendt hører den
+-- stadig i tabeldefinitionen, så den kan læses som én helhed.
+--
+-- Dobbeltføringen er altså bevidst. Begge steder er idempotente, så filen kan
+-- køres igen uden at gøre skade.
+alter table lokale_bookinger
+  add column if not exists hold text;
+
+-- Navnet er ikke tilfældigt: det er præcis det navn, Postgres selv giver check-
+-- reglen på kolonnen i create table ovenfor. På en ny database findes reglen
+-- derfor allerede, og blokken springes over frem for at oprette en dublet.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+     where conname = 'lokale_bookinger_hold_check'
+       and conrelid = 'lokale_bookinger'::regclass
+  ) then
+    alter table lokale_bookinger
+      add constraint lokale_bookinger_hold_check
+      check (hold is null or length(btrim(hold)) between 1 and 100);
+  end if;
+end $$;
 
 
 -- 2) Dobbeltbooking er fysisk umulig
@@ -252,7 +290,7 @@ revoke insert on lokale_bookinger from anon;
 -- fejler oprettelsen tydeligt frem for at åbne noget.
 grant insert (
   id, lokale, start_tid, slut_tid, status,
-  formaal, navn, email, mobil, besked
+  formaal, hold, navn, email, mobil, besked
 ) on lokale_bookinger to anon;
 
 
@@ -352,8 +390,8 @@ grant execute on function registrer_bookingforsoeg(text, int) to anon;
 --   select conname, pg_get_constraintdef(oid) from pg_constraint
 --    where conrelid = 'lokale_bookinger'::regclass and contype = 'x';
 --
--- Er insert-rettigheden kolonnebegrænset? Der skal stå præcis ti kolonner, og
--- godkend_token_hash og slet_token_hash må IKKE være blandt dem:
+-- Er insert-rettigheden kolonnebegrænset? Der skal stå præcis elleve kolonner,
+-- og godkend_token_hash og slet_token_hash må IKKE være blandt dem:
 --   select column_name from information_schema.column_privileges
 --    where table_name = 'lokale_bookinger' and grantee = 'anon'
 --      and privilege_type = 'INSERT' order by column_name;
@@ -365,6 +403,11 @@ grant execute on function registrer_bookingforsoeg(text, int) to anon;
 --
 -- Praktisk prøve udefra med anon-nøglen: et forsøg på at sætte en kolonne uden
 -- for listen skal afvises. Fx godkend_token_hash i en ellers gyldig booking.
+--
+-- Findes hold-kolonnen med sin check-regel, og kun én gang?
+--   select conname, pg_get_constraintdef(oid) from pg_constraint
+--    where conrelid = 'lokale_bookinger'::regclass
+--      and pg_get_constraintdef(oid) ilike '%hold%';
 --
 -- Opdateres updated_at? Tidsstemplet skal ændre sig:
 --   select updated_at from lokale_bookinger where email = 'test@example.com';

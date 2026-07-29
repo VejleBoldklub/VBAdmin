@@ -12,6 +12,8 @@ export type Booking = {
   slut_tid: string;
   status: BookingStatus;
   formaal: string;
+  // Frit tekstfelt, valgfrit. Tom indtastning gemmes som null, ikke "".
+  hold: string | null;
   navn: string;
   email: string;
   mobil: string;
@@ -43,6 +45,7 @@ export type NyBooking = {
   start_tid: string;
   slut_tid: string;
   formaal: string;
+  hold: string | null;
   navn: string;
   email: string;
   mobil: string;

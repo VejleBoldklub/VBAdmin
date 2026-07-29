@@ -148,3 +148,76 @@ export function minutterTilKlokke(minutter: number): string {
   const m = minutter % 60;
   return `${String(t).padStart(2, "0")}.${String(m).padStart(2, "0")}`;
 }
+
+// Et tidsrum skrevet ud i dansk tid, til kvitteringer og mails: "onsdag 5. august
+// 2026 kl. 16.00–17.00".
+//
+// Formateres altid i dansk tid, uanset hvor læseren sidder. En bekræftelse, der
+// viser et andet klokkeslæt end det bookede, er værre end ingen bekræftelse.
+const TIDSRUM_DAG = new Intl.DateTimeFormat("da-DK", {
+  timeZone: TIDSZONE,
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+export function tidsrumTekst(start: Date, slut: Date): string {
+  const s = danskTid(start);
+  const sl = danskTid(slut);
+  return `${TIDSRUM_DAG.format(start)} kl. ${minutterTilKlokke(s.minutter)}–${minutterTilKlokke(sl.minutter)}`;
+}
+
+// Den modsatte vej af danskTid: en dato og en klokketid, som brugeren har valgt i
+// dansk tid, oversat til det tidspunkt på tidslinjen der skal i databasen.
+//
+// Nødvendig, fordi hverken serveren eller browseren kan antages at stå i dansk
+// tid. Vercel kører i UTC, og en bruger på ferie i Spanien skal stadig kunne
+// booke kl. 16.00 dansk tid. `new Date("2026-08-05T16:00")` ville bruge
+// afviklingsmiljøets egen tidszone og altså give et forkert tidspunkt.
+//
+// Fremgangsmåden: gæt først på tidspunktet som om dansk tid var UTC, se hvad det
+// gæt faktisk svarer til i dansk tid, og ret gættet med forskellen. Anden runde
+// fanger de tilfælde, hvor rettelsen selv flytter gættet over et sommertidsskift.
+//
+// Tidspunkter, der ikke findes eller findes to gange, opstår kun ved skiftet kl.
+// 02.00–03.00, som ligger uden for åbningstiden. Funktionen returnerer i de
+// tilfælde et brugbart tidspunkt frem for at fejle, og tjekTidsrum afviser det
+// alligevel, hvis det ligger uden for åbningstiden.
+export function danskTidTilInstant(dato: string, minutter: number): Date {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dato)) {
+    throw new Error(`Ugyldig dato: ${dato}`);
+  }
+
+  const oensket = Date.parse(`${dato}T00:00:00Z`) + minutter * 60000;
+  if (Number.isNaN(oensket)) {
+    throw new Error(`Ugyldig dato: ${dato}`);
+  }
+
+  let instant = oensket;
+  for (let runde = 0; runde < 2; runde++) {
+    const d = danskTid(new Date(instant));
+    const faktisk = Date.parse(`${d.dato}T00:00:00Z`) + d.minutter * 60000;
+    if (faktisk === oensket) break;
+    instant += oensket - faktisk;
+  }
+
+  return new Date(instant);
+}
+
+// Læser et kvarter fra et formularfelt. Værdierne i formularen er minutter siden
+// midnat, ikke klokketider, så der ikke skal parses tekst på vej ind.
+//
+// Grænserne er dagens yderpunkter, ikke den enkelte dags åbningstid: hvilken dag
+// tidspunktet hører til, ved denne funktion ikke noget om. Det er tjekTidsrum,
+// der bedømmer åbningstid.
+export function minutterFraTekst(vaerdi: unknown): number | null {
+  if (typeof vaerdi !== "string" || vaerdi.trim() === "") return null;
+
+  const n = Number(vaerdi);
+  if (!Number.isInteger(n)) return null;
+  if (n < 0 || n > 24 * 60) return null;
+  if (n % SNAP !== 0) return null;
+
+  return n;
+}

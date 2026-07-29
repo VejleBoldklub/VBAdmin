@@ -34,6 +34,8 @@ VBAdmin skal som minimum have følgende moduler:
    - Efterår / Forår
    - Vinter
 3. **Lokalebooking**
+   - Mødelokale
+   - Cafeteria
 4. **Historik**
 5. **Administration**
 
@@ -88,7 +90,43 @@ Efter publicering i VBAdmin indtaster brugeren planen manuelt i KlubOffice, så 
 
 Airtable må **ikke** anvendes som datakilde til baneplanen.
 
-## 7. Airtable
+## 7. Lokalebooking
+
+Modulet erstatter den tidligere SuperSaaS-baserede rumbooking. Datakilden er Supabase, ikke Airtable — begrundelsen står i afsnittet om Airtable nedenfor.
+
+Der findes to bookbare lokaler med hver sine regler:
+
+- **Mødelokale (1. sal)** — bookes direkte og er bekræftet med det samme
+- **Cafeteria** — oprettes som `afventer` og skal godkendes af klubben, før bookingen er endelig
+
+Offentlige ruter, beregnet til at vises i en iframe på klubbens hjemmeside:
+
+- `/lokalebooking/moedelokale`
+- `/lokalebooking/cafeteria`
+
+Ugen står i URL'en som `?uge=2026-W32`, så et link til en bestemt uge kan deles. Er ugen ugyldig, vises den aktuelle uge frem for en fejlside.
+
+Bookingregler: kvarterers præcision, åbent kl. 14.00–22.00 på hverdage og kl. 09.00–22.00 i weekenden, mindst 15 minutter og højst 8 timer, højst 6 måneder frem, og en booking må ikke strække sig over midnat. Alle tider er danske, uanset hvor brugeren eller serveren står.
+
+**Reglerne håndhæves i databasen, ikke i brugerfladen.** Den offentlige rute bruger anon-nøglen, og enhver kan kalde Supabase' API direkte med den. At siden ligger bag klubbens Trænerlogin i en iframe er en bekvemmelighed for brugerne, ikke en sikkerhedsgrænse. Derfor ligger spærrerne i `supabase/lokalebooking-skema.sql`:
+
+- dobbeltbooking er umulig, håndhævet af en udelukkelsesregel på tabellen
+- en afventende cafeteria-booking holder tidsrummet, så to personer ikke kan få håb om samme tid
+- rækkesikkerheden afviser en cafeteria-booking, der forsøger at starte som `bekraeftet`
+- anons insert-rettighed er kolonnebegrænset, så token- og beslutningsfelter ikke kan sættes udefra
+- anon har ingen select-rettighed på bookingtabellen. Optagethed læses gennem viewet `lokale_optagethed`, som ikke indeholder navn, mail eller mobil
+
+Kontrollerne i `features/lokalebooking/` er derfor til for brugerens skyld: de giver en forståelig besked frem for en rå databasefejl, og de gør det muligt at tegne kalenderen. De to sæt regler skal holdes i takt, og enhver ændring i det ene sted skal spejles i det andet.
+
+Fordi anon ikke kan læse rækken tilbage, genererer serverkoden selv bookingens UUID og sender det med ved oprettelsen. Id'et skal bruges til links i de mails, modulet senere sender.
+
+Spam-forsvar: et skjult honeypot-felt og en tælling af forsøg pr. IP-adresse. Kun en saltet hash af adressen gemmes, aldrig adressen selv, og rækkerne ryddes efter et døgn. Grænsen er sat højere end funktionens default, fordi klubbens medlemmer booker fra samme net. Mangler `BOOKING_IP_SALT`, afvises alle bookinger.
+
+Nye kolonner, som brugeren skal kunne udfylde, skal både oprettes i skemaet og tilføjes i `grant insert`-listen. Glemmes det sidste, fejler oprettelsen med en rettighedsfejl.
+
+Endnu ikke bygget: notifikations- og bekræftelsesmails med engangstokens, godkendelse af cafeteria-bookinger fra adminfladen og fra et mail-link, bookerens egen sletning gennem et mail-link (databasefunktionen `slet_egen_booking` findes, men har ingen brugerflade), og svarheaderne der tillader indlejring fra klubbens domæne.
+
+## 8. Airtable
 
 Airtable kan senere anvendes som database til administrative moduler, blandt andet:
 
@@ -103,7 +141,7 @@ Airtable-integrationer skal ligge bag serverkode. API-nøgler eller andre legiti
 
 Airtable må **ikke** anvendes som datakilde til lokalebooking. Modulet bruger Supabase, ligesom baneplanen. Begrundelsen er, at bookinger skal håndhæve regler, som kun en database kan garantere — særligt at dobbeltbooking er umulig, hvilket kræver en udelukkelsesregel på tabellen, ikke en kontrol i applikationen. Dertil kommer, at endnu en datakilde ville betyde endnu et integrationslag og endnu en nøgle at beskytte.
 
-## 8. Hosting, deployment og miljøer
+## 9. Hosting, deployment og miljøer
 
 - Vercel er projektets hosting- og deploymentplatform.
 - Pull requests skal så vidt muligt have et Vercel Preview Deployment.
@@ -113,7 +151,7 @@ Airtable må **ikke** anvendes som datakilde til lokalebooking. Modulet bruger S
 - Der må ikke hardcodes production-URL'er, tokens, adgangskoder eller andre miljøspecifikke værdier i koden.
 - Miljøvariabler skal valideres server-side og dokumenteres med ufølsomme navne og beskrivelser, eksempelvis i `.env.example`, når de indføres.
 
-## 9. Designprincipper
+## 10. Designprincipper
 
 Brugerfladen skal være:
 
@@ -134,7 +172,7 @@ Faste designvalg:
 
 Layoutet skal fungere på mobil, tablet og desktop uden utilsigtet vandret scrolling i adminfladen. Interaktive elementer skal have tydelige fokusmarkeringer og tilstrækkelige klikflader.
 
-## 10. Kode- og mappestruktur
+## 11. Kode- og mappestruktur
 
 Projektet skal følge en tydelig, domæneorienteret struktur. Den konkrete struktur kan udvikle sig, men følgende ansvar skal holdes adskilt:
 
@@ -152,9 +190,9 @@ Regler:
 - Genbrug eksisterende komponenter og mønstre, før nye varianter oprettes.
 - Fælles designværdier og UI-mønstre skal være konsistente.
 - Domænelogik må ikke skjules i præsentationskomponenter.
-- Offentlige baneplansider må ikke være afhængige af adminlayoutet.
+- Offentlige sider — baneplaner og lokalebooking — må ikke være afhængige af adminlayoutet. De vises i en iframe, hvor klubbens CMS leverer logo og overskrift, og de må derfor heller ikke tegne klubbens header selv.
 
-## 11. TypeScript-regler
+## 12. TypeScript-regler
 
 - TypeScript skal køre i strict mode.
 - Undgå `any`. Hvis det undtagelsesvist er nødvendigt, skal det begrundes lokalt og afgrænses.
@@ -165,7 +203,7 @@ Regler:
 - Server-only data og hemmeligheder må ikke importeres i Client Components.
 - Nye ændringer må ikke efterlade TypeScript-fejl.
 
-## 12. Sikkerhed og hemmeligheder
+## 13. Sikkerhed og hemmeligheder
 
 Følgende må aldrig committes:
 
@@ -180,7 +218,7 @@ Hemmeligheder gemmes som miljøvariabler i Vercel og bruges kun server-side. Alt
 
 Dependencies skal holdes opdaterede, især når der offentliggøres sikkerhedsrettelser til Next.js, React eller andre centrale pakker.
 
-## 13. Branch- og pull request-arbejdsgang
+## 14. Branch- og pull request-arbejdsgang
 
 - Der arbejdes aldrig direkte på `main`.
 - Hver afgrænset ændring udføres på en ny, beskrivende branch.
@@ -192,7 +230,7 @@ Dependencies skal holdes opdaterede, især når der offentliggøres sikkerhedsre
 - Merge foretages først efter menneskelig gennemgang og godkendelse.
 - Urelaterede ændringer må ikke blandes ind i samme pull request.
 
-## 14. Kvalitetskontrol før merge
+## 15. Kvalitetskontrol før merge
 
 Før en pull request kan merges, skal relevante kontroller være bestået:
 
@@ -209,13 +247,13 @@ Kendte kritiske eller høje sikkerhedsproblemer i centrale dependencies skal afk
 
 Hvis en kontrol ikke kan køres, skal årsagen og risikoen dokumenteres tydeligt i pull requesten.
 
-## 15. Beskyttelse af eksisterende produktion
+## 16. Beskyttelse af eksisterende produktion
 
 Repositoryet `VejleBoldklub/Baneplan_VBParken` er den nuværende produktionsløsning og må ikke ændres, flyttes eller afhængiggøres af VBAdmin, før den nye løsning er færdig, testet og udtrykkeligt godkendt til overgang.
 
 Udvikling i `VBAdmin` må ikke afbryde den nuværende offentlige baneplan. En senere migrering skal planlægges særskilt og have en dokumenteret tilbagefaldsplan.
 
-## 16. Udviklingsprincip
+## 17. Udviklingsprincip
 
 Udviklingen foregår **ét modul og én afgrænset ændring ad gangen**.
 
@@ -225,7 +263,7 @@ Udviklingen foregår **ét modul og én afgrænset ændring ad gangen**.
 - Der bygges ikke spekulative funktioner “til senere”, medmindre deres struktur er nødvendig nu.
 - Der må ikke opfindes datamodeller, integrationer eller brugerflows uden en konkret, godkendt opgave.
 
-## 17. Definition of Done
+## 18. Definition of Done
 
 En ændring er først færdig, når:
 
@@ -240,7 +278,7 @@ En ændring er først færdig, når:
 9. Pull requesten er gennemgået og godkendt af et menneske.
 10. Codex har ikke selv merget ændringen til `main`.
 
-## 18. Roadmap
+## 19. Roadmap
 
 ### Fase 1 — Fundament
 
