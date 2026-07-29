@@ -149,6 +149,25 @@ export function minutterTilKlokke(minutter: number): string {
   return `${String(t).padStart(2, "0")}.${String(m).padStart(2, "0")}`;
 }
 
+// Et tidsrum skrevet ud i dansk tid, til kvitteringer og mails: "onsdag 5. august
+// 2026 kl. 16.00–17.00".
+//
+// Formateres altid i dansk tid, uanset hvor læseren sidder. En bekræftelse, der
+// viser et andet klokkeslæt end det bookede, er værre end ingen bekræftelse.
+const TIDSRUM_DAG = new Intl.DateTimeFormat("da-DK", {
+  timeZone: TIDSZONE,
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+export function tidsrumTekst(start: Date, slut: Date): string {
+  const s = danskTid(start);
+  const sl = danskTid(slut);
+  return `${TIDSRUM_DAG.format(start)} kl. ${minutterTilKlokke(s.minutter)}–${minutterTilKlokke(sl.minutter)}`;
+}
+
 // Den modsatte vej af danskTid: en dato og en klokketid, som brugeren har valgt i
 // dansk tid, oversat til det tidspunkt på tidslinjen der skal i databasen.
 //
