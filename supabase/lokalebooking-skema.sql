@@ -223,16 +223,35 @@ create policy "offentlig oprettelse af bookinger"
 
 grant select on lokale_optagethed to anon;
 
+-- Den tabelbrede rettighed fjernes FØRST.
+--
+-- Uden denne linje strammer filen ingenting på en database, hvor den allerede
+-- har været kørt: "grant insert (kolonner)" ophæver ikke en tidligere
+-- "grant insert on lokale_bookinger" — de to er selvstændige rettigheder, og
+-- den brede ville blive stående. Det blev opdaget ved at prøve at indsætte en
+-- kolonne uden for listen udefra med anon-nøglen; forsøget lykkedes.
+--
+-- Revoke på en rettighed, der ikke findes, er et no-op, så filen kan stadig
+-- køres på en tom database.
+revoke insert on lokale_bookinger from anon;
+
 -- Kolonnebegrænset med vilje. Et almindeligt "grant insert on lokale_bookinger"
 -- ville give anon ret til at forsøge at sætte enhver kolonne, og så er policyens
 -- WITH CHECK den eneste spærre foran token-felterne. Med to spærrer kan én
 -- fremtidig fejl i policyen ikke i sig selv eksponere godkend_token_hash eller
 -- slet_token_hash — rettigheden findes simpelthen ikke.
 --
+-- id er med i listen med vilje. Den offentlige rute kan ikke få bookingens id
+-- tilbage efter oprettelsen: "Prefer: return=representation" laver et RETURNING,
+-- som udløser en læsekontrol, og anon har ingen select-policy. Ruten genererer
+-- derfor selv UUID'et og sender det med, fordi den skal bruge id'et til
+-- sletlinket i bekræftelsesmailen. Alternativet ville være at give anon
+-- læseadgang, hvilket er langt værre.
+--
 -- Nye kolonner, som brugeren skal kunne udfylde, skal tilføjes her. Glemmes det,
 -- fejler oprettelsen tydeligt frem for at åbne noget.
 grant insert (
-  lokale, start_tid, slut_tid, status,
+  id, lokale, start_tid, slut_tid, status,
   formaal, navn, email, mobil, besked
 ) on lokale_bookinger to anon;
 
@@ -333,10 +352,19 @@ grant execute on function registrer_bookingforsoeg(text, int) to anon;
 --   select conname, pg_get_constraintdef(oid) from pg_constraint
 --    where conrelid = 'lokale_bookinger'::regclass and contype = 'x';
 --
--- Er insert-rettigheden kolonnebegrænset? Token-kolonnerne må IKKE optræde:
+-- Er insert-rettigheden kolonnebegrænset? Der skal stå præcis ti kolonner, og
+-- godkend_token_hash og slet_token_hash må IKKE være blandt dem:
 --   select column_name from information_schema.column_privileges
 --    where table_name = 'lokale_bookinger' and grantee = 'anon'
 --      and privilege_type = 'INSERT' order by column_name;
+--
+-- Er den tabelbrede rettighed væk? Forespørgslen skal give nul rækker:
+--   select privilege_type from information_schema.table_privileges
+--    where table_name = 'lokale_bookinger' and grantee = 'anon'
+--      and privilege_type = 'INSERT';
+--
+-- Praktisk prøve udefra med anon-nøglen: et forsøg på at sætte en kolonne uden
+-- for listen skal afvises. Fx godkend_token_hash i en ellers gyldig booking.
 --
 -- Opdateres updated_at? Tidsstemplet skal ændre sig:
 --   select updated_at from lokale_bookinger where email = 'test@example.com';
