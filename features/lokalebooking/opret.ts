@@ -94,17 +94,6 @@ export async function opretBooking(
     return { tilstand: "fejl", fejl: [generisk], vaerdier };
   }
 
-  // Robotten får en generisk fejl, ikke et hint om hvad der afslørede den.
-  //
-  // Valget her er at afvise synligt frem for at lade som om bookingen blev
-  // oprettet. Et tavst ja er bedre spamforsvar, men hvis en adgangskodeudfylder
-  // eller en skærmlæser en dag rammer feltet, ville et rigtigt medlem gå fra
-  // siden i tro om at lokalet var booket. Loggen viser, hvis det sker.
-  if (tekst(fd, HONEYPOT) !== "") {
-    console.warn(`Bookingforsøg med udfyldt honeypot afvist (${lokale.slug}).`);
-    return { tilstand: "fejl", fejl: [generisk], vaerdier };
-  }
-
   const feltfejl = tjekFelter(vaerdier);
 
   const startMin = minutterFraTekst(vaerdier.start);
@@ -128,6 +117,36 @@ export async function opretBooking(
   // brænde sin kvote på det.
   if (feltfejl.length > 0) {
     return { tilstand: "fejl", fejl: feltfejl, vaerdier };
+  }
+
+  // Honeypot: udfyldt felt får et tavst ja.
+  //
+  // Svaret er ikke til at skelne fra en rigtig oprettelse — samme kvittering,
+  // samme tidsrum, et id af samme form. En robot får altså intet at vide om, hvad
+  // der afslørede den, og kan ikke prøve sig frem til en formulering, der slipper
+  // igennem. Et tydeligt afslag ville være et signal at optimere efter.
+  //
+  // Kontrollen ligger EFTER valideringen med vilje. Består indtastningen ikke
+  // reglerne, skal svaret være de samme fejl som for alle andre — ellers ville et
+  // tavst ja på en ugyldig indtastning netop afsløre fælden. Og den ligger før
+  // ethvert databasekald: der indsættes hverken en booking eller et forsøg, så
+  // spam koster os ingenting.
+  //
+  // Prisen er kendt og accepteret: rammer en adgangskodeudfylder en dag det
+  // skjulte felt, får et rigtigt medlem en bekræftelse på en booking, der ikke
+  // findes. Loggen er det eneste sted, det kan opdages — hold øje med linjen her,
+  // hvis nogen melder om en booking, klubben ikke kan se.
+  if (tekst(fd, HONEYPOT) !== "") {
+    console.warn(
+      `Bookingforsøg med udfyldt honeypot fik et tavst ja (${lokale.slug}, ${vaerdier.email}).`
+    );
+    return {
+      tilstand: "ok",
+      id: randomUUID(),
+      status: startStatus(lokale),
+      naar: tidsrumTekst(start, slut),
+      lokaleNavn: lokale.navn,
+    };
   }
 
   let hash: string;
