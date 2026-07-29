@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { supabasePublic } from "@/lib/supabase-public";
+import { HONEYPOT, type Indtastning, type OpretResultat } from "./formular";
 import { ipHash, ManglerSalt } from "./ip";
 import { findLokale, startStatus } from "./lokaler";
 import {
@@ -12,7 +13,6 @@ import {
   tidsrumTekst,
   tjekTidsrum,
 } from "./regler";
-import type { BookingStatus } from "./types";
 
 // Oprettelse af en booking fra den offentlige rute.
 //
@@ -31,42 +31,6 @@ import type { BookingStatus } from "./types";
 // og fem ville ramme en helt almindelig aften, hvor tre personer booker hver sin
 // tid. Kan sættes ned, hvis der viser sig at komme spam.
 const MAKS_FORSOEG_PR_TIME = 10;
-
-// Feltet er skjult for mennesker og udfyldes kun af robotter, der udfylder alt.
-// Navnet er valgt, fordi det ser ud som et felt, der er værd at udfylde.
-const HONEYPOT = "hjemmeside";
-
-export type Indtastning = {
-  dato: string;
-  start: string;
-  slut: string;
-  formaal: string;
-  hold: string;
-  navn: string;
-  email: string;
-  mobil: string;
-  besked: string;
-};
-
-export type OpretResultat =
-  | { tilstand: "uroert" }
-  | { tilstand: "ok"; id: string; status: BookingStatus; naar: string; lokaleNavn: string }
-  // Indtastningen sendes tilbage, fordi React nulstiller formularen, når en
-  // server action er kørt. Uden den skulle brugeren skrive alt igen for at rette
-  // et enkelt felt.
-  | { tilstand: "fejl"; fejl: string[]; vaerdier: Indtastning };
-
-export const TOM_INDTASTNING: Indtastning = {
-  dato: "",
-  start: "",
-  slut: "",
-  formaal: "",
-  hold: "",
-  navn: "",
-  email: "",
-  mobil: "",
-  besked: "",
-};
 
 // Samme mønster som check-reglen i databasen. Bevidst løs: formålet er at fange
 // tastefejl, ikke at afgøre om en adresse findes.
