@@ -271,8 +271,9 @@ export default function BookingForm({
         </div>
       </div>
 
-      {/* Fælde for robotter. Skjult for mennesker, og udfyldt betyder afvist —
-          se HONEYPOT i features/lokalebooking/opret.ts. */}
+      {/* Fælde for robotter. Skjult for mennesker, og er den udfyldt, svarer
+          serveren som om bookingen blev oprettet uden at oprette noget — se
+          HONEYPOT i features/lokalebooking/opret.ts. */}
       <div className="hidden" aria-hidden="true">
         <label htmlFor="hjemmeside">Hjemmeside</label>
         <input id="hjemmeside" name="hjemmeside" type="text" tabIndex={-1} autoComplete="off" />
