@@ -1,5 +1,6 @@
 "use client";
 
+import { MIN_FIELD_W, TIME_W } from "@/features/baneplan/layout";
 import { maaltavleKolonner, saetMaaltavleVaerdi } from "@/features/baneplan/maaltavle";
 import type { Maaltavle, ScheduleField } from "@/features/baneplan/types";
 
@@ -39,10 +40,27 @@ export default function MaaltavleEditor({ maaltavle, fields, onChange }: Maaltav
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[640px] border-collapse text-xs">
+      {/*
+        Samme kolonnegeometri som den offentlige måltavle og som skemaets
+        banekolonner — se components/baneplan/maaltavle.tsx. Uden det ville
+        formularen vise en anden kolonnefordeling end resultatet.
+      */}
+      <table
+        className="w-full border-collapse text-xs"
+        style={{
+          tableLayout: "fixed",
+          minWidth: TIME_W + baner.length * MIN_FIELD_W,
+        }}
+      >
+        <colgroup>
+          <col style={{ width: TIME_W }} />
+          {baner.map((bane) => (
+            <col key={bane} />
+          ))}
+        </colgroup>
         <thead>
           <tr>
-            <th scope="col" className="w-28 border border-slate-200 bg-slate-50 p-2" />
+            <th scope="col" className="border border-slate-200 bg-slate-50 p-2" />
             {baner.map((bane) => (
               <th
                 key={bane}
