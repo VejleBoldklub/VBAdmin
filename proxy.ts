@@ -2,23 +2,31 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Adgangskontrol til adminfladen.
 //
-// Uden dette er /admin offentligt tilgængeligt. Alle skrivninger derfra går
-// gennem service_role-nøglen, så enhver med adressen kunne redigere, publicere
-// eller kassere baneplaner.
+// Uden dette er adminværktøjet offentligt tilgængeligt. Alle skrivninger derfra
+// går gennem service_role-nøglen, så enhver med adressen kunne redigere,
+// publicere eller kassere baneplaner.
 //
 // Dette er en mellemløsning, ikke rigtige brugerlogins. Brugere, roller og
 // rettigheder ligger i Fase 5 i SYSTEM.md §18. Formålet her er alene at lukke en
 // åben dør, indtil den rigtige adgangsstyring findes.
 //
-// Kun /admin beskyttes. De offentlige baneplanruter skal blive ved at være
-// tilgængelige, fordi de vises i en iframe i klubbens CMS. Derfor kan Vercels
-// egen adgangsbeskyttelse ikke bruges: den dækker hele deploymentet og ville også
-// lukke /baneplan.
+// Hvad der beskyttes:
+//   "/"                 forsiden, altså modulmenuen "Vælg et modul". Kun den
+//                       eksakte sti — mønsteret er ikke et wildcard og rammer
+//                       derfor ikke ruter under roden.
+//   "/admin"            oversigten over baneplaner
+//   "/admin/:path*"     alt derunder, inklusive kladde-editoren
+//
+// Hvad der IKKE beskyttes, og bevidst ikke må blive det:
+//   "/baneplan/*"       de offentlige baneplaner. De vises i en iframe i klubbens
+//                       CMS og skal være tilgængelige uden login. Derfor kan
+//                       Vercels egen adgangsbeskyttelse ikke bruges: den dækker
+//                       hele deploymentet og ville også lukke disse ruter.
 //
 // Filen heder proxy.ts, ikke middleware.ts. Sidstnævnte konvention er deprecated
 // fra Next 16 og advarer under build.
 export const config = {
-  matcher: ["/admin", "/admin/:path*"],
+  matcher: ["/", "/admin", "/admin/:path*"],
 };
 
 const REALM = 'Basic realm="VBAdmin", charset="UTF-8"';
