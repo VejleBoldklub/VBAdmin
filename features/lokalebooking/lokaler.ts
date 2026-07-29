@@ -6,7 +6,9 @@ export type Lokale = {
   // Kort forklaring vist på den offentlige side.
   beskrivelse: string;
   publicPath: `/lokalebooking/${LokaleSlug}`;
-  adminPath: `/admin/lokalebooking/${LokaleSlug}`;
+  // Adminfladen er én samlet liste over begge lokaler, ikke en side pr. lokale.
+  // Stien her er derfor listen med lokalefiltret sat.
+  adminPath: `/admin/lokalebooking?lokale=${LokaleSlug}`;
   // Kræver godkendelse, før bookingen er bekræftet. Afgør både startstatus og
   // om der sendes en notifikation til godkenderen.
   kraeverGodkendelse: boolean;
@@ -21,7 +23,7 @@ export const lokaler: readonly Lokale[] = [
     navn: "Mødelokale (1. sal)",
     beskrivelse: "Bookes direkte og er bekræftet med det samme.",
     publicPath: "/lokalebooking/moedelokale",
-    adminPath: "/admin/lokalebooking/moedelokale",
+    adminPath: "/admin/lokalebooking?lokale=moedelokale",
     kraeverGodkendelse: false,
   },
   {
@@ -29,7 +31,7 @@ export const lokaler: readonly Lokale[] = [
     navn: "Cafeteria",
     beskrivelse: "Bookes efter godkendelse. Du får besked, når bookingen er behandlet.",
     publicPath: "/lokalebooking/cafeteria",
-    adminPath: "/admin/lokalebooking/cafeteria",
+    adminPath: "/admin/lokalebooking?lokale=cafeteria",
     kraeverGodkendelse: true,
   },
 ];

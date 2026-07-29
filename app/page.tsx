@@ -11,8 +11,9 @@ const modules: ModuleCardProps[] = [
   },
   {
     title: "Lokalebooking",
-    description: "Administrér klubbens lokaler og bookinger.",
-    status: "Kommer senere",
+    description: "Se og godkend bookinger af mødelokalet og cafeteriet.",
+    status: "Klar til næste fase",
+    href: "/admin/lokalebooking",
     index: 2,
   },
   {
