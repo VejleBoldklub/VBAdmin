@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { foreslaaSlut, type SlotStatus } from "@/features/lokalebooking/gitter";
 import {
   TOM_INDTASTNING,
@@ -18,6 +18,16 @@ import UgeTabel from "./uge-tabel";
 // i formularens felter skriver til den, og gitteret markerer det valgte tidsrum ud
 // fra samme værdier. To sæt tilstand ville uundgåeligt komme ud af trit, og så
 // ville gitteret vise noget andet end det, der blev sendt.
+//
+// Formularen ligger i en modal frem for under kalenderen. Grunden er iframen:
+// siden vises på klubbens hjemmeside i en kasse med fast højde, og en formular,
+// der altid står udfoldet, gør siden dobbelt så høj som den kalender, folk kom
+// for at se. Nu fylder siden kalenderen og lidt til.
+//
+// <dialog> frem for en selvbygget overlay — samme valg som annullér-knappen i
+// adminfladen. Browseren giver tastaturfælden, Escape og baggrundsspærringen.
+// Modalen kan rulle indeni: i en lav iframe er det forskellen på en formular, man
+// kan udfylde, og en, der er klippet over.
 
 type BookingPanelProps = {
   lokaleNavn: string;
@@ -29,6 +39,9 @@ type BookingPanelProps = {
   // holde passerede kvarterer ude af dagens valgmuligheder.
   nuMinutter: number;
   maksDato: string;
+  // Afgør kun, om vejledningen skal stå her. Uden for indlejret tilstand står den
+  // i lokalets beskrivelse øverst på siden.
+  indlejret: boolean;
   kunneIkkeLaese: boolean;
   handling: (forrige: OpretResultat, fd: FormData) => Promise<OpretResultat>;
 };
@@ -51,6 +64,7 @@ export default function BookingPanel({
   iDag,
   nuMinutter,
   maksDato,
+  indlejret,
   kunneIkkeLaese,
   handling,
 }: BookingPanelProps) {
@@ -71,6 +85,8 @@ export default function BookingPanel({
   // nulstilling, så svaret gemmes væk frem for at blive kastet bort — og et NYT
   // svar vises igen af sig selv, fordi det er et andet objekt end det lukkede.
   const [lukketSvar, setLukketSvar] = useState<OpretResultat | null>(null);
+
+  const dialog = useRef<HTMLDialogElement>(null);
 
   const indtastning: Indtastning =
     redigeret ?? (resultat.tilstand === "fejl" ? resultat.vaerdier : TOM_INDTASTNING);
@@ -130,8 +146,25 @@ export default function BookingPanel({
     opdater({ start, slut: String(foreslaaSlutFor(indtastning.dato, Number(start))) });
   };
 
-  const vaelgIGitter = (dato: string, start: number) =>
+  const aabn = () => {
+    // Kvitteringen fra en tidligere booking lukkes, så modalen åbner på
+    // formularen og ikke på svaret fra sidste gang.
+    setLukketSvar(resultat);
+    dialog.current?.showModal();
+  };
+
+  const luk = () => {
+    if (venter) return;
+    dialog.current?.close();
+    setLukketSvar(resultat);
+  };
+
+  // Et klik i gitteret gør to ting: vælger tidsrummet og åbner formularen. Uden
+  // det andet ville et klik se ud som om der ikke skete noget.
+  const vaelgIGitter = (dato: string, start: number) => {
     opdater({ dato, start: String(start), slut: String(foreslaaSlutFor(dato, start)) });
+    aabn();
+  };
 
   const valgt =
     indtastning.dato !== "" && indtastning.start !== "" && indtastning.slut !== ""
@@ -154,27 +187,73 @@ export default function BookingPanel({
         </p>
       )}
 
+      {/* Kun i indlejret tilstand. Udenfor står vejledningen i lokalets
+          beskrivelse øverst på siden, og den samme sætning to gange på en side,
+          der skal være kort, er én gang for meget.
+
+          Der er ingen knap. Kalenderen er indgangen: hvert ledigt kvarter er en
+          rigtig knap, så et klik og et tastetryk gør det samme. */}
+      {indlejret && (
+        <p className="text-sm leading-6 text-slate-600">
+          Klik på en ledig tid i kalenderen for at booke.
+        </p>
+      )}
+
       <UgeTabel datoer={datoer} slots={slots} iDag={iDag} valgt={valgt} vaelg={vaelgIGitter} />
 
-      <BookingForm
-        lokaleNavn={lokaleNavn}
-        kraeverGodkendelse={kraeverGodkendelse}
-        indtastning={indtastning}
-        saetFelt={saetFelt}
-        saetDato={saetDato}
-        saetStart={saetStart}
-        startMuligheder={mulighederFor(indtastning.dato)}
-        slutMuligheder={indtastning.start === "" ? [] : slutMulighederFor(Number(indtastning.start))}
-        minDato={iDag}
-        maksDato={maksDato}
-        formAction={formAction}
-        resultat={visning}
-        venter={venter}
-        nulstil={() => {
-          setRedigeret(TOM_INDTASTNING);
-          setLukketSvar(resultat);
+      {/* Uden JavaScript kan en modal ikke åbnes. Så ville siden ikke kunne
+          bruges til det, den er til, og server action'en virker ellers fint uden
+          — den er en almindelig formular. Reglen herunder folder dialogen ud som
+          et helt almindeligt afsnit på siden i det tilfælde. */}
+      <noscript>
+        <style>{`
+          dialog.bookingdialog {
+            display: block;
+            position: static;
+            max-height: none;
+            width: 100%;
+            border-color: rgb(226 232 240);
+          }
+        `}</style>
+      </noscript>
+
+      <dialog
+        ref={dialog}
+        className="bookingdialog w-[calc(100vw-1.5rem)] max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 p-0 shadow-xl backdrop:bg-slate-950/40 sm:max-h-[calc(100vh-2rem)]"
+        onClick={(e) => {
+          // Klik uden for indholdet lukker. Selve indholdet ligger i en div, så
+          // et klik dér ikke rammer dialogen selv.
+          if (e.target === dialog.current) luk();
         }}
-      />
+        onCancel={(e) => {
+          // Escape midt i en indsendelse ville lukke vinduet, mens bookingen var
+          // undervejs, og efterlade brugeren i tvivl om, hvad der skete.
+          if (venter) e.preventDefault();
+        }}
+      >
+        <BookingForm
+          lokaleNavn={lokaleNavn}
+          kraeverGodkendelse={kraeverGodkendelse}
+          indtastning={indtastning}
+          saetFelt={saetFelt}
+          saetDato={saetDato}
+          saetStart={saetStart}
+          startMuligheder={mulighederFor(indtastning.dato)}
+          slutMuligheder={
+            indtastning.start === "" ? [] : slutMulighederFor(Number(indtastning.start))
+          }
+          minDato={iDag}
+          maksDato={maksDato}
+          formAction={formAction}
+          resultat={visning}
+          venter={venter}
+          luk={luk}
+          nulstil={() => {
+            setRedigeret(TOM_INDTASTNING);
+            setLukketSvar(resultat);
+          }}
+        />
+      </dialog>
     </div>
   );
 }
