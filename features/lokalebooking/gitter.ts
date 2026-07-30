@@ -23,19 +23,35 @@ export type SlotStatus =
   | "optaget" // bekræftet booking
   | "afventer"; // cafeteria-booking, der venter på godkendelse
 
+// Et kvarter i gitteret: hvad det er, og hvilken booking der holder det.
+//
+// booking er null for alt andet end optaget og afventende. Den er med, fordi
+// kalenderen skal vise bookingens oplysninger — se types.ts om hvorfor de er
+// offentlige.
+export type Slot = {
+  status: SlotStatus;
+  booking: DagBooking | null;
+};
+
 export type Segment = {
   status: SlotStatus;
   // Minutter siden midnat, dansk tid.
   fra: number;
   til: number;
   antal: number;
+  booking: DagBooking | null;
 };
 
-type DagBooking = {
+export type DagBooking = {
   dato: string;
   fra: number;
   til: number;
   status: Optagethed["status"];
+  formaal: string;
+  hold: string | null;
+  navn: string;
+  email: string;
+  mobil: string;
 };
 
 // Oversætter tidsstemplerne til dansk kalenderdag og minutter.
@@ -54,6 +70,11 @@ export function tilDagBookinger(bookinger: Optagethed[]): DagBooking[] {
       fra: start.minutter,
       til: slut.dato === start.dato ? slut.minutter : GITTER_TIL,
       status: b.status,
+      formaal: b.formaal,
+      hold: b.hold,
+      navn: b.navn,
+      email: b.email,
+      mobil: b.mobil,
     };
   });
 }
@@ -63,31 +84,32 @@ export function dagensSlots(
   isoDag: number,
   bookinger: DagBooking[],
   nu: Date
-): SlotStatus[] {
+): Slot[] {
   const aabner = aabnerKl(isoDag);
   const idag = danskTid(nu);
   const paaDagen = bookinger.filter((b) => b.dato === dato);
 
-  const slots: SlotStatus[] = [];
+  const slots: Slot[] = [];
 
   for (let i = 0; i < ANTAL_SLOTS; i++) {
     const fra = GITTER_FRA + i * SNAP;
     const til = fra + SNAP;
 
     if (fra < aabner) {
-      slots.push("lukket");
+      slots.push({ status: "lukket", booking: null });
       continue;
     }
 
     // Overlap, ikke indeholdt-i: et kvarter er taget, så snart en booking rører
     // det. Optaget slår afventende, så et kvarter aldrig ser frit ud.
     const bookinger_her = paaDagen.filter((b) => b.fra < til && b.til > fra);
-    if (bookinger_her.some((b) => b.status === "bekraeftet")) {
-      slots.push("optaget");
+    const bekraeftet = bookinger_her.find((b) => b.status === "bekraeftet");
+    if (bekraeftet) {
+      slots.push({ status: "optaget", booking: bekraeftet });
       continue;
     }
     if (bookinger_her.length > 0) {
-      slots.push("afventer");
+      slots.push({ status: "afventer", booking: bookinger_her[0] });
       continue;
     }
 
@@ -95,7 +117,7 @@ export function dagensSlots(
     // bookes — databasen afviser det alligevel, fordi start_tid skal være i
     // fremtiden.
     const passeret = dato < idag.dato || (dato === idag.dato && fra <= idag.minutter);
-    slots.push(passeret ? "fortid" : "ledig");
+    slots.push({ status: passeret ? "fortid" : "ledig", booking: null });
   }
 
   return slots;
@@ -103,21 +125,24 @@ export function dagensSlots(
 
 // Slår ens kvarterer efter hinanden sammen, så en booking tegnes som én blok med
 // én tekst frem for som fire kasser i timen.
-export function tilSegmenter(slots: SlotStatus[]): Segment[] {
+// To kvarterer slaas kun sammen, hvis de har samme status OG hoerer til samme
+// booking. Uden det sidste ville to bookinger lige efter hinanden blive tegnet
+// som én blok med den foerstes oplysninger.
+export function tilSegmenter(slots: Slot[]): Segment[] {
   const ud: Segment[] = [];
 
   for (let i = 0; i < slots.length; i++) {
-    const status = slots[i];
+    const { status, booking } = slots[i];
     const forrige = ud.at(-1);
 
-    if (forrige && forrige.status === status) {
+    if (forrige && forrige.status === status && forrige.booking === booking) {
       forrige.til += SNAP;
       forrige.antal++;
       continue;
     }
 
     const fra = GITTER_FRA + i * SNAP;
-    ud.push({ status, fra, til: fra + SNAP, antal: 1 });
+    ud.push({ status, fra, til: fra + SNAP, antal: 1, booking });
   }
 
   return ud;
@@ -127,13 +152,13 @@ export function tilSegmenter(slots: SlotStatus[]): Segment[] {
 //
 // En time, hvis der er en time fri. Ellers frem til næste optagede kvarter, så
 // forslaget aldrig er et tidsrum, databasen vil afvise.
-export function foreslaaSlut(slots: SlotStatus[], start: number): number {
+export function foreslaaSlut(slots: Slot[], start: number): number {
   const foersteIndeks = (start - GITTER_FRA) / SNAP;
   const oensket = Math.min(start + 60, GITTER_TIL);
 
   let slut = start + SNAP;
   for (let i = foersteIndeks + 1; i < slots.length && slut < oensket; i++) {
-    if (slots[i] !== "ledig") break;
+    if (slots[i].status !== "ledig") break;
     slut += SNAP;
   }
 

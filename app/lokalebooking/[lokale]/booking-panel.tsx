@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import { foreslaaSlut, type SlotStatus } from "@/features/lokalebooking/gitter";
+import { foreslaaSlut, type Slot } from "@/features/lokalebooking/gitter";
 import {
   TOM_INDTASTNING,
   type Indtastning,
@@ -33,7 +33,7 @@ type BookingPanelProps = {
   lokaleNavn: string;
   kraeverGodkendelse: boolean;
   datoer: string[];
-  slots: SlotStatus[][];
+  slots: Slot[][];
   iDag: string;
   // Minutter siden midnat i dansk tid, da siden blev gengivet. Bruges til at
   // holde passerede kvarterer ude af dagens valgmuligheder.
