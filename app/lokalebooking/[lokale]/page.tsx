@@ -34,8 +34,8 @@ type LokalebookingPageProps = {
 //
 // Valgt som en parameter på de eksisterende ruter frem for en selvstændig
 // /embed-rute. Ruten, dataindhentningen og formularhandlingen er præcis de samme
-// — kun to ting i visningen falder væk — og en kopi af siden ville skulle holdes
-// i takt med denne for altid.
+// — kun fanerne og lokalets beskrivelse falder væk — og en kopi af siden ville
+// skulle holdes i takt med denne for altid.
 //
 // Forskellen er ikke kosmetisk. Uden for iframen kan man skifte lokale med
 // fanerne øverst; det er praktisk, når vi selv slår noget op. Inde i en iframe,
@@ -120,12 +120,22 @@ export default async function LokalebookingPage({
     >
       <div className="mx-auto w-full max-w-5xl">
         {/* Hverken her eller udenfor tegnes klubbens logo eller adminskallen.
-            Forskellen i indlejret tilstand er, at overskriften også falder væk:
-            klubbens CMS står med sin egen lige over iframen, og to overskrifter
-            oven på hinanden ser ud som en fejl. Den bliver til en skjult
-            overskrift, så skærmlæsere stadig kan se, hvad siden er. */}
+            Klubbens CMS leverer den ramme.
+
+            Overskriften står derimod på siden i BEGGE tilstande, og den skal
+            blive stående. En iframe kan være lav nok til, at kun toppen er
+            synlig uden at scrolle, og lokalets navn står ellers først nede ved
+            formularen. Uden overskriften her kunne en besøgende booke cafeteriet
+            i den tro, at det var mødelokalet — netop det, fjernelsen af fanerne
+            skulle forhindre.
+
+            Klubbens egen overskrift lige over iframen gentager den muligvis. Det
+            er en pris, det er værd at betale: en gentagelse er til at se bort
+            fra, en forveksling er ikke. */}
         {indlejret ? (
-          <h1 className="sr-only">Book {lokale.navn}</h1>
+          <h1 className="mb-4 text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">
+            Book {lokale.navn}
+          </h1>
         ) : (
           <>
             <h1 className="text-xl font-bold tracking-tight text-slate-950 sm:text-2xl">
