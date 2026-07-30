@@ -108,6 +108,11 @@ Adminfladen er én samlet rute bag login, ikke en side pr. lokale:
 
 - `/admin/lokalebooking` — alle bookinger for begge lokaler, med filtre på lokale, status og periode i URL'en, og en fremhævet kø over cafeteria-bookinger, der venter på godkendelse
 
+Mail-linkene fra notifikationen har hver sin rute, uden for login:
+
+- `/godkend/<token>`
+- `/afvis/<token>`
+
 Godkendelse og afvisning skrives med service_role. Afvisning kræver en begrundelse, som gemmes på bookingen, og begge dele sætter `besluttet_af = 'admin'` og `besluttet_tid`. Opdateringen er betinget af, at bookingen stadig afventer, så to administratorer ikke kan overskrive hinandens beslutning.
 
 Handlingerne kontrollerer selv, at kaldet kommer fra en indlogget administrator. At `proxy.ts` beskytter `/admin` er ikke nok: en server action er et POST-endepunkt, der slås op på sit id og derfor kan forsøges ramt fra enhver rute i appen — også de offentlige, som med vilje ikke er bag login. Af samme grund ligger læsningen af bookinger i et modul **uden** `"use server"`: den returnerer navn, mail og mobil, og et `"use server"`-modul ville gøre hver eksport til et endepunkt.
@@ -132,7 +137,31 @@ Spam-forsvar: et skjult honeypot-felt og en tælling af forsøg pr. IP-adresse. 
 
 Nye kolonner, som brugeren skal kunne udfylde, skal både oprettes i skemaet og tilføjes i `grant insert`-listen. Glemmes det sidste, fejler oprettelsen med en rettighedsfejl.
 
-Endnu ikke bygget: notifikations- og bekræftelsesmails med engangstokens, godkendelse fra et mail-link, bookerens egen sletning gennem et mail-link (databasefunktionen `slet_egen_booking` findes, men har ingen brugerflade), og svarheaderne der tillader indlejring fra klubbens domæne.
+### Mails
+
+Mails sendes med Resend fra et domæne, der er verificeret der. Tre mails:
+
+1. **Kvittering til bookeren** ved oprettelse — bekræftet med det samme for mødelokalet, "afventer godkendelse" for cafeteriet
+2. **Notifikation til den lokaleansvarlige** ved en cafeteria-booking, med et godkend- og et afvis-link
+3. **Svar til bookeren**, når nogen har taget stilling — med begrundelsen, hvis bookingen blev afvist
+
+Reply-To er den lokaleansvarlige, hvor der findes en. For cafeteriet er det `cafeteria@vejleboldklub.dk`, og det betyder mest på svarmailen: det er der, en træner kan få et afslag og have brug for at spørge hvorfor. Mødelokalet har ingen ansvarlig og bliver aldrig afvist; dets mails har ingen Reply-To, og de lover derfor heller ikke, at man kan svare. Notifikationen til den ansvarlige har bookeren som Reply-To, så et spørgsmål kan stilles direkte, før der tages stilling.
+
+**Ingen mail må kunne vælte det, den handler om.** En booking, der er skrevet i databasen, står, selv om mailserveren er nede — afsendelsen logger og går videre. Det samme gælder en beslutning: den er truffet, når den står i databasen, uanset om svaret nåede frem.
+
+Links i mails er absolutte og bygges ud fra den forespørgsel, mailen udspringer af, så et preview-deployment laver links til sig selv. `APP_BASE_URL` kan sættes, hvis de altid skal pege ét bestemt sted hen.
+
+### Godkendelse fra et mail-link
+
+Linket viser en side; først et tryk på siden udfører beslutningen. Opdelingen er ikke pynt: mailklienter og sikkerhedsfiltre henter links på forhånd for at tjekke dem, og var beslutningen knyttet til selve linket, kunne en booking blive godkendt, uden at et menneske havde set den.
+
+Tokenet i adressen er adgangen — 256 tilfældige bit, hvoraf kun hashen gemmes. Der er ingen login-kontrol på ruten, og det er meningen: den cafeteriaansvarlige skal kunne trykke fra sin telefon.
+
+Et token kan kun føre til én beslutning. Det er betingelsen `status = 'afventer'` på opdateringen, der sikrer det — ikke et slettet token. Hashen bliver med vilje stående, så et gensyn med mailen kan vise "bookingen er allerede godkendt" frem for "ukendt link".
+
+`slet_token_hash` bruges til afvisningslinket. Kolonnen var oprindeligt tænkt til bookerens eget slettelink, og de to kan ikke dele kolonne: afvisningslinket sendes til den cafeteriaansvarlige, slettelinket ville gå til bookeren. Skal bookeren en dag kunne slette selv, kræver det en ny kolonne.
+
+Endnu ikke bygget: bookerens egen sletning gennem et mail-link (databasefunktionen `slet_egen_booking` findes, men har hverken brugerflade eller en token-kolonne, den kan bruge), og svarheaderne der tillader indlejring fra klubbens domæne.
 
 ## 8. Airtable
 
