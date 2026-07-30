@@ -53,8 +53,16 @@ create table if not exists lokale_bookinger (
   mobil               text not null check (length(btrim(mobil)) between 6 and 20),
   besked              text check (besked is null or length(besked) <= 2000),
 
-  -- Engangstokens til de to mail-links. Kun hash gemmes, så et databaseudtræk
-  -- ikke i sig selv giver ret til at godkende eller slette.
+  -- Engangstokens til de to links i notifikationsmailen til den lokaleansvarlige:
+  -- godkend_token_hash bag /godkend/<token> og slet_token_hash bag /afvis/<token>.
+  -- Kun hash gemmes, så et databaseudtræk ikke i sig selv giver ret til at
+  -- godkende eller afvise.
+  --
+  -- slet_token_hash hed sådan, fordi kolonnen oprindeligt var tænkt til bookerens
+  -- eget slettelink. Det link findes ikke endnu, og de to ting kan ikke dele
+  -- kolonne: afvisningslinket sendes til den cafeteriaansvarlige, slettelinket
+  -- ville gå til bookeren. Skal bookeren en dag kunne slette selv, kræver det
+  -- derfor en ny kolonne — genbrug ikke denne til begge dele.
   --
   -- Ingen af dem må sættes af den offentlige rute — se policyen nedenfor, der
   -- kræver at de er null ved oprettelse. De sættes af serverkode med
