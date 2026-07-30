@@ -44,7 +44,8 @@ export const lokaler: readonly Lokale[] = [
   {
     slug: "moedelokale",
     navn: "Mødelokale (1. sal)",
-    beskrivelse: "Bookes direkte og er bekræftet med det samme.",
+    beskrivelse:
+      "Klik på en ledig tid i kalenderen for at booke. Mødelokalet er bekræftet med det samme.",
     publicPath: "/lokalebooking/moedelokale",
     adminPath: "/admin/lokalebooking?lokale=moedelokale",
     kraeverGodkendelse: false,
@@ -54,7 +55,8 @@ export const lokaler: readonly Lokale[] = [
   {
     slug: "cafeteria",
     navn: "Cafeteria",
-    beskrivelse: "Bookes efter godkendelse. Du får besked, når bookingen er behandlet.",
+    beskrivelse:
+      "Klik på en ledig tid i kalenderen for at booke. Cafeteriet skal godkendes af klubben, før bookingen er endelig — du får besked, når den er behandlet.",
     publicPath: "/lokalebooking/cafeteria",
     adminPath: "/admin/lokalebooking?lokale=cafeteria",
     kraeverGodkendelse: true,

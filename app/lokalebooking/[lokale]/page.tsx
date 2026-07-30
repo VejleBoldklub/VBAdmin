@@ -216,6 +216,7 @@ export default async function LokalebookingPage({
             iDag={iDag.dato}
             nuMinutter={iDag.minutter}
             maksDato={danskTid(seksMaanederFrem).dato}
+            indlejret={indlejret}
             kunneIkkeLaese={!optagethed.ok}
             handling={handling}
           />

@@ -21,6 +21,9 @@ type BookingFormProps = {
   formAction: (fd: FormData) => void;
   resultat: OpretResultat;
   venter: boolean;
+  // Lukker modalen. Formularen kender ikke selve dialogen — den bliver bedt om at
+  // vise en knap, og panelet afgør hvad der sker.
+  luk: () => void;
   nulstil: () => void;
 };
 
@@ -43,11 +46,12 @@ export default function BookingForm({
   formAction,
   resultat,
   venter,
+  luk,
   nulstil,
 }: BookingFormProps) {
   if (resultat.tilstand === "ok") {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="bg-white p-5 sm:p-6">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-red-700">
           {resultat.status === "bekraeftet" ? "Bekræftet" : "Sendt til godkendelse"}
         </p>
@@ -64,13 +68,22 @@ export default function BookingForm({
             ? "Tidsrummet er reserveret og vises nu i ugeoversigten."
             : "Tidsrummet er reserveret, indtil forespørgslen er behandlet. Klubben godkender eller afviser den, og du får besked."}
         </p>
-        <button
-          type="button"
-          onClick={nulstil}
-          className="mt-5 rounded-lg bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
-        >
-          Book en mere
-        </button>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={luk}
+            className="rounded-lg bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
+          >
+            Luk
+          </button>
+          <button
+            type="button"
+            onClick={nulstil}
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+          >
+            Book en mere
+          </button>
+        </div>
       </div>
     );
   }
@@ -78,13 +91,21 @@ export default function BookingForm({
   const startValgt = indtastning.start !== "";
 
   return (
-    <form
-      action={formAction}
-      className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-    >
-      <h3 className="text-lg font-bold tracking-tight text-slate-950">Book {lokaleNavn}</h3>
+    <form action={formAction} className="bg-white p-5 sm:p-6">
+      <div className="flex items-start justify-between gap-4">
+        <h3 className="text-lg font-bold tracking-tight text-slate-950">Book {lokaleNavn}</h3>
+        <button
+          type="button"
+          onClick={luk}
+          disabled={venter}
+          aria-label="Luk"
+          className="-mr-1 -mt-1 rounded-lg px-2 py-1 text-xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 disabled:opacity-50"
+        >
+          ×
+        </button>
+      </div>
       <p className="mt-1 text-sm leading-6 text-slate-600">
-        Vælg et ledigt tidsrum i oversigten, eller udfyld felterne herunder.
+        Tjek tidsrummet, og udfyld resten. Du kan stadig rette dato og klokkeslæt her.
       </p>
 
       {resultat.tilstand === "fejl" && (
