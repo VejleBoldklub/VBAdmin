@@ -1,6 +1,8 @@
 import Link from "next/link";
 
-export type ModuleStatus = "Klar til næste fase" | "Kommer senere";
+// "Aktiv" betyder i drift i produktion, ikke bare bygget. Kortet fremhæves, og et
+// modul, der endnu ikke kan bruges af klubben, må derfor ikke have den.
+export type ModuleStatus = "Aktiv" | "Kommer senere";
 
 export type ModuleCardProps = {
   description: string;
@@ -11,7 +13,7 @@ export type ModuleCardProps = {
 };
 
 export function ModuleCard({ description, href, index, status, title }: ModuleCardProps) {
-  const isReady = status === "Klar til næste fase";
+  const isReady = status === "Aktiv";
   const className =
     "flex min-h-40 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-[border-color,box-shadow] hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2";
 
