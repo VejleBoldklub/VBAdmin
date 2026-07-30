@@ -30,7 +30,11 @@ export type Lokale = {
 const FAELLES_REGLER = [
   "Book kun den tid du har brug for, eller forventer at bruge.",
   'Book ikke "måske"-aftaler, som så ikke bliver til noget.',
-  "Husk at slette en booking hvis den bliver aflyst.",
+  // Der findes endnu ingen selvbetjent sletning: slet_egen_booking ligger i
+  // databasen, men hverken brugerflade eller mail-link er bygget. Teksten peger
+  // derfor på en person frem for på en knap, der ikke findes. Bygges sletningen,
+  // skal denne linje rettes tilbage.
+  "Bliver din booking aflyst, så kontakt kim.schwartz@vejleboldklub.dk for at få den slettet.",
 ] as const;
 
 // De to ressourcer er faste og ligger i koden, ikke i en tabel — samme valg som

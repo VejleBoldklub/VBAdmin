@@ -8,6 +8,32 @@
 // de er henvendt til den, der booker, og det er netop i klubbens iframe, de har
 // deres publikum.
 
+// En regel kan henvise til en mailadresse. Den gøres klikbar: en adresse, der
+// skal skrives af i hånden fra en telefon i en iframe, bliver ikke brugt.
+//
+// Mønsteret har med vilje ikke /g. En global regex husker sin position mellem
+// kald, og det samme udtryk bruges både til at dele teksten op og til at afgøre,
+// om en del er en adresse — med /g ville hvert andet tjek fejle. Domænedelen kan
+// ikke ende på et punktum, så et punktum efter adressen bliver stående i teksten
+// og ikke en del af linket.
+const EMAIL = /([\w.+-]+@[\w-]+(?:\.[\w-]+)+)/;
+
+function medMailLinks(tekst: string) {
+  return tekst.split(EMAIL).map((del, i) =>
+    EMAIL.test(del) ? (
+      <a
+        key={i}
+        href={`mailto:${del}`}
+        className="font-medium text-red-700 underline underline-offset-2"
+      >
+        {del}
+      </a>
+    ) : (
+      del
+    )
+  );
+}
+
 export function Husregler({ regler }: { regler: readonly string[] }) {
   if (regler.length === 0) return null;
 
@@ -26,7 +52,7 @@ export function Husregler({ regler }: { regler: readonly string[] }) {
         {regler.map((regel) => (
           <li key={regel} className="flex gap-2.5 text-sm leading-6 text-slate-700">
             <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-red-700" />
-            <span>{regel}</span>
+            <span>{medMailLinks(regel)}</span>
           </li>
         ))}
       </ul>
