@@ -91,7 +91,7 @@ export default function BookingForm({
   const startValgt = indtastning.start !== "";
 
   return (
-    <form action={formAction} className="bg-white p-5 sm:p-6">
+    <form action={formAction} className="bg-white p-4 sm:p-5">
       <div className="flex items-start justify-between gap-4">
         <h3 className="text-lg font-bold tracking-tight text-slate-950">Book {lokaleNavn}</h3>
         <button
@@ -104,9 +104,10 @@ export default function BookingForm({
           ×
         </button>
       </div>
-      <p className="mt-1 text-sm leading-6 text-slate-600">
-        Tjek tidsrummet, og udfyld resten. Du kan stadig rette dato og klokkeslæt her.
-      </p>
+      {/* Ingen forklarende linje her. Modalen skal kunne være i en iframe på 700
+          px, og hver linje tekst er plads, der ikke kan bruges på et felt.
+          Tidsrummet står allerede udfyldt øverst, og at det kan rettes, ser man
+          ved at klikke på det. */}
 
       {resultat.tilstand === "fejl" && (
         <div
@@ -136,7 +137,7 @@ export default function BookingForm({
             max={maksDato}
             value={indtastning.dato}
             onChange={(e) => saetDato(e.target.value)}
-            className={`mt-1.5 ${FELT}`}
+            className={`mt-1 ${FELT}`}
           />
         </div>
 
@@ -151,7 +152,7 @@ export default function BookingForm({
             disabled={indtastning.dato === ""}
             value={indtastning.start}
             onChange={(e) => saetStart(e.target.value)}
-            className={`mt-1.5 ${FELT}`}
+            className={`mt-1 ${FELT}`}
           >
             <option value="">Vælg</option>
             {startMuligheder.map((m) => (
@@ -173,7 +174,7 @@ export default function BookingForm({
             disabled={!startValgt}
             value={indtastning.slut}
             onChange={(e) => saetFelt("slut", e.target.value)}
-            className={`mt-1.5 ${FELT}`}
+            className={`mt-1 ${FELT}`}
           >
             <option value="">Vælg</option>
             {slutMuligheder.map((m) => (
@@ -185,12 +186,13 @@ export default function BookingForm({
         </div>
       </div>
 
-      <p className="mt-2 text-xs leading-5 text-slate-500">
-        Åbent kl. 14.00–22.00 på hverdage og kl. 09.00–22.00 i weekenden. Alle tider er danske.
-      </p>
+      {/* Åbningstiderne stod her som en linje for sig. De er taget ud, fordi de
+          allerede fremgår to andre steder: kalenderen tegner lukket tid som
+          lukket, og listerne over Fra og Til indeholder kun timer, lokalet er
+          åbent. Linjen kostede plads uden at sige noget nyt. */}
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <div className="sm:col-span-2">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div>
           <label className={MAERKAT} htmlFor="formaal">
             Formål
           </label>
@@ -202,12 +204,12 @@ export default function BookingForm({
             maxLength={200}
             value={indtastning.formaal}
             onChange={(e) => saetFelt("formaal", e.target.value)}
-            placeholder="Fx trænermøde, forældremøde, afslutning"
-            className={`mt-1.5 ${FELT}`}
+            placeholder="Fx trænermøde"
+            className={`mt-1 ${FELT}`}
           />
         </div>
 
-        <div className="sm:col-span-2">
+        <div>
           <label className={MAERKAT} htmlFor="hold">
             Hold
             <span className={VALGFRI}>valgfrit</span>
@@ -220,7 +222,7 @@ export default function BookingForm({
             value={indtastning.hold}
             onChange={(e) => saetFelt("hold", e.target.value)}
             placeholder="Fx U15 drenge"
-            className={`mt-1.5 ${FELT}`}
+            className={`mt-1 ${FELT}`}
           />
         </div>
 
@@ -237,7 +239,7 @@ export default function BookingForm({
             autoComplete="name"
             value={indtastning.navn}
             onChange={(e) => saetFelt("navn", e.target.value)}
-            className={`mt-1.5 ${FELT}`}
+            className={`mt-1 ${FELT}`}
           />
         </div>
 
@@ -254,7 +256,7 @@ export default function BookingForm({
             autoComplete="tel"
             value={indtastning.mobil}
             onChange={(e) => saetFelt("mobil", e.target.value)}
-            className={`mt-1.5 ${FELT}`}
+            className={`mt-1 ${FELT}`}
           />
         </div>
 
@@ -270,7 +272,7 @@ export default function BookingForm({
             autoComplete="email"
             value={indtastning.email}
             onChange={(e) => saetFelt("email", e.target.value)}
-            className={`mt-1.5 ${FELT}`}
+            className={`mt-1 ${FELT}`}
           />
         </div>
 
@@ -282,12 +284,12 @@ export default function BookingForm({
           <textarea
             id="besked"
             name="besked"
-            rows={3}
+            rows={2}
             maxLength={2000}
             value={indtastning.besked}
             onChange={(e) => saetFelt("besked", e.target.value)}
             placeholder="Særlige ønsker, antal deltagere, borde og stole"
-            className={`mt-1.5 ${FELT}`}
+            className={`mt-1 ${FELT}`}
           />
         </div>
       </div>
@@ -300,7 +302,7 @@ export default function BookingForm({
         <input id="hjemmeside" name="hjemmeside" type="text" tabIndex={-1} autoComplete="off" />
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
+      <div className="mt-5 flex flex-wrap items-center gap-3">
         <button
           type="submit"
           disabled={venter}
