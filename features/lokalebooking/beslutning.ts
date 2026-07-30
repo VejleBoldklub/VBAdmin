@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { findLokale } from "./lokaler";
 import { sendMail } from "./mail";
-import { beslutningTilBooker, type MailBooking } from "./mail-tekster";
+import { aflysningTilBooker, beslutningTilBooker, type MailBooking } from "./mail-tekster";
 import { tidsrumTekst } from "./regler";
 import { erTokenForm, tokenHash } from "./tokens";
 import type { BeslutResultat, Booking, BookingStatus } from "./types";
@@ -153,12 +153,15 @@ async function varslBooker(booking: Booking): Promise<void> {
     // Reply-To, og mailen lover så heller ikke, at man kan svare.
     const svarTil = lokale?.ansvarligEmail ?? null;
 
-    const indhold = beslutningTilBooker(
-      data,
-      booking.status === "bekraeftet" ? "godkendt" : "afvist",
-      booking.afvisningsgrund,
-      svarTil !== null
-    );
+    const indhold =
+      booking.status === "aflyst"
+        ? aflysningTilBooker(data, svarTil !== null)
+        : beslutningTilBooker(
+            data,
+            booking.status === "bekraeftet" ? "godkendt" : "afvist",
+            booking.afvisningsgrund,
+            svarTil !== null
+          );
 
     await sendMail({
       til: booking.email,
@@ -182,6 +185,54 @@ export async function afgoerViaId(
   grund: string | null
 ): Promise<BeslutResultat> {
   return udfoer("id", id, beslutning, "admin", grund);
+}
+
+// Annullering fra adminfladen af en booking, der ikke er behandlet endnu, eller
+// som allerede står som bekræftet.
+//
+// Status bliver 'aflyst', ikke 'afvist'. De to er ikke det samme: 'afvist' er
+// svaret på en cafeteria-forespørgsel, som aldrig blev til noget, mens 'aflyst'
+// er en booking, klubben tager tilbage. Forskellen kan læses i adminlisten
+// bagefter, og den er væk, hvis begge dele hedder det samme.
+//
+// Begge de aktive statusser kan annulleres, men ikke en booking, der allerede er
+// afvist eller aflyst — der er ikke noget at tage tilbage, og et andet svar til
+// bookeren ville kun forvirre.
+//
+// afvisningsgrund røres ikke. Feltet hører til et afslag, og en annullering har
+// ikke en grund, der er tastet ind nogen steder.
+export async function aflysViaId(id: string): Promise<BeslutResultat> {
+  const { data, error } = await supabaseAdmin
+    .from("lokale_bookinger")
+    .update({
+      status: "aflyst",
+      besluttet_af: "admin",
+      besluttet_tid: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .in("status", ["afventer", "bekraeftet"])
+    .select(KOLONNER);
+
+  if (error) {
+    console.error(`Kunne ikke annullere booking ${id}: ${error.message}`);
+    return { ok: false, fejl: "Handlingen kunne ikke gennemføres. Prøv igen." };
+  }
+
+  const raekker = (data ?? []) as unknown as Booking[];
+
+  if (raekker.length === 0) {
+    const status = await statusFor("id", id);
+    return {
+      ok: false,
+      fejl: status ? ALLEREDE[status] : IKKE_FUNDET,
+    };
+  }
+
+  // Tidsrummet er ledigt igen i samme øjeblik: udelukkelsesreglen dækker kun
+  // afventende og bekræftede bookinger.
+  await varslBooker(raekker[0]);
+
+  return { ok: true };
 }
 
 export async function afgoerViaToken(
