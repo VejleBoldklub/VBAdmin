@@ -23,6 +23,7 @@ import {
   ugeNoegleNu,
   ugeTitel,
 } from "@/features/lokalebooking/uge";
+import { Husregler } from "@/components/lokalebooking/husregler";
 import BookingPanel from "./booking-panel";
 
 type LokalebookingPageProps = {
@@ -168,11 +169,14 @@ export default async function LokalebookingPage({
           </>
         )}
 
-        <div
-          className={`flex flex-wrap items-center justify-between gap-3 ${
-            indlejret ? "" : "mt-5"
-          }`}
-        >
+        {/* Reglerne står over kalenderen i begge tilstande. De skal læses, før
+            der vælges et tidsrum — står de under formularen, er bookingen for
+            længst lavet, når de bliver set. */}
+        <div className={indlejret ? "" : "mt-5"}>
+          <Husregler regler={lokale.regler} />
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm font-bold text-slate-950">{ugeTitel(uge)}</p>
 
           {/* Ugeskift er almindelige links, ikke klientkode. Next skifter siden
