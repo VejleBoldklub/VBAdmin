@@ -104,6 +104,14 @@ Offentlige ruter, beregnet til at vises i en iframe på klubbens hjemmeside:
 - `/lokalebooking/moedelokale`
 - `/lokalebooking/cafeteria`
 
+Adminfladen er én samlet rute bag login, ikke en side pr. lokale:
+
+- `/admin/lokalebooking` — alle bookinger for begge lokaler, med filtre på lokale, status og periode i URL'en, og en fremhævet kø over cafeteria-bookinger, der venter på godkendelse
+
+Godkendelse og afvisning skrives med service_role. Afvisning kræver en begrundelse, som gemmes på bookingen, og begge dele sætter `besluttet_af = 'admin'` og `besluttet_tid`. Opdateringen er betinget af, at bookingen stadig afventer, så to administratorer ikke kan overskrive hinandens beslutning.
+
+Handlingerne kontrollerer selv, at kaldet kommer fra en indlogget administrator. At `proxy.ts` beskytter `/admin` er ikke nok: en server action er et POST-endepunkt, der slås op på sit id og derfor kan forsøges ramt fra enhver rute i appen — også de offentlige, som med vilje ikke er bag login. Af samme grund ligger læsningen af bookinger i et modul **uden** `"use server"`: den returnerer navn, mail og mobil, og et `"use server"`-modul ville gøre hver eksport til et endepunkt.
+
 Ugen står i URL'en som `?uge=2026-W32`, så et link til en bestemt uge kan deles. Er ugen ugyldig, vises den aktuelle uge frem for en fejlside.
 
 Bookingregler: kvarterers præcision, åbent kl. 14.00–22.00 på hverdage og kl. 09.00–22.00 i weekenden, mindst 15 minutter og højst 8 timer, højst 6 måneder frem, og en booking må ikke strække sig over midnat. Alle tider er danske, uanset hvor brugeren eller serveren står.
@@ -124,7 +132,7 @@ Spam-forsvar: et skjult honeypot-felt og en tælling af forsøg pr. IP-adresse. 
 
 Nye kolonner, som brugeren skal kunne udfylde, skal både oprettes i skemaet og tilføjes i `grant insert`-listen. Glemmes det sidste, fejler oprettelsen med en rettighedsfejl.
 
-Endnu ikke bygget: notifikations- og bekræftelsesmails med engangstokens, godkendelse af cafeteria-bookinger fra adminfladen og fra et mail-link, bookerens egen sletning gennem et mail-link (databasefunktionen `slet_egen_booking` findes, men har ingen brugerflade), og svarheaderne der tillader indlejring fra klubbens domæne.
+Endnu ikke bygget: notifikations- og bekræftelsesmails med engangstokens, godkendelse fra et mail-link, bookerens egen sletning gennem et mail-link (databasefunktionen `slet_egen_booking` findes, men har ingen brugerflade), og svarheaderne der tillader indlejring fra klubbens domæne.
 
 ## 8. Airtable
 

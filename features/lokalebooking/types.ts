@@ -37,6 +37,28 @@ export type Optagethed = {
   status: Extract<BookingStatus, "afventer" | "bekraeftet">;
 };
 
+// Filtrene på adminoversigten. Ligger i URL'en, så en filtreret liste kan deles
+// og genindlæses uden at ende et andet sted.
+//
+// "alle" er en egen værdi frem for undefined, fordi filtret så kan læses og
+// skrives ét sted uden at skulle skelne mellem "ikke valgt" og "alle valgt".
+export type BookingFilter = {
+  lokale: LokaleSlug | "alle";
+  status: BookingStatus | "alle";
+  // Kommende viser bookinger, der ikke er afholdt endnu, og er standard. Uden den
+  // ville listen begynde med den ældste booking nogensinde og skubbe det, der
+  // faktisk skal handles på, ud af syne.
+  periode: "kommende" | "alle";
+};
+
+// Svaret fra en godkendelse eller en afvisning.
+//
+// Handlingerne kaster ikke ved fejl, som baneplanens gør. En kastet fejl i en
+// server action rammer fejlgrænsen og river hele siden ned, og en administrator,
+// der trykker Afvis på en booking, en anden lige har godkendt, skal have en
+// forklaring frem for en fejlside.
+export type BeslutResultat = { ok: true } | { ok: false; fejl: string };
+
 // Det en bruger indtaster. Tokens, status og beslutningsfelter er ikke med —
 // de sættes af serverkode eller af databasen, og rækkesikkerheden afviser
 // oprettelser, hvor de er udfyldt.

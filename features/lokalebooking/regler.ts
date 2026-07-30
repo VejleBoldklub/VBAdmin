@@ -168,6 +168,25 @@ export function tidsrumTekst(start: Date, slut: Date): string {
   return `${TIDSRUM_DAG.format(start)} kl. ${minutterTilKlokke(s.minutter)}–${minutterTilKlokke(sl.minutter)}`;
 }
 
+// Samme tidsrum delt i to, til tabeller hvor dag og klokketid skal stå på hver
+// sin linje: { dag: "on. 5. aug. 2026", klokke: "16.00–17.00" }.
+const TIDSRUM_KORT = new Intl.DateTimeFormat("da-DK", {
+  timeZone: TIDSZONE,
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+export function tidsrumDelt(start: Date, slut: Date): { dag: string; klokke: string } {
+  const s = danskTid(start);
+  const sl = danskTid(slut);
+  return {
+    dag: TIDSRUM_KORT.format(start),
+    klokke: `${minutterTilKlokke(s.minutter)}–${minutterTilKlokke(sl.minutter)}`,
+  };
+}
+
 // Den modsatte vej af danskTid: en dato og en klokketid, som brugeren har valgt i
 // dansk tid, oversat til det tidspunkt på tidslinjen der skal i databasen.
 //
