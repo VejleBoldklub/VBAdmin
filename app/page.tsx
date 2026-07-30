@@ -1,32 +1,33 @@
 import Image from "next/image";
 import { ModuleCard, type ModuleCardProps } from "@/components/module-card";
 
+// Historik er med vilje ikke på listen. Modulet er stadig planlagt — det står i
+// SYSTEM.md som Fase 4 — men et kort, der hverken kan klikkes eller siger noget
+// om hvornår, fylder kun på en forside, klubben ser hver dag. Det sættes ind
+// igen, når der er noget at gå ind til.
+//
+// Numrene er rækkefølge, ikke identitet. De skal løbe uden huller, ellers ligner
+// forsiden en fejl.
 const modules: ModuleCardProps[] = [
   {
     title: "Baneplan",
     description: "Administrér klubbens baneplaner.",
-    status: "Klar til næste fase",
+    status: "Aktiv",
     href: "/admin/baneplan",
     index: 1,
   },
   {
     title: "Lokalebooking",
     description: "Se og godkend bookinger af mødelokalet og cafeteriet.",
-    status: "Klar til næste fase",
+    status: "Aktiv",
     href: "/admin/lokalebooking",
     index: 2,
-  },
-  {
-    title: "Historik",
-    description: "Se tidligere udgivelser og ændringer.",
-    status: "Kommer senere",
-    index: 3,
   },
   {
     title: "Administration",
     description: "Administrér brugere, roller og systemindstillinger.",
     status: "Kommer senere",
-    index: 4,
+    index: 3,
   },
 ];
 
@@ -61,7 +62,11 @@ export default function Home() {
               </h2>
               <p className="mt-1.5 text-sm text-slate-600">Administrative værktøjer samles her, efterhånden som de bliver klar.</p>
             </div>
-            <p className="hidden text-sm text-slate-500 sm:block">4 moduler</p>
+            {/* Tælles frem for at stå som et tal. Et fast tal ville modsige
+                kortene, næste gang listen ændrer sig. */}
+            <p className="hidden text-sm text-slate-500 sm:block">
+              {modules.length} moduler
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
