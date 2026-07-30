@@ -210,6 +210,8 @@ export default function BookingPanel({
           dialog.bookingdialog {
             display: block;
             position: static;
+            inset: auto;
+            margin: 0;
             max-height: none;
             width: 100%;
             border-color: rgb(226 232 240);
@@ -219,7 +221,16 @@ export default function BookingPanel({
 
       <dialog
         ref={dialog}
-        className="bookingdialog w-[calc(100vw-1.5rem)] max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 p-0 shadow-xl backdrop:bg-slate-950/40 sm:max-h-[calc(100vh-2rem)]"
+        // Centreringen skrives eksplicit. En <dialog> centreres normalt af
+        // browserens egen regel `inset: 0; margin: auto`, men Tailwinds reset
+        // sætter `margin: 0` på alt og slår den ihjel — så lander modalen i
+        // øverste venstre hjørne. Det ses tydeligst i en iframe, hvor hjørnet er
+        // et helt andet sted end på en fuld side.
+        //
+        // dvh frem for vh: i en iframe med fast højde er de ens, men på en
+        // telefon uden for iframen tager dvh højde for browserlinjen, der kommer
+        // og går.
+        className="bookingdialog fixed inset-0 m-auto h-fit max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 p-0 shadow-xl backdrop:bg-slate-950/40"
         onClick={(e) => {
           // Klik uden for indholdet lukker. Selve indholdet ligger i en div, så
           // et klik dér ikke rammer dialogen selv.

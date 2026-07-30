@@ -81,7 +81,10 @@ export default function AnnullerKnap({
           // handlingen kører, og efterlade brugeren i tvivl om, hvad der skete.
           if (venter) e.preventDefault();
         }}
-        className="w-[calc(100vw-2rem)] max-w-md rounded-2xl border border-slate-200 p-0 shadow-xl backdrop:bg-slate-950/40"
+        // Samme centrering som bookingmodalen, og af samme grund: browserens
+        // egen `margin: auto` på en <dialog> bliver slået ihjel af Tailwinds
+        // reset, og uden disse klasser lander vinduet i øverste venstre hjørne.
+        className="fixed inset-0 m-auto h-fit max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-md overflow-y-auto rounded-2xl border border-slate-200 p-0 shadow-xl backdrop:bg-slate-950/40"
       >
         <div className="p-5 sm:p-6">
           <h2 className="text-lg font-bold tracking-tight text-slate-950">
