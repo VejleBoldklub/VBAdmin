@@ -4,6 +4,7 @@ import {
   ANTAL_SLOTS,
   GITTER_FRA,
   tilSegmenter,
+  type Slot,
   type SlotStatus,
 } from "@/features/lokalebooking/gitter";
 import { minutterTilKlokke, SNAP } from "@/features/lokalebooking/regler";
@@ -18,7 +19,7 @@ const SLOT_H = 12; // px pr. kvarter. 52 kvarterer bliver 624 px.
 
 type UgeTabelProps = {
   datoer: string[];
-  slots: SlotStatus[][];
+  slots: Slot[][];
   iDag: string;
   valgt: { dato: string; start: number; slut: number } | null;
   vaelg: (dato: string, start: number) => void;
@@ -98,28 +99,63 @@ export default function UgeTabel({ datoer, slots, iDag, valgt, vaelg }: UgeTabel
             {tilSegmenter(slots[dagIndeks]).map((segment) => {
               if (segment.status !== "ledig") {
                 const stil = BLOK[segment.status];
+                const b = segment.booking;
+
+                // Bookingens oplysninger vises i blokken. Se types.ts om hvorfor
+                // de står på en side uden login — det er klubbens beslutning.
+                //
+                // En søjle er smal, og et kvarter er 12 px høj. Linjerne kommer
+                // derfor på efterhånden som blokken har plads: først hvad og
+                // hvem, så tidsrummet, så kontaktoplysningerne. Uanset højden
+                // står det hele i title, så det kan læses ved at holde musen
+                // stille, og i en skjult linje, så skærmlæsere får det med.
+                const linjer = b
+                  ? [
+                      b.hold ? `${b.formaal} · ${b.hold}` : b.formaal,
+                      b.navn,
+                      `${minutterTilKlokke(segment.fra)}–${minutterTilKlokke(segment.til)}`,
+                      b.mobil,
+                      b.email,
+                    ]
+                  : [];
+
+                const alt = b
+                  ? [
+                      `${stil.tekst}: ${b.formaal}`,
+                      b.hold ? `Hold: ${b.hold}` : null,
+                      `${b.navn}, ${b.mobil}, ${b.email}`,
+                      `${minutterTilKlokke(segment.fra)}–${minutterTilKlokke(segment.til)}`,
+                    ]
+                      .filter(Boolean)
+                      .join("\n")
+                  : "";
+
+                // Én linje fylder omkring 11 px. Et kvarter er 12, så antallet af
+                // kvarterer er nogenlunde antallet af linjer, der er plads til.
+                const plads = Math.max(0, segment.antal - 1);
+
                 return (
                   <div
                     key={segment.fra}
+                    title={alt || undefined}
                     style={{ height: segment.antal * SLOT_H }}
                     className={`overflow-hidden px-1 py-0.5 text-[10px] font-semibold leading-tight ${stil.klasse}`}
                   >
-                    {/* Teksten vises kun, hvis blokken er høj nok til at rumme
-                        den. Et enkelt kvarter er 12 px. */}
-                    {stil.tekst && segment.antal >= 2 ? (
+                    {b ? (
                       <>
-                        <span className="block">{stil.tekst}</span>
-                        {segment.antal >= 3 && (
-                          <span className="block font-normal tabular-nums opacity-80">
-                            {minutterTilKlokke(segment.fra)}–{minutterTilKlokke(segment.til)}
+                        {linjer.slice(0, plads).map((linje, i) => (
+                          <span
+                            key={linje + i}
+                            className={`block truncate ${i === 0 ? "" : "font-normal opacity-90"}`}
+                          >
+                            {linje}
                           </span>
-                        )}
+                        ))}
+                        {/* Hele indholdet, også når blokken er for lav til at
+                            vise det. Skærmlæsere læser det op; øjet ser det i
+                            title. */}
+                        <span className="sr-only">{alt}</span>
                       </>
-                    ) : null}
-                    {stil.tekst && segment.antal < 2 ? (
-                      <span className="sr-only">
-                        {stil.tekst} {minutterTilKlokke(segment.fra)}
-                      </span>
                     ) : null}
                   </div>
                 );

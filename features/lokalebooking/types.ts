@@ -25,16 +25,27 @@ export type Booking = {
   updated_at: string;
 };
 
-// Optagethed som den offentlige side ser den: ingen persondata.
+// Optagethed som den offentlige side viser den.
 //
-// Svarer til viewet lokale_optagethed i supabase/lokalebooking-skema.sql, som er
-// det eneste anon-nøglen kan læse. Typen er bevidst snæver, så en fejl i
-// serverkoden ikke kan sende kontaktoplysninger til den offentlige rute.
+// BEMÆRK: denne type indeholder persondata, og den bruges på en side uden login.
+// Det er et bevidst valg truffet af klubben: trænere skal kunne se i kalenderen,
+// hvem der har booket, og hvad lokalet skal bruges til, uden først at logge ind.
+//
+// Det var ikke sådan modulet blev bygget. Oprindeligt læste den offentlige side
+// viewet lokale_optagethed, som kun indeholder tidsrum og status, netop for at
+// kontaktoplysninger ikke kunne slippe ud. Ændres beslutningen igen, er vejen
+// tilbage at læse viewet frem for tabellen i optagethed.ts — resten kan blive
+// stående.
 export type Optagethed = {
   lokale: LokaleSlug;
   start_tid: string;
   slut_tid: string;
   status: Extract<BookingStatus, "afventer" | "bekraeftet">;
+  formaal: string;
+  hold: string | null;
+  navn: string;
+  email: string;
+  mobil: string;
 };
 
 // Filtrene på adminoversigten. Ligger i URL'en, så en filtreret liste kan deles

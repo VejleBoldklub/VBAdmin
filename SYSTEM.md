@@ -129,7 +129,19 @@ Bookingregler: kvarterers præcision, åbent kl. 14.00–22.00 på hverdage og k
 - en afventende cafeteria-booking holder tidsrummet, så to personer ikke kan få håb om samme tid
 - rækkesikkerheden afviser en cafeteria-booking, der forsøger at starte som `bekraeftet`
 - anons insert-rettighed er kolonnebegrænset, så token- og beslutningsfelter ikke kan sættes udefra
-- anon har ingen select-rettighed på bookingtabellen. Optagethed læses gennem viewet `lokale_optagethed`, som ikke indeholder navn, mail eller mobil
+- anon har ingen select-rettighed på bookingtabellen, og skal ikke have det. Viewet `lokale_optagethed` findes fortsat og indeholder kun tidsrum og status
+
+### Bookingoplysninger er offentlige i kalenderen
+
+Ugekalenderen på de offentlige ruter viser **formål, hold, navn, mobil og e-mail** på den, der har booket. Siden kræver ikke login.
+
+Det er en bevidst beslutning truffet af klubben, så trænere kan se i kalenderen, hvem der har lokalet, uden først at logge ind. Det er ikke sådan modulet blev bygget: oprindeligt viste kalenderen kun "Optaget" og "Afventer", og den læste viewet `lokale_optagethed` netop for at kontaktoplysninger ikke kunne slippe ud.
+
+Konsekvensen skal stå tydeligt, fordi den er let at overse: **enhver med adressen kan se klubmedlemmers kontaktoplysninger.** Iframen bag Trænerlogin er ingen spærre — det har den aldrig været, og det er samme grund til, at bookingreglerne ligger i databasen.
+
+Læsningen sker med service_role fra serverkoden, ikke med anon-nøglen. Det er med vilje den strammere af to veje: udvidede vi i stedet viewet, kunne enhver med anon-nøglen hente hele bookingtabellens persondata direkte fra API'et. Nu er det kun vores egen serverkode, der kan hente dem, og dermed kun vores egen kode, der bestemmer hvad der vises.
+
+Skal beslutningen laves om, er vejen tilbage kort: `features/lokalebooking/optagethed.ts` skal læse viewet frem for tabellen. Resten kan blive stående.
 
 Kontrollerne i `features/lokalebooking/` er derfor til for brugerens skyld: de giver en forståelig besked frem for en rå databasefejl, og de gør det muligt at tegne kalenderen. De to sæt regler skal holdes i takt, og enhver ændring i det ene sted skal spejles i det andet.
 
