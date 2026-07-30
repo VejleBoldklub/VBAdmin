@@ -221,16 +221,23 @@ export default function BookingPanel({
 
       <dialog
         ref={dialog}
-        // Centreringen skrives eksplicit. En <dialog> centreres normalt af
+        // Placeringen skrives eksplicit. En <dialog> centreres normalt af
         // browserens egen regel `inset: 0; margin: auto`, men Tailwinds reset
         // sætter `margin: 0` på alt og slår den ihjel — så lander modalen i
-        // øverste venstre hjørne. Det ses tydeligst i en iframe, hvor hjørnet er
-        // et helt andet sted end på en fuld side.
+        // øverste venstre hjørne.
+        //
+        // Vandret centreres den med inset-x-0 og mx-auto. Lodret er den bundet
+        // til toppen med en fast afstand frem for at være centreret, og det er
+        // et bevidst valg: siden ligger i en iframe med scrolling="no", så
+        // iframens "viewport" er hele dens højde. En modal, der centreres i
+        // den, kan derfor lande langt nede i en høj iframe — uden for det, den
+        // besøgende har på skærmen. Toppen af iframen er det sted, der har
+        // størst chance for at være i syne.
         //
         // dvh frem for vh: i en iframe med fast højde er de ens, men på en
         // telefon uden for iframen tager dvh højde for browserlinjen, der kommer
         // og går.
-        className="bookingdialog fixed inset-0 m-auto h-fit max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 p-0 shadow-xl backdrop:bg-slate-950/40"
+        className="bookingdialog fixed inset-x-0 top-4 mx-auto h-fit max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 p-0 shadow-xl backdrop:bg-slate-950/40"
         onClick={(e) => {
           // Klik uden for indholdet lukker. Selve indholdet ligger i en div, så
           // et klik dér ikke rammer dialogen selv.
