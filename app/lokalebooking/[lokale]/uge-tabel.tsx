@@ -106,29 +106,44 @@ export default function UgeTabel({ datoer, slots, iDag, valgt, vaelg }: UgeTabel
                 //
                 // En søjle er smal, og et kvarter er 12 px høj. Linjerne kommer
                 // derfor på efterhånden som blokken har plads: først hvad og
-                // hvem, så tidsrummet, så kontaktoplysningerne. Uanset højden
-                // står det hele i title, så det kan læses ved at holde musen
-                // stille, og i en skjult linje, så skærmlæsere får det med.
+                // hvem, så tidsrummet, så mobilnummeret. Uanset højden står det
+                // i title, så det kan læses ved at holde musen stille, og i en
+                // skjult linje, så skærmlæsere får det med.
+                const tidsrum = `${minutterTilKlokke(segment.fra)}–${minutterTilKlokke(segment.til)}`;
+
+                // E-mailadressen står IKKE i den synlige tekst. En adresse i
+                // klartekst på en offentlig side er præcis, hvad
+                // adressehøstere leder efter, og bookeren har ikke bedt om at
+                // få spam for at have booket et lokale.
+                //
+                // Den står i stedet i title, hvor den kan læses ved at holde
+                // musen stille. Det stopper afskrivning i hånden og de
+                // simpleste robotter — men det er ikke et forsvar: en
+                // title-attribut ligger i sidens kildekode og kan læses lige så
+                // let som alt andet. Skal adressen ud af rækkevidde, skal den
+                // helt væk fra den offentlige side.
                 const linjer = b
                   ? [
                       b.hold ? `${b.formaal} · ${b.hold}` : b.formaal,
                       b.navn,
-                      `${minutterTilKlokke(segment.fra)}–${minutterTilKlokke(segment.til)}`,
+                      tidsrum,
                       b.mobil,
-                      b.email,
                     ]
                   : [];
 
-                const alt = b
+                // Til skærmlæsere. Uden adressen, som de øvrige linjer.
+                const oplaest = b
                   ? [
                       `${stil.tekst}: ${b.formaal}`,
                       b.hold ? `Hold: ${b.hold}` : null,
-                      `${b.navn}, ${b.mobil}, ${b.email}`,
-                      `${minutterTilKlokke(segment.fra)}–${minutterTilKlokke(segment.til)}`,
+                      `${b.navn}, ${b.mobil}`,
+                      tidsrum,
                     ]
                       .filter(Boolean)
                       .join("\n")
                   : "";
+
+                const alt = b ? `${oplaest}\n${b.email}` : "";
 
                 // Én linje fylder omkring 11 px. Et kvarter er 12, så antallet af
                 // kvarterer er nogenlunde antallet af linjer, der er plads til.
@@ -153,8 +168,9 @@ export default function UgeTabel({ datoer, slots, iDag, valgt, vaelg }: UgeTabel
                         ))}
                         {/* Hele indholdet, også når blokken er for lav til at
                             vise det. Skærmlæsere læser det op; øjet ser det i
+                            title. Adressen er ikke med her — den står kun i
                             title. */}
-                        <span className="sr-only">{alt}</span>
+                        <span className="sr-only">{oplaest}</span>
                       </>
                     ) : null}
                   </div>
