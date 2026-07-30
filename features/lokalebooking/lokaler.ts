@@ -12,6 +12,12 @@ export type Lokale = {
   // Kræver godkendelse, før bookingen er bekræftet. Afgør både startstatus og
   // om der sendes en notifikation til godkenderen.
   kraeverGodkendelse: boolean;
+  // Den, der har lokalet på sit bord. Får notifikationen om nye bookinger, der
+  // skal godkendes, og står som Reply-To på mails om lokalet, så et svar fra
+  // bookeren lander hos et menneske og ikke i afsenderpostkassen.
+  //
+  // null betyder, at der ikke er en særskilt ansvarlig; så bruges afsenderen.
+  ansvarligEmail: string | null;
 };
 
 // De to ressourcer er faste og ligger i koden, ikke i en tabel — samme valg som
@@ -25,6 +31,7 @@ export const lokaler: readonly Lokale[] = [
     publicPath: "/lokalebooking/moedelokale",
     adminPath: "/admin/lokalebooking?lokale=moedelokale",
     kraeverGodkendelse: false,
+    ansvarligEmail: null,
   },
   {
     slug: "cafeteria",
@@ -33,6 +40,7 @@ export const lokaler: readonly Lokale[] = [
     publicPath: "/lokalebooking/cafeteria",
     adminPath: "/admin/lokalebooking?lokale=cafeteria",
     kraeverGodkendelse: true,
+    ansvarligEmail: "cafeteria@vejleboldklub.dk",
   },
 ];
 

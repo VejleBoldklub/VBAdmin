@@ -13,6 +13,7 @@ import {
   tidsrumTekst,
   tjekTidsrum,
 } from "./regler";
+import { varslOmNyBooking } from "./varsling";
 
 // Oprettelse af en booking fra den offentlige rute.
 //
@@ -229,6 +230,32 @@ export async function opretBooking(
       `Bookingen blev afvist af databasen (${error.code ?? "ukendt"}): ${error.message}`
     );
     return { tilstand: "fejl", fejl: [generisk], vaerdier };
+  }
+
+  // Mails sendes efter, at bookingen står i databasen, og kan ikke lave om på
+  // den. varslOmNyBooking kaster ikke — den logger og går videre — men kaldet
+  // står alligevel i en try, så en fejl i selve kaldet heller ikke kan nå
+  // herud. En booking, der blev oprettet korrekt, skal kvitteres som oprettet,
+  // også hvis mailserveren er nede.
+  try {
+    await varslOmNyBooking({
+      id,
+      lokale,
+      start,
+      slut,
+      formaal: vaerdier.formaal,
+      hold: vaerdier.hold === "" ? null : vaerdier.hold,
+      navn: vaerdier.navn,
+      email: vaerdier.email,
+      mobil: vaerdier.mobil,
+      besked: vaerdier.besked === "" ? null : vaerdier.besked,
+    });
+  } catch (e) {
+    console.error(
+      `Booking ${id} blev oprettet, men varslingen fejlede: ${
+        e instanceof Error ? e.message : String(e)
+      }`
+    );
   }
 
   // Får ugevisningen til at vise den nye booking. Uden dette kald sender Next

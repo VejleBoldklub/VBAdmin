@@ -59,6 +59,13 @@ export type BookingFilter = {
 // forklaring frem for en fejlside.
 export type BeslutResultat = { ok: true } | { ok: false; fejl: string };
 
+// Samme svar, men i den form useActionState har brug for: en tilstand, før der
+// er trykket på noget. Bruges af siderne, mail-linkene åbner.
+export type BeslutSvar =
+  | { tilstand: "uroert" }
+  | { tilstand: "ok" }
+  | { tilstand: "fejl"; fejl: string };
+
 // Det en bruger indtaster. Tokens, status og beslutningsfelter er ikke med —
 // de sættes af serverkode eller af databasen, og rækkesikkerheden afviser
 // oprettelser, hvor de er udfyldt.
