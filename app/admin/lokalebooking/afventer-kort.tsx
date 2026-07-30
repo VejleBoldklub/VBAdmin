@@ -3,7 +3,9 @@
 import { useState, useTransition } from "react";
 import { StatusMaerke } from "@/components/lokalebooking/status-maerke";
 import { afvisBooking, godkendBooking } from "@/features/lokalebooking/admin-handlinger";
+import { findLokale } from "@/features/lokalebooking/lokaler";
 import type { Booking } from "@/features/lokalebooking/types";
+import AnnullerKnap from "./annuller-knap";
 
 // Ét kort pr. cafeteria-booking, der venter på en beslutning.
 //
@@ -174,6 +176,17 @@ export default function AfventerKort({ booking, dag, klokke, erPasseret }: Afven
           >
             Afvis …
           </button>
+          {/* Annullering er ikke det samme som en afvisning, og de to skal kunne
+              skelnes i listen bagefter: en afvist forespørgsel blev aldrig til
+              noget, en annulleret booking tog klubben tilbage. Knappen står med
+              her, fordi en booking i køen også kan blive overflødig, uden at det
+              er et afslag — fx hvis bookeren selv ringer og melder afbud. */}
+          <AnnullerKnap
+            id={booking.id}
+            lokaleNavn={findLokale(booking.lokale)?.navn ?? booking.lokale}
+            dag={dag}
+            klokke={klokke}
+          />
         </div>
       )}
     </article>

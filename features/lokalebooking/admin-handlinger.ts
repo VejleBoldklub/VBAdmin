@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { erAdmin } from "./admin-auth";
-import { afgoerViaId } from "./beslutning";
+import { afgoerViaId, aflysViaId } from "./beslutning";
 import type { BeslutResultat } from "./types";
 
 // Godkendelse og afvisning fra adminfladen.
@@ -44,6 +44,31 @@ export async function godkendBooking(id: string): Promise<BeslutResultat> {
 
   // Siden gengives igen, uanset udfaldet. Er bookingen allerede behandlet, er det
   // netop listen, der er forældet, og den skal opdateres for at vise hvorfor.
+  revalidatePath(ADMIN_STI);
+
+  return svar;
+}
+
+// Annullering af en booking, klubben tager tilbage — uanset om den afventer eller
+// allerede er bekræftet, og uanset lokale.
+//
+// Ingen begrundelse. Afvisning har en, fordi den er svaret på en forespørgsel, og
+// bookeren har brug for at vide hvorfor. En annullering sker typisk, fordi
+// klubben selv skal bruge lokalet, og et påkrævet felt ville blive udfyldt med
+// "aflyst" i en fart. Har bookeren brug for en forklaring, er Reply-To i mailen
+// vejen — den peger på den lokaleansvarlige.
+export async function annullerBooking(id: string): Promise<BeslutResultat> {
+  if (!(await erAdmin())) {
+    console.error("Afvist forsøg på at annullere en booking uden gyldig admin-adgang.");
+    return { ok: false, fejl: IKKE_ADMIN };
+  }
+
+  if (!UUID.test(id)) {
+    return { ok: false, fejl: GENERISK };
+  }
+
+  const svar = await aflysViaId(id);
+
   revalidatePath(ADMIN_STI);
 
   return svar;

@@ -183,6 +183,44 @@ export function notifikationTilAnsvarlig(
   };
 }
 
+// 4) Besked til bookeren, når klubben annullerer en booking, der allerede var
+//    på plads.
+//
+// Egen mail frem for en variant af afslaget. De to ligner hinanden, men er ikke
+// det samme: et afslag er svaret på en forespørgsel, en annullering rammer noget,
+// bookeren troede var i orden — måske en aftale, andre allerede er indkaldt til.
+// Det skal stå tydeligt, og tonen skal være en anden.
+export function aflysningTilBooker(b: MailBooking, kanSvares: boolean): MailIndhold {
+  const raekker = raekkerFor(b);
+
+  const overskrift = "Din booking er annulleret";
+  const forklaring =
+    "Klubben har annulleret bookingen, og tidsrummet er givet fri igen. Har du brug for lokalet, er du velkommen til at booke en anden tid.";
+
+  return {
+    emne: `Annulleret: din booking af ${b.lokaleNavn}`,
+    html: layout(
+      overskrift,
+      afsnit(`Hej ${b.navn}`) +
+        tabel(raekker) +
+        afsnit(forklaring) +
+        (kanSvares ? afsnit("Har du spørgsmål til hvorfor, kan du svare på denne mail.") : ""),
+      kanSvares
+    ),
+    tekst: [
+      `Hej ${b.navn}`,
+      "",
+      overskrift,
+      "",
+      tekstRaekker(raekker),
+      "",
+      forklaring,
+      "",
+      "Vejle Boldklub — VB Parkens lokalebooking",
+    ].join("\n"),
+  };
+}
+
 // 3) Svar til bookeren, når nogen har taget stilling.
 export function beslutningTilBooker(
   b: MailBooking,

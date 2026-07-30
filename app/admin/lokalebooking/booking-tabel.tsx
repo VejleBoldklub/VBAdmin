@@ -2,6 +2,7 @@ import { StatusMaerke } from "@/components/lokalebooking/status-maerke";
 import { findLokale } from "@/features/lokalebooking/lokaler";
 import { tidsrumDelt } from "@/features/lokalebooking/regler";
 import type { Booking } from "@/features/lokalebooking/types";
+import AnnullerKnap from "./annuller-knap";
 
 // Den samlede liste. Ren visning uden tilstand, så den bliver på serveren —
 // kontaktoplysningerne skal ikke længere ud end nødvendigt.
@@ -30,6 +31,9 @@ export default function BookingTabel({ bookinger }: { bookinger: Booking[] }) {
             <th className={OVERSKRIFT}>Hold</th>
             <th className={OVERSKRIFT}>Booker</th>
             <th className={OVERSKRIFT}>Status</th>
+            <th className={OVERSKRIFT}>
+              <span className="sr-only">Handlinger</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -91,6 +95,21 @@ export default function BookingTabel({ bookinger }: { bookinger: Booking[] }) {
                 </td>
                 <td className={CELLE}>
                   <StatusMaerke status={booking.status} />
+                </td>
+                <td className={`${CELLE} text-right`}>
+                  {/* Kun bookinger, der stadig gælder, kan annulleres. En afvist
+                      eller allerede aflyst booking er der ikke noget at tage
+                      tilbage på, og en knap, der altid fejler, er værre end
+                      ingen. */}
+                  {(booking.status === "afventer" || booking.status === "bekraeftet") && (
+                    <AnnullerKnap
+                      id={booking.id}
+                      lokaleNavn={lokale?.navn ?? booking.lokale}
+                      dag={dag}
+                      klokke={klokke}
+                      kompakt
+                    />
+                  )}
                 </td>
               </tr>
             );
