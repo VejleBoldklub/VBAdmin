@@ -18,7 +18,20 @@ export type Lokale = {
   //
   // null betyder, at der ikke er en særskilt ansvarlig; så bruges afsenderen.
   ansvarligEmail: string | null;
+  // Klubbens spilleregler for lokalet, vist øverst på bookingsiden.
+  //
+  // Teksten er klubbens, ikke vores, og er overtaget ordret fra de gamle
+  // SuperSaaS-sider. Ret den kun efter aftale.
+  regler: readonly string[];
 };
+
+// De tre første regler gælder begge lokaler. De står ét sted, så en rettelse ikke
+// kan komme til kun at gælde det ene.
+const FAELLES_REGLER = [
+  "Book kun den tid du har brug for, eller forventer at bruge.",
+  'Book ikke "måske"-aftaler, som så ikke bliver til noget.',
+  "Husk at slette en booking hvis den bliver aflyst.",
+] as const;
 
 // De to ressourcer er faste og ligger i koden, ikke i en tabel — samme valg som
 // baneplanerne i features/baneplan/plans.ts. Kommer der flere lokaler, hører de
@@ -32,6 +45,7 @@ export const lokaler: readonly Lokale[] = [
     adminPath: "/admin/lokalebooking?lokale=moedelokale",
     kraeverGodkendelse: false,
     ansvarligEmail: null,
+    regler: FAELLES_REGLER,
   },
   {
     slug: "cafeteria",
@@ -41,6 +55,14 @@ export const lokaler: readonly Lokale[] = [
     adminPath: "/admin/lokalebooking?lokale=cafeteria",
     kraeverGodkendelse: true,
     ansvarligEmail: "cafeteria@vejleboldklub.dk",
+    regler: [
+      ...FAELLES_REGLER,
+      "OBS! Reservationer af cafeteriet er først godkendt når cafeteriet har accepteret reservationen. Cafeteriet modtager en mail når der laves en ny reservation.",
+      "Ændres der i bordopstilling, skal borde stilles tilbage igen.",
+      "Borde tørres af.",
+      "Stole stilles pænt på plads.",
+      "Affald smides ud.",
+    ],
   },
 ];
 
