@@ -133,7 +133,11 @@ Bookingregler: kvarterers præcision, åbent kl. 14.00–22.00 på hverdage og k
 
 ### Bookingoplysninger er offentlige i kalenderen
 
-Ugekalenderen på de offentlige ruter viser **formål, hold, navn, mobil og e-mail** på den, der har booket. Siden kræver ikke login.
+Ugekalenderen på de offentlige ruter viser **formål, hold, navn og mobil** på den, der har booket. Siden kræver ikke login.
+
+**E-mailadressen er ikke med.** Navn og mobil er nok til at fange den, der har lokalet, mens en mailadresse på en offentlig side er det, adressehøstere leder efter. Adressen hentes slet ikke fra databasen til den offentlige side — den står altså hverken i teksten, i en `title` eller i sidens data. At skjule den i en `title` ville ikke have hjulpet: attributten ligger i kildekoden og kan læses lige så let som alt andet.
+
+Adressen gemmes og bruges uændret server-side til kvitteringer, notifikationer og godkendelsesflowet. Den forlader bare aldrig serveren mod browseren.
 
 Det er en bevidst beslutning truffet af klubben, så trænere kan se i kalenderen, hvem der har lokalet, uden først at logge ind. Det er ikke sådan modulet blev bygget: oprindeligt viste kalenderen kun "Optaget" og "Afventer", og den læste viewet `lokale_optagethed` netop for at kontaktoplysninger ikke kunne slippe ud.
 

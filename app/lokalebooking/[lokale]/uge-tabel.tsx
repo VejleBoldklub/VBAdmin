@@ -106,25 +106,37 @@ export default function UgeTabel({ datoer, slots, iDag, valgt, vaelg }: UgeTabel
                 //
                 // En søjle er smal, og et kvarter er 12 px høj. Linjerne kommer
                 // derfor på efterhånden som blokken har plads: først hvad og
-                // hvem, så tidsrummet, så kontaktoplysningerne. Uanset højden
-                // står det hele i title, så det kan læses ved at holde musen
-                // stille, og i en skjult linje, så skærmlæsere får det med.
+                // hvem, så tidsrummet, så mobilnummeret. Uanset højden står det
+                // i title, så det kan læses ved at holde musen stille, og i en
+                // skjult linje, så skærmlæsere får det med.
+                const tidsrum = `${minutterTilKlokke(segment.fra)}–${minutterTilKlokke(segment.til)}`;
+
+                // E-mailadressen findes ikke her — heller ikke i title. Den
+                // hentes slet ikke fra databasen til denne side, se
+                // optagethed.ts. At skjule en adresse i en title-attribut ville
+                // ikke have hjulpet: den ligger i sidens kildekode og kan læses
+                // lige så let som alt andet.
+                //
+                // Adressen bruges uændret server-side til kvitteringer og til
+                // godkendelsesmailen. Den forlader bare aldrig serveren mod
+                // browseren.
                 const linjer = b
                   ? [
                       b.hold ? `${b.formaal} · ${b.hold}` : b.formaal,
                       b.navn,
-                      `${minutterTilKlokke(segment.fra)}–${minutterTilKlokke(segment.til)}`,
+                      tidsrum,
                       b.mobil,
-                      b.email,
                     ]
                   : [];
 
-                const alt = b
+                // Til skærmlæsere og til title — samme indhold, for der er ikke
+                // længere noget, der kun hører det ene sted hjemme.
+                const oplaest = b
                   ? [
                       `${stil.tekst}: ${b.formaal}`,
                       b.hold ? `Hold: ${b.hold}` : null,
-                      `${b.navn}, ${b.mobil}, ${b.email}`,
-                      `${minutterTilKlokke(segment.fra)}–${minutterTilKlokke(segment.til)}`,
+                      `${b.navn}, ${b.mobil}`,
+                      tidsrum,
                     ]
                       .filter(Boolean)
                       .join("\n")
@@ -137,7 +149,7 @@ export default function UgeTabel({ datoer, slots, iDag, valgt, vaelg }: UgeTabel
                 return (
                   <div
                     key={segment.fra}
-                    title={alt || undefined}
+                    title={oplaest || undefined}
                     style={{ height: segment.antal * SLOT_H }}
                     className={`overflow-hidden px-1 py-0.5 text-[10px] font-semibold leading-tight ${stil.klasse}`}
                   >
@@ -154,7 +166,7 @@ export default function UgeTabel({ datoer, slots, iDag, valgt, vaelg }: UgeTabel
                         {/* Hele indholdet, også når blokken er for lav til at
                             vise det. Skærmlæsere læser det op; øjet ser det i
                             title. */}
-                        <span className="sr-only">{alt}</span>
+                        <span className="sr-only">{oplaest}</span>
                       </>
                     ) : null}
                   </div>

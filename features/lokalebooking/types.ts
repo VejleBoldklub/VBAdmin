@@ -31,6 +31,13 @@ export type Booking = {
 // Det er et bevidst valg truffet af klubben: trænere skal kunne se i kalenderen,
 // hvem der har booket, og hvad lokalet skal bruges til, uden først at logge ind.
 //
+// E-mailadressen er med vilje IKKE med. Navn og mobil er nok til at fange den,
+// der har lokalet, mens en mailadresse i en offentlig side er det, adressehøstere
+// leder efter. Den bliver stående i databasen og bruges server-side til
+// kvitteringer og godkendelsesmails — den forlader bare aldrig serveren mod
+// browseren. Tilføjes den her igen, ryger den med i sidens data, uanset om noget
+// tegner den.
+//
 // Det var ikke sådan modulet blev bygget. Oprindeligt læste den offentlige side
 // viewet lokale_optagethed, som kun indeholder tidsrum og status, netop for at
 // kontaktoplysninger ikke kunne slippe ud. Ændres beslutningen igen, er vejen
@@ -44,7 +51,6 @@ export type Optagethed = {
   formaal: string;
   hold: string | null;
   navn: string;
-  email: string;
   mobil: string;
 };
 
