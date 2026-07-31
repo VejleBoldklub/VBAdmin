@@ -50,7 +50,6 @@ export type DagBooking = {
   formaal: string;
   hold: string | null;
   navn: string;
-  email: string;
   mobil: string;
 };
 
@@ -73,7 +72,6 @@ export function tilDagBookinger(bookinger: Optagethed[]): DagBooking[] {
       formaal: b.formaal,
       hold: b.hold,
       navn: b.navn,
-      email: b.email,
       mobil: b.mobil,
     };
   });

@@ -20,8 +20,10 @@ import type { Optagethed } from "./types";
 // Det kaldes fra sidegengivelsen, ikke som et endepunkt.
 
 // Kolonnerne nævnes eksplicit. Et select("*") ville tage godkend_token_hash og
-// slet_token_hash med, og de skal aldrig forlade databasen.
-const KOLONNER = "lokale,start_tid,slut_tid,status,formaal,hold,navn,email,mobil";
+// slet_token_hash med, og de skal aldrig forlade databasen — og det ville tage
+// e-mailadressen med, som med vilje ikke vises offentligt. Det, der ikke hentes,
+// kan ikke slippe ud ved et uheld længere fremme.
+const KOLONNER = "lokale,start_tid,slut_tid,status,formaal,hold,navn,mobil";
 
 export type OptagethedResultat =
   | { ok: true; bookinger: Optagethed[] }

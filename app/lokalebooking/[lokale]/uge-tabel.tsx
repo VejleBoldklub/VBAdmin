@@ -111,17 +111,15 @@ export default function UgeTabel({ datoer, slots, iDag, valgt, vaelg }: UgeTabel
                 // skjult linje, så skærmlæsere får det med.
                 const tidsrum = `${minutterTilKlokke(segment.fra)}–${minutterTilKlokke(segment.til)}`;
 
-                // E-mailadressen står IKKE i den synlige tekst. En adresse i
-                // klartekst på en offentlig side er præcis, hvad
-                // adressehøstere leder efter, og bookeren har ikke bedt om at
-                // få spam for at have booket et lokale.
+                // E-mailadressen findes ikke her — heller ikke i title. Den
+                // hentes slet ikke fra databasen til denne side, se
+                // optagethed.ts. At skjule en adresse i en title-attribut ville
+                // ikke have hjulpet: den ligger i sidens kildekode og kan læses
+                // lige så let som alt andet.
                 //
-                // Den står i stedet i title, hvor den kan læses ved at holde
-                // musen stille. Det stopper afskrivning i hånden og de
-                // simpleste robotter — men det er ikke et forsvar: en
-                // title-attribut ligger i sidens kildekode og kan læses lige så
-                // let som alt andet. Skal adressen ud af rækkevidde, skal den
-                // helt væk fra den offentlige side.
+                // Adressen bruges uændret server-side til kvitteringer og til
+                // godkendelsesmailen. Den forlader bare aldrig serveren mod
+                // browseren.
                 const linjer = b
                   ? [
                       b.hold ? `${b.formaal} · ${b.hold}` : b.formaal,
@@ -131,7 +129,8 @@ export default function UgeTabel({ datoer, slots, iDag, valgt, vaelg }: UgeTabel
                     ]
                   : [];
 
-                // Til skærmlæsere. Uden adressen, som de øvrige linjer.
+                // Til skærmlæsere og til title — samme indhold, for der er ikke
+                // længere noget, der kun hører det ene sted hjemme.
                 const oplaest = b
                   ? [
                       `${stil.tekst}: ${b.formaal}`,
@@ -143,8 +142,6 @@ export default function UgeTabel({ datoer, slots, iDag, valgt, vaelg }: UgeTabel
                       .join("\n")
                   : "";
 
-                const alt = b ? `${oplaest}\n${b.email}` : "";
-
                 // Én linje fylder omkring 11 px. Et kvarter er 12, så antallet af
                 // kvarterer er nogenlunde antallet af linjer, der er plads til.
                 const plads = Math.max(0, segment.antal - 1);
@@ -152,7 +149,7 @@ export default function UgeTabel({ datoer, slots, iDag, valgt, vaelg }: UgeTabel
                 return (
                   <div
                     key={segment.fra}
-                    title={alt || undefined}
+                    title={oplaest || undefined}
                     style={{ height: segment.antal * SLOT_H }}
                     className={`overflow-hidden px-1 py-0.5 text-[10px] font-semibold leading-tight ${stil.klasse}`}
                   >
@@ -168,7 +165,6 @@ export default function UgeTabel({ datoer, slots, iDag, valgt, vaelg }: UgeTabel
                         ))}
                         {/* Hele indholdet, også når blokken er for lav til at
                             vise det. Skærmlæsere læser det op; øjet ser det i
-                            title. Adressen er ikke med her — den står kun i
                             title. */}
                         <span className="sr-only">{oplaest}</span>
                       </>
