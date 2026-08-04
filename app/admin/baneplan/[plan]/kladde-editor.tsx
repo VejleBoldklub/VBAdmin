@@ -115,6 +115,31 @@ export default function KladdeEditor({
     markerAendret();
   }
 
+  // PDF'en tegnes ud fra kladden i databasen, ikke fra editorens tilstand.
+  // Derfor gemmes der først: ellers kunne man sende en plan til godkendelse, hvor
+  // de sidste par minutters rettelser manglede.
+  async function handlePdf() {
+    setFejl(null);
+    setArbejder(true);
+
+    // Fanen åbnes med det samme, mens klikket stadig regnes som brugerens egen
+    // handling. Ventede vi til gemningen var færdig, ville browserens
+    // popup-blokering afvise den.
+    const fane = window.open("", "_blank");
+
+    try {
+      await gemKladde(kladdeId, saesontitel, { fields, events, maaltavle });
+      setGemStatus("gemt");
+      if (fane) fane.location.href = `/admin/baneplan/${slug}/print`;
+      else setFejl("Kunne ikke åbne printvisningen. Tillad pop op-vinduer for dette site.");
+    } catch (e) {
+      fane?.close();
+      setFejl(e instanceof Error ? e.message : "Kunne ikke gemme kladden før print.");
+    } finally {
+      setArbejder(false);
+    }
+  }
+
   async function handlePublicer() {
     setFejl(null);
     setArbejder(true);
@@ -218,6 +243,15 @@ export default function KladdeEditor({
           className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
         >
           Gem nu
+        </button>
+        <button
+          type="button"
+          onClick={handlePdf}
+          disabled={arbejder}
+          title="Gemmer kladden og åbner en printvenlig udgave af hele ugen i en ny fane"
+          className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+        >
+          Hent som PDF
         </button>
         <button
           type="button"

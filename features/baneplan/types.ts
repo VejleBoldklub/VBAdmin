@@ -2,12 +2,20 @@ import type { PlanSlug } from "./plans";
 
 export type Category = "piger" | "drenge" | "akademi" | "future" | "reserveret";
 
+// Labelen er tekst til skærmen; værdien står i planens gemte data. Derfor må
+// "reserveret" ikke omdøbes, selv om den kaldes en spærring i UI'et — det ville
+// gøre kategorien ulæselig i alle eksisterende planer.
+//
+// En spærring er en kategori på lige fod med holdkategorierne og ikke en
+// markering oveni: den står i stedet for et hold, ikke sammen med et. Et
+// selvstændigt felt ville tillade tilstande som "Drenge, men spærret" og tvinge
+// hver visning til at afgøre, om feltet eller kategorien bestemmer farven.
 export const CATEGORIES: { value: Category; label: string }[] = [
   { value: "piger", label: "Piger" },
   { value: "drenge", label: "Drenge" },
   { value: "akademi", label: "Akademi" },
   { value: "future", label: "Future Vejle" },
-  { value: "reserveret", label: "Reserveret / blokeret" },
+  { value: "reserveret", label: "Spærring / reserveret" },
 ];
 
 export const DAGE = ["Mandag", "Tirsdag", "Onsdag", "Torsdag", "Fredag", "Lørdag", "Søndag"];

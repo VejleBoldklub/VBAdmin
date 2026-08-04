@@ -1,0 +1,44 @@
+/*
+  Print-opsætning for kladdens PDF. Reglerne ligger her og ikke i globals.css,
+  fordi de kun gælder denne rute — og fordi @page ikke kan afgrænses til et
+  udsnit af siden.
+*/
+
+@page {
+  /* Skemaet er bredt: syv baner ved siden af hinanden. Stående A4 ville skulle
+     klemme kolonnerne under det læselige. */
+  size: A4 landscape;
+  margin: 8mm;
+}
+
+@media print {
+  body {
+    /* Uden dette udelader Chrome baggrundsfarver, og så ville både det sorte
+       banehoved og tildelingernes kategorifarver stå hvide på papiret. Farverne
+       ER informationen her, ikke pynt. */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background: #fff;
+  }
+}
+
+/* Et gitter må ikke deles midt over. */
+.print-dag {
+  break-inside: avoid;
+}
+
+/* Sidebrud FØR hver dag på nær den første — altså én dag pr. side.
+   Bevidst ikke break-after på hver dag: så skulle den sidste undtages igen for
+   ikke at skubbe en blank side ud, og en :last-of-type-undtagelse ville ikke
+   virke, fordi måloversigten nedenfor også er en <section> og dermed er den
+   sidste af sin type. */
+.print-dag + .print-dag {
+  break-before: page;
+}
+
+/* Måloversigten følger efter sidste dag. Der er sjældent plads til den på samme
+   side, og så flytter denne regel den hel over på den næste frem for at dele
+   tabellen. */
+.print-maaltavle {
+  break-inside: avoid;
+}

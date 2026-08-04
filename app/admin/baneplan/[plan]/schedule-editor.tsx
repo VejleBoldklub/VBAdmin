@@ -15,13 +15,12 @@ import {
   foersteLedigePlads,
   HEADER_H,
   layoutEvents,
-  MIN_DURATION,
   MIN_FIELD_W,
   pickInitialDay,
   rangeForDay,
   ROW_H,
   SNAP,
-  snapTilKvarter,
+  tildelingerPaaDag,
   tilpasTilDag,
   TIME_W,
 } from "@/features/baneplan/layout";
@@ -50,15 +49,12 @@ type TabRect = { day: string; left: number; right: number; top: number; bottom: 
 // henover en banegrænse ikke river elementet ned og op igen.
 type Preview = { id: string; start: number; end: number; field: string; dx: number };
 
-// Igangværende oprettelse ved træk på tomt gitter.
-type NyBoks = { field: string; start: number; end: number };
-
 function nytId() {
   return `e${Date.now()}${Math.floor(Math.random() * 1000)}`;
 }
 
-// Varighed for en tildeling oprettet med knappen. Træk på gitteret bestemmer
-// selv varigheden.
+// Varighed for en ny tildeling. Den kan tilpasses bagefter ved at trække i
+// boksens kanter.
 const NY_VARIGHED = 60;
 
 export default function ScheduleEditor({ fields, events, onChange }: ScheduleEditorProps) {
@@ -67,10 +63,16 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
   const [traekkerId, setTraekkerId] = useState<string | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [maalDag, setMaalDag] = useState<string | null>(null);
-  const [nyBoks, setNyBoks] = useState<NyBoks | null>(null);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  // Kategorivælgeren til "+ Tilføj tildeling". Den ligger for sig, fordi den
+  // netop ikke hører til en eksisterende tildeling.
+  const [nyMenu, setNyMenu] = useState<{ x: number; y: number } | null>(null);
+  // Sidst valgte kategori. Kun til at sætte fluebenet i vælgeren, så den viser
+  // hvad man valgte sidst, frem for altid at fremhæve Piger.
+  const [sidsteKategori, setSidsteKategori] = useState<Category>("piger");
 
   const tabsRef = useRef<HTMLDivElement>(null);
+  const tilfoejRef = useRef<HTMLButtonElement>(null);
   const laneRefs = useRef(new Map<string, HTMLDivElement>());
 
   const range = useMemo(() => rangeForDay(activeDay), [activeDay]);
@@ -93,8 +95,11 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
     [events, onChange]
   );
 
+  // Kategorien kommer med udefra og bestemmer boksens farve gennem
+  // categoryClass, ligesom for alle andre tildelinger. Den må ikke hardkodes
+  // her; det var derfor alt nyt før blev grønt.
   const opret = useCallback(
-    (field: string, start: number, end: number) => {
+    (field: string, start: number, end: number, kategori: Category) => {
       const ny: ScheduleEvent = {
         id: nytId(),
         day: activeDay,
@@ -103,7 +108,7 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
         end,
         field,
         room: "",
-        category: "piger",
+        category: kategori,
       };
       onChange([...events, ny]);
       setValgt(ny.id);
@@ -230,46 +235,14 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
     window.addEventListener("pointercancel", annuller);
   }
 
-  function startOpret(e: PointerEvent<HTMLDivElement>, fieldName: string) {
-    // Kun træk på selve banefeltet, ikke på en boks ovenpå.
+  // Klik på tomt gitter afmarkerer og lukker en åben menu — men opretter ikke.
+  // Oprettelse sker alene gennem "+ Tilføj tildeling", så et fejlklik i gitteret
+  // ikke lægger en tildeling ind, man selv skal opdage og slette igen.
+  function klikPaaTomtGitter(e: PointerEvent<HTMLDivElement>) {
+    // Kun det tomme banefelt, ikke en boks ovenpå.
     if (e.target !== e.currentTarget) return;
     setValgt(null);
     setMenu(null);
-    // På touch er træk browserens til at scrolle med. Ville vi også oprette ved
-    // træk her, mistede man den vandrette scroll i gitteret. Touch bruger
-    // knappen "Tilføj tildeling" i stedet.
-    if (e.pointerType === "touch") return;
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-
-    const laneTop = e.currentTarget.getBoundingClientRect().top;
-    const fraMin = snapTilKvarter(range.min + (e.clientY - laneTop) / ppm);
-    let sidste: NyBoks = { field: fieldName, start: fraMin, end: fraMin + MIN_DURATION };
-    setNyBoks(sidste);
-
-    function flyt(pe: globalThis.PointerEvent) {
-      const nu = snapTilKvarter(range.min + (pe.clientY - laneTop) / ppm);
-      const start = Math.max(range.min, Math.min(fraMin, nu));
-      const slut = Math.min(range.max, Math.max(fraMin, nu));
-      sidste = { field: fieldName, start, end: Math.max(slut, start + MIN_DURATION) };
-      setNyBoks(sidste);
-    }
-
-    function afslut(gem: boolean) {
-      window.removeEventListener("pointermove", flyt);
-      window.removeEventListener("pointerup", slip);
-      window.removeEventListener("pointercancel", annuller);
-      setNyBoks(null);
-      if (gem && sidste.end - sidste.start >= MIN_DURATION) {
-        opret(sidste.field, sidste.start, sidste.end);
-      }
-    }
-
-    const slip = () => afslut(true);
-    const annuller = () => afslut(false);
-
-    window.addEventListener("pointermove", flyt);
-    window.addEventListener("pointerup", slip);
-    window.addEventListener("pointercancel", annuller);
   }
 
   function taster(e: KeyboardEvent<HTMLDivElement>, ev: ScheduleEvent) {
@@ -316,10 +289,7 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
   }
 
   // Bevidst uden preview: kolonnerne må ikke genberegnes midt i et træk.
-  const dagensEvents = useMemo(
-    () => events.filter((e) => e.day === activeDay && e.end > range.min && e.start < range.max),
-    [events, activeDay, range.min, range.max]
-  );
+  const dagensEvents = useMemo(() => tildelingerPaaDag(events, activeDay), [events, activeDay]);
 
   const freeRooms = useMemo(() => {
     const brugt = new Set(
@@ -328,7 +298,9 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
     return ALL_ROOMS.filter((n) => !brugt.has(n));
   }, [dagensEvents]);
 
-  function tilfoejTildeling() {
+  function tilfoejTildeling(kategori: Category) {
+    setSidsteKategori(kategori);
+    setNyMenu(null);
     const plads = foersteLedigePlads(
       dagensEvents,
       fields.map((f) => f.name),
@@ -337,8 +309,8 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
     );
     // Er dagen fuldt booket, lægges tildelingen ved dagens begyndelse og
     // overlapper. Det er bedre end ingen reaktion på et klik.
-    if (plads) opret(plads.field, plads.start, plads.end);
-    else opret(fields[0].name, range.min, range.min + NY_VARIGHED);
+    if (plads) opret(plads.field, plads.start, plads.end, kategori);
+    else opret(fields[0].name, range.min, range.min + NY_VARIGHED, kategori);
   }
 
   const menuEvent = menu ? events.find((e) => e.id === menu.id) : undefined;
@@ -366,12 +338,23 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
     <div className="relative">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs leading-5 text-slate-500">
-          Træk en boks for at flytte den, træk i kanten for at ændre varighed, og træk hen på en
-          dagsfane for at flytte til en anden dag. Klik i teksten for at rette holdnavn og omklædning.
+          Nye tildelinger oprettes med knappen, hvor du også vælger kategori — vælg{" "}
+          <em className="not-italic font-semibold">Spærring</em> til en reservation uden hold. Træk en
+          boks for at flytte den, træk i kanten for at ændre varighed, og træk hen på en dagsfane for
+          at flytte til en anden dag. Klik i teksten for at rette holdnavn og omklædning.
         </p>
         <button
+          ref={tilfoejRef}
           type="button"
-          onClick={tilfoejTildeling}
+          aria-haspopup="menu"
+          aria-expanded={nyMenu !== null}
+          onClick={() => {
+            const r = tilfoejRef.current?.getBoundingClientRect();
+            setMenu(null);
+            // Menuen placeres under knappen; CategoryMenu holder den selv inde i
+            // vinduet, hvis knappen står nede i bunden af skærmen.
+            setNyMenu(r ? { x: r.left, y: r.bottom + 4 } : { x: 16, y: 16 });
+          }}
           className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
         >
           + Tilføj tildeling
@@ -455,7 +438,7 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
                   if (el) laneRefs.current.set(f.name, el);
                   else laneRefs.current.delete(f.name);
                 }}
-                onPointerDown={(e) => startOpret(e, f.name)}
+                onPointerDown={klikPaaTomtGitter}
                 className="relative border-r border-slate-200 last:border-r-0"
                 style={{ gridColumn: i + 2, gridRow: 2, height: bodyH, ...laneBaggrund }}
               >
@@ -489,20 +472,6 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
                   />
                   );
                 })}
-
-                {nyBoks?.field === f.name && (
-                  <div
-                    className="pointer-events-none absolute inset-x-1 rounded-md border-2 border-dashed border-red-700 bg-red-50/70"
-                    style={{
-                      top: (nyBoks.start - range.min) * ppm + 3,
-                      height: Math.max((nyBoks.end - nyBoks.start) * ppm - 6, 20),
-                    }}
-                  >
-                    <span className="block pt-0.5 text-center text-[10px] font-bold text-red-800">
-                      {minutesToLabel(nyBoks.start)}–{minutesToLabel(nyBoks.end)}
-                    </span>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -528,6 +497,18 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
           onDuplicate={() => dupliker(menu.id)}
           onDelete={() => slet(menu.id)}
           onClose={() => setMenu(null)}
+        />
+      )}
+
+      {/* Samme menu uden handlinger: her vælges kategorien for den nye tildeling,
+          så farven følger valget frem for altid at være Pigers grønne. */}
+      {nyMenu && (
+        <CategoryMenu
+          x={nyMenu.x}
+          y={nyMenu.y}
+          current={sidsteKategori}
+          onPick={tilfoejTildeling}
+          onClose={() => setNyMenu(null)}
         />
       )}
     </div>
