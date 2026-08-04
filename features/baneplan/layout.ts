@@ -133,6 +133,14 @@ export function overlaps(a: { start: number; end: number }, b: { start: number; 
   return a.start < b.end && b.start < a.end;
 }
 
+// Tildelingerne på en dag, afgrænset til dagens tidsvindue. Samme filter i
+// editoren, den læsende visning og printvisningen, så de tre ikke kan komme til
+// at vise hver sit udsnit af planen.
+export function tildelingerPaaDag(events: ScheduleEvent[], day: string): ScheduleEvent[] {
+  const range = rangeForDay(day);
+  return events.filter((e) => e.day === day && e.end > range.min && e.start < range.max);
+}
+
 // Banernes rækkefølge i planens data ER kolonnernes rækkefølge i skemaet. Både
 // kladdens editor og den offentlige visning tegner deres kolonner ved at løbe
 // fields igennem i rækkefølge, så en omrokering er ganske enkelt en flytning i

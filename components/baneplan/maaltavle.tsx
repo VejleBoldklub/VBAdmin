@@ -5,11 +5,14 @@ import type { Maaltavle, ScheduleField } from "@/features/baneplan/types";
 type MaaltavleTabelProps = {
   maaltavle: Maaltavle;
   fields: ScheduleField[];
+  // På papir udgår mindstebredden, ligesom i DagGitter: tabellen skal krympe til
+  // sidens bredde frem for at blive klippet af.
+  tilPrint?: boolean;
 };
 
 // Læsende måloversigt til den offentlige baneplan. Viser hvilke måltyper der
 // står på hvilke baner.
-export function MaaltavleTabel({ maaltavle, fields }: MaaltavleTabelProps) {
+export function MaaltavleTabel({ maaltavle, fields, tilPrint = false }: MaaltavleTabelProps) {
   if (maaltavle.raekker.length === 0 || fields.length === 0) return null;
 
   const baner = fields.map((f) => f.name);
@@ -36,7 +39,7 @@ export function MaaltavleTabel({ maaltavle, fields }: MaaltavleTabelProps) {
         className="w-full border-collapse text-xs"
         style={{
           tableLayout: "fixed",
-          minWidth: TIME_W + baner.length * MIN_FIELD_W,
+          minWidth: tilPrint ? undefined : TIME_W + baner.length * MIN_FIELD_W,
         }}
       >
         <colgroup>
