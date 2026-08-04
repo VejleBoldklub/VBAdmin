@@ -133,6 +133,73 @@ export function overlaps(a: { start: number; end: number }, b: { start: number; 
   return a.start < b.end && b.start < a.end;
 }
 
+// Banernes rækkefølge i planens data ER kolonnernes rækkefølge i skemaet. Både
+// kladdens editor og den offentlige visning tegner deres kolonner ved at løbe
+// fields igennem i rækkefølge, så en omrokering er ganske enkelt en flytning i
+// den liste. Der er derfor ikke — og skal ikke være — et selvstændigt
+// rækkefølgefelt, der kan komme ud af trit med listen.
+//
+// Tildelinger peger på deres bane ved navn, ikke ved kolonneposition, så de
+// følger med af sig selv, når banerne bytter plads.
+
+// Flytter elementet på plads `fra` hen til indsætningspunktet `indsaetVed`.
+//
+// Indsætningspunktet tælles i den OPRINDELIGE liste og betyder "foran elementet
+// med dette indeks"; liste.length betyder "til sidst". Det er samme talemåde som
+// indsaetIndeks returnerer, så kalderen ikke skal omregne mellem de to.
+export function flytElement<T>(liste: T[], fra: number, indsaetVed: number): T[] {
+  if (fra < 0 || fra >= liste.length) return liste;
+  const ud = [...liste];
+  const [element] = ud.splice(fra, 1);
+  // Fjernelsen rykkede alt efter `fra` et skridt ned, så et indsætningspunkt til
+  // højre for elementet selv skal følge med.
+  ud.splice(indsaetVed > fra ? indsaetVed - 1 : indsaetVed, 0, element);
+  return ud;
+}
+
+export type TagRect = { left: number; right: number; top: number; bottom: number };
+
+// Hvilket indsætningspunkt en markørposition peger på i en række tags.
+//
+// Rækken kan ombrydes over flere linjer, og derfor er et opslag på x alene ikke
+// nok: et punkt langt til højre på første linje skal give et andet resultat end
+// samme x på anden linje. Så først findes linjen, dernæst pladsen på den.
+//
+// Rects måles én gang ved trækkets begyndelse. Derfor må denne funktion ikke
+// forudsætte, at de svarer til det, der står på skærmen midt i et træk — den
+// arbejder udelukkende på de tal, den får.
+export function indsaetIndeks(rects: TagRect[], x: number, y: number): number {
+  if (rects.length === 0) return 0;
+
+  // Ombrydningen læses af tagsenes egen placering: et tag, der begynder længere
+  // til venstre end sin forgænger, er brudt om til en ny linje.
+  const linjer: number[][] = [[0]];
+  for (let i = 1; i < rects.length; i++) {
+    if (rects[i].left <= rects[i - 1].left) linjer.push([i]);
+    else linjer[linjer.length - 1].push(i);
+  }
+
+  // Nærmeste linje frem for kun den, markøren står præcis på. Føres tagget ud
+  // over rækkens kant — eller ned i mellemrummet mellem to linjer — skal det
+  // stadig kunne slippes et sted, frem for at trækket lydløst intet gør.
+  const linje = linjer.reduce((bedst, l) =>
+    afstandTilLinje(rects, l, y) < afstandTilLinje(rects, bedst, y) ? l : bedst
+  );
+
+  // På linjen afgør tagsenes midte, om markøren hører til før eller efter hvert
+  // tag. Er den til højre for dem alle, peges på pladsen efter linjens sidste.
+  const foer = linje.find((i) => x < (rects[i].left + rects[i].right) / 2);
+  return foer ?? linje[linje.length - 1] + 1;
+}
+
+function afstandTilLinje(rects: TagRect[], linje: number[], y: number): number {
+  const top = Math.min(...linje.map((i) => rects[i].top));
+  const bund = Math.max(...linje.map((i) => rects[i].bottom));
+  if (y < top) return top - y;
+  if (y > bund) return y - bund;
+  return 0;
+}
+
 export type LaidOutEvent = ScheduleEvent & { col: number; cols: number };
 
 // Fordeler tildelinger på en bane i kolonner, så overlappende tildelinger vises

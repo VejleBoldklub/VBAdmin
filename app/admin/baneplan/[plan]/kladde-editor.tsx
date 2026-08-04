@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PlanSlug } from "@/features/baneplan/plans";
 import type { Maaltavle, ScheduleEvent, ScheduleField } from "@/features/baneplan/types";
 import { gemKladde, publicerKladde, kasserKladde } from "@/features/baneplan/actions";
+import BaneTags from "./bane-tags";
 import MaaltavleEditor from "./maaltavle-editor";
 import ScheduleEditor from "./schedule-editor";
 
@@ -102,6 +103,13 @@ export default function KladdeEditor({
     markerAendret();
   }
 
+  // Tildelinger peger på deres bane ved navn, så de skal ikke rettes med, når
+  // banerne bytter plads — kun listen selv ændrer sig.
+  function omrokerBaner(naeste: ScheduleField[]) {
+    setFields(naeste);
+    markerAendret();
+  }
+
   function opdaterEvents(naeste: ScheduleEvent[]) {
     setEvents(naeste);
     markerAendret();
@@ -166,31 +174,17 @@ export default function KladdeEditor({
 
       <div className="mt-6">
         <h3 className="text-sm font-bold uppercase tracking-wide text-slate-500">Baner</h3>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {fields.map((f) => (
-            <span
-              key={f.name}
-              className="flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-700"
-            >
-              {f.name}
-              <button
-                type="button"
-                onClick={() => fjernBane(f.name)}
-                aria-label={`Fjern ${f.name}`}
-                className="text-slate-400 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
-              >
-                x
-              </button>
-            </span>
-          ))}
-          <button
-            type="button"
-            onClick={tilfoejBane}
-            className="rounded-full border border-dashed border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
-          >
-            + Tilføj bane
-          </button>
-        </div>
+        <p className="mt-1 text-xs leading-5 text-slate-500">
+          Rækkefølgen her bestemmer kolonnernes rækkefølge i skemaet — også på den offentlige plan,
+          når kladden publiceres. Træk en bane for at flytte den, eller flyt den med venstre og højre
+          piletast.
+        </p>
+        <BaneTags
+          fields={fields}
+          onOmroker={omrokerBaner}
+          onFjern={fjernBane}
+          onTilfoej={tilfoejBane}
+        />
       </div>
 
       <div className="mt-6">
