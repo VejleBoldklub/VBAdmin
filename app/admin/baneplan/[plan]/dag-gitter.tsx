@@ -144,8 +144,22 @@ export default function DagGitter({
                   onMouseLeave={tooltip ? () => tooltip.skjul() : undefined}
                 >
                   <div className="text-xs font-semibold leading-tight">{ev.team}</div>
-                  {hasRoom && (
-                    <div className="mt-1 text-[11px] leading-tight opacity-90">Omkl. {ev.room}</div>
+                  {tilPrint ? (
+                    // På papir står tiden i boksen. På skærmen kan man læse den
+                    // af tidsaksen eller holde markøren over boksen; på en
+                    // udskrift er der ingen markør, og en bred plan er nem at
+                    // læse forkert på tværs.
+                    //
+                    // Tid og omklædning deler én linje, så en kort tildeling ikke
+                    // skal have tre linjer i en boks, der kun har plads til to.
+                    <div className="text-[9px] leading-tight opacity-80">
+                      {minutesToLabel(ev.start)}–{minutesToLabel(ev.end)}
+                      {hasRoom && ` · Omkl. ${ev.room}`}
+                    </div>
+                  ) : (
+                    hasRoom && (
+                      <div className="mt-1 text-[11px] leading-tight opacity-90">Omkl. {ev.room}</div>
+                    )
                   )}
                 </div>
               );
