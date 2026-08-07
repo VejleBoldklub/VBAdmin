@@ -1,11 +1,18 @@
 import { headers } from "next/headers";
-import { Resend } from "resend";
+import { sendViaResend } from "./mail-resend";
+import { sendViaSmtp } from "./mail-smtp";
 
-// Afsendelse af mails gennem Resend.
+// Afsendelse af mails.
 //
 // Modulet er transport og intet andet: hvad der står i mailene, ligger i
 // mail-tekster.ts. Det er delt op, fordi teksterne ændres jævnligt, mens
 // afsendelsen ikke gør.
+//
+// Selve forbindelsen ud af huset ligger i to filer, én pr. leverandør:
+// mail-smtp.ts (One.com) og mail-resend.ts. Denne fil vælger mellem dem og er
+// det eneste, resten af modulet kender. Opdelingen er der, fordi skiftet fra
+// Resend til SMTP endnu ikke er afprøvet i produktion — se MAIL_TRANSPORT
+// nedenfor.
 //
 // Ingen afsendelse må kunne vælte det, den handler om. Funktionerne her kaster
 // derfor ikke — de returnerer et resultat og logger årsagen. En booking, der
@@ -25,53 +32,24 @@ export type Mail = {
   svarTil?: string | null;
 };
 
-// Klienten oprettes først ved brug. Oprettes den på modulniveau, fejler
-// `next build` på en maskine uden nøglen, fordi Next importerer modulet under
-// indsamling af sidedata — samme fælde som lib/supabase-public.ts beskriver.
-let klient: Resend | null = null;
-
-function resend(): Resend | null {
-  if (klient) return klient;
-
-  const noegle = process.env.RESEND_API_KEY;
-  if (!noegle) return null;
-
-  klient = new Resend(noegle);
-  return klient;
+// Afsenderen er den samme, uanset hvem der transporterer mailen. MAIL_FROM er
+// det leverandøruafhængige navn; RESEND_FROM_EMAIL læses fortsat, så en
+// eksisterende opsætning ikke skifter afsender, blot fordi transporten skiftede.
+function afsender(): string {
+  return process.env.MAIL_FROM || process.env.RESEND_FROM_EMAIL || STANDARD_AFSENDER;
 }
 
 export async function sendMail(mail: Mail): Promise<MailResultat> {
-  const afsender = process.env.RESEND_FROM_EMAIL || STANDARD_AFSENDER;
-  const klient = resend();
+  const fra = afsender();
 
-  if (!klient) {
-    // Ikke en undtagelse: uden nøgle skal alt andet stadig virke. I udvikling er
-    // det den normale tilstand.
-    console.error(`Mangler RESEND_API_KEY. Mail til ${mail.til} blev ikke sendt: ${mail.emne}`);
-    return { ok: false, grund: "Mangler RESEND_API_KEY" };
+  // SMTP er standarden. "resend" er vejen tilbage, og den skal kunne tages uden
+  // en kodeændring: virker One.com ikke som forventet i produktion, er det én
+  // miljøvariabel i Vercel og et redeploy, ikke en pull request.
+  if (process.env.MAIL_TRANSPORT?.trim().toLowerCase() === "resend") {
+    return sendViaResend(mail, fra);
   }
 
-  try {
-    const { data, error } = await klient.emails.send({
-      from: afsender,
-      to: [mail.til],
-      subject: mail.emne,
-      html: mail.html,
-      text: mail.tekst,
-      ...(mail.svarTil ? { replyTo: mail.svarTil } : {}),
-    });
-
-    if (error) {
-      console.error(`Resend afviste mail til ${mail.til} (${mail.emne}): ${error.message}`);
-      return { ok: false, grund: error.message };
-    }
-
-    return { ok: true, id: data?.id ?? null };
-  } catch (e) {
-    const grund = e instanceof Error ? e.message : String(e);
-    console.error(`Kunne ikke sende mail til ${mail.til} (${mail.emne}): ${grund}`);
-    return { ok: false, grund };
-  }
+  return sendViaSmtp(mail, fra);
 }
 
 // Absolut adresse til links i mails. Et relativt link er ubrugeligt i en mail.
