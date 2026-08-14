@@ -1,7 +1,8 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { DAY_CONTENT, farveTilNavn, type DagFarve, type DagIndhold } from '@/lib/infoskaerm/content';
+import { DAY_CONTENT, type DagFarve, type DagIndhold } from '@/lib/infoskaerm/content';
 
 interface ScreenData {
   farve: DagFarve;
@@ -84,10 +85,13 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
             {c.subtitleDa} / {c.subtitleEn}
           </div>
         </div>
-        <img
+        <Image
           src="/vb-logo.png"
-          alt="Vejle Boldklub logo"
-          className="object-contain"
+          alt="Vejle Boldklub"
+          width={1291}
+          height={1237}
+          priority
+          className="w-auto object-contain"
           style={{ height: 'clamp(105px, 7vw, 230px)', filter: 'drop-shadow(0 12px 24px rgba(0,0,0,.18))' }}
         />
       </header>
