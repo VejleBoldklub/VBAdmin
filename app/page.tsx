@@ -24,10 +24,17 @@ const modules: ModuleCardProps[] = [
     index: 2,
   },
   {
+    title: "Infoskærm",
+    description: "Sæt farve og besked på cafeteriets infoskærm.",
+    status: "Aktiv",
+    href: "/admin/infoskaerm",
+    index: 3,
+  },
+  {
     title: "Administration",
     description: "Administrér brugere, roller og systemindstillinger.",
     status: "Kommer senere",
-    index: 3,
+    index: 4,
   },
 ];
 
