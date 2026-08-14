@@ -13,7 +13,9 @@ create table if not exists infoskaerm_ugeplan (
   updated_at timestamptz not null default now()
 );
 
-create index if not exists infoskaerm_ugeplan_dato_idx on infoskaerm_ugeplan (dato);
+-- Der er med vilje ikke et separat indeks på dato. "unique" på kolonnen laver
+-- allerede et, og begge opslag i modulet — dagens dato og de kommende 14 dage —
+-- bruger det.
 
 -- Hold updated_at frisk ved hver ændring
 create or replace function infoskaerm_set_updated_at()
