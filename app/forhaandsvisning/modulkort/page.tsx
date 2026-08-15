@@ -73,25 +73,13 @@ const VARIANTER: { navn: string; note: string; stil: Stil }[] = [
     },
   },
   {
-    navn: "A — Rolig",
-    note: "Fladen lig med siden, kant bevaret, badge uden ring. Ligner stadig et kort, bare et stille et.",
-    stil: {
-      kort: "border border-slate-200 bg-slate-50",
-      chip: "bg-slate-100 text-slate-400 ring-1 ring-slate-200",
-      badge:
-        "flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-500",
-      titel: "text-slate-600",
-      tekst: "text-slate-500",
-    },
-  },
-  {
     navn: "B — Kontur",
-    note: "Stiplet kant, ingen udfyldning, badge uden chip. Størst forskel, ordene bevaret.",
+    note: "Stiplet kant, ingen udfyldning, badge uden chip. Ordene bevaret.",
     stil: {
-      kort: "border border-dashed border-slate-300 bg-transparent",
+      kort: "border-2 border-dashed border-slate-300 bg-transparent",
       chip: "bg-transparent text-slate-400 ring-1 ring-slate-200",
       badge: "flex items-center gap-1.5 text-[11px] font-semibold text-slate-500",
-      titel: "text-slate-600",
+      titel: "text-slate-500",
       tekst: "text-slate-500",
     },
   },
@@ -115,8 +103,7 @@ export default function Forhaandsvisning() {
       <div className="mx-auto w-full max-w-5xl px-5 py-8 sm:px-8">
         <h1 className="text-2xl font-bold tracking-tight">Dæmpning af låste modulkort</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-          Hver sektion viser forsidens gitter, som Helene ville se det: to moduler hun har adgang
-          til, og to hun ikke har. Sammenlign hvor hurtigt du kan skelne dem ved ét blik.
+          Hver sektion viser forsidens gitter, som Helene ville se det: to moduler hun har adgang til, og to hun ikke har. Sammenlign hvor hurtigt du kan skelne dem ved ét blik.
         </p>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
           Teksten er <strong>slate-500</strong> i alle varianter. Lysere falder under WCAG 4.5:1 mod
