@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { AdminPageShell } from "@/components/admin-page-shell";
+import { produktionsBaseUrl } from "@/lib/base-url";
+import KioskLink from "./kiosk-link";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getUpcomingPlan, todayKey } from "@/lib/infoskaerm/data";
 import DayRow from "./day-row";
@@ -50,6 +52,8 @@ export default async function InfoskaermAdminPage() {
         Farven bestemmer selv dagens navn: Rød er Performance, Gul er Recovery, Grøn er Health.
         Ændringer slår igennem på skærmen ved næste opdatering, højst to minutter.
       </p>
+
+      <KioskLink url={`${await produktionsBaseUrl()}/infoskaerm/cafeteria`} />
 
       <Link
         href="/admin/infoskaerm/indhold"
