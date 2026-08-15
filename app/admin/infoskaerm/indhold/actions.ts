@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { erAdmin } from "@/lib/admin-auth";
+import { kraevAdgang } from "@/lib/adgang";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { beskrivSupabaseFejl } from "@/lib/infoskaerm/data";
 import type { DagFarve, IndholdBlokRow, IndholdRow } from "@/lib/infoskaerm/content";
@@ -50,7 +50,7 @@ function erFejl(vaerdi: string | GemResultat): vaerdi is GemResultat {
 }
 
 export async function gemIndhold(raekke: IndholdRow): Promise<GemResultat> {
-  if (!(await erAdmin())) {
+  if (!(await kraevAdgang("infoskaerm"))) {
     console.error("Afvist forsøg på at ændre infoskærmens indhold uden gyldig admin-adgang.");
     return { ok: false, fejl: IKKE_ADMIN };
   }

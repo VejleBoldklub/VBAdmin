@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { kraevAdgang } from "@/lib/adgang";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import type { PlanSlug } from "./plans";
 import type { BaneplanData, BaneplanVersion } from "./types";
@@ -17,9 +18,29 @@ function publicPathFor(slug: PlanSlug) {
 
 const TOM_DATA: BaneplanData = { fields: [], events: [] };
 
+// Adgangskontrol for hver handling i filen.
+//
+// Handlingerne skriver med service_role og kan publicere eller kassere en
+// baneplan. At proxy.ts beskytter /admin er ikke nok: en server action slås op
+// på sit id og kan rammes fra enhver rute i appen, også de offentlige
+// baneplansider, som med vilje ikke er bag login. Samme begrundelse som i
+// lib/adgang.ts.
+//
+// Der kastes frem for at svare pænt. Handlingerne kaldes kun fra kladde-
+// editoren, hvor brugeren allerede er sluppet gennem proxy.ts — når vi når
+// hertil uden adgang, er det ikke en almindelig bruger, der har taget fejl.
+async function kraevBaneplan(): Promise<void> {
+  if (!(await kraevAdgang("baneplan"))) {
+    console.error("Afvist forsøg på at bruge baneplanens handlinger uden adgang.");
+    throw new Error("Ingen adgang til baneplanen.");
+  }
+}
+
 export async function hentLivePlan(
   slug: PlanSlug
 ): Promise<BaneplanVersion | null> {
+  await kraevBaneplan();
+
   const { data, error } = await supabaseAdmin
     .from("baneplan_versioner")
     .select("*")
@@ -37,6 +58,8 @@ export async function hentLivePlan(
 export async function hentKladde(
   slug: PlanSlug
 ): Promise<BaneplanVersion | null> {
+  await kraevBaneplan();
+
   const { data, error } = await supabaseAdmin
     .from("baneplan_versioner")
     .select("*")
@@ -54,6 +77,8 @@ export async function hentKladde(
 }
 
 export async function opretKladdeFraLive(slug: PlanSlug) {
+  await kraevBaneplan();
+
   const eksisterendeKladde = await hentKladde(slug);
   if (eksisterendeKladde) {
     revalidatePath(adminPathFor(slug));
@@ -82,6 +107,8 @@ export async function opretKladdeFraLive(slug: PlanSlug) {
 // uden at ændre noget synligt. Live-planen på samme side er upåvirket af, at en
 // kladde gemmes. Publicering og kassering revaliderer fortsat.
 export async function gemKladde(id: string, saesontitel: string, data: BaneplanData) {
+  await kraevBaneplan();
+
   const { error } = await supabaseAdmin
     .from("baneplan_versioner")
     .update({
@@ -100,6 +127,8 @@ export async function gemKladde(id: string, saesontitel: string, data: BaneplanD
 // En kladde bliver live med det samme ved publicering. Der findes ikke
 // planlagt publicering; den offentlige synlighed styres manuelt i klubbens CMS.
 export async function publicerKladde(id: string, slug: PlanSlug) {
+  await kraevBaneplan();
+
   const { error: arkivFejl } = await supabaseAdmin
     .from("baneplan_versioner")
     .update({ status: "archived" })
@@ -128,6 +157,8 @@ export async function publicerKladde(id: string, slug: PlanSlug) {
 }
 
 export async function kasserKladde(id: string, slug: PlanSlug) {
+  await kraevBaneplan();
+
   const { error } = await supabaseAdmin
     .from("baneplan_versioner")
     .delete()

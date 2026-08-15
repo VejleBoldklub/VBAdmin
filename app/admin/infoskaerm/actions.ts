@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { erAdmin } from "@/lib/admin-auth";
+import { kraevAdgang } from "@/lib/adgang";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { beskrivSupabaseFejl } from "@/lib/infoskaerm/data";
 import type { DagFarve } from "@/lib/infoskaerm/content";
@@ -52,7 +52,7 @@ export async function gemDag(
   farve: DagFarve,
   ekstraBesked: string
 ): Promise<GemResultat> {
-  if (!(await erAdmin())) {
+  if (!(await kraevAdgang("infoskaerm"))) {
     console.error("Afvist forsøg på at ændre infoskærmens ugeplan uden gyldig admin-adgang.");
     return { ok: false, fejl: IKKE_ADMIN };
   }
