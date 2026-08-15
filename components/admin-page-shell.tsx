@@ -28,8 +28,8 @@ export function AdminPageShell({ children, eyebrow, title, wide = false }: Admin
             <Image
               src="/vb-logo.png"
               alt="Vejle Boldklub"
-              width={1291}
-              height={1237}
+              width={500}
+              height={500}
               priority
               className="h-12 w-auto object-contain sm:h-14"
             />
