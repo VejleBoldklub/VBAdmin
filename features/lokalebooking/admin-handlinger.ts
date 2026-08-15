@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { erAdmin } from "./admin-auth";
+import { erAdmin } from "@/lib/admin-auth";
 import { afgoerViaId, aflysViaId } from "./beslutning";
 import type { BeslutResultat } from "./types";
 
