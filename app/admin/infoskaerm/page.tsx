@@ -44,7 +44,7 @@ export default async function InfoskaermAdminPage() {
   const dage = dageFra(todayKey(), ANTAL_DAGE);
 
   return (
-    <AdminPageShell eyebrow="Infoskærm" title="Cafeteria">
+    <AdminPageShell eyebrow="Infoskærm Cafeteria" title="Ugeplan">
       <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
         Vælg farve for hver dag, og skriv eventuelt en besked, der vises på skærmen den dag.
         Farven bestemmer selv dagens navn: Rød er Performance, Gul er Recovery, Grøn er Health.

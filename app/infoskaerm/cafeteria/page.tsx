@@ -15,6 +15,13 @@ import ScreenView from "./screen-view";
 // iframe, den er hele skærmbilledet på en kiosk.
 export const dynamic = "force-dynamic";
 
+// Fanebladets titel på kiosk-pc'en. Resten af appen arver den globale titel fra
+// app/layout.tsx, men her er browseren i fuld skærm hele dagen, og titlen er det
+// eneste, der adskiller fanen, hvis nogen skal finde tilbage til den.
+export const metadata = {
+  title: "Infoskærm Cafeteria — Vejle Boldklub",
+};
+
 export default async function CafeteriaInfoskaermPage() {
   const client = supabasePublic();
 

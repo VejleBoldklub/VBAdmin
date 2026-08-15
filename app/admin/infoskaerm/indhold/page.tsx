@@ -17,7 +17,7 @@ export default async function InfoskaermIndholdPage() {
   const { indhold, fejl } = await getAltIndhold(supabaseAdmin);
 
   return (
-    <AdminPageShell eyebrow="Infoskærm" title="Indhold">
+    <AdminPageShell eyebrow="Infoskærm Cafeteria" title="Indhold">
       <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
         Teksterne på cafeteriets infoskærm, én opsætning pr. farve. Ændringer er på skærmen ved
         næste opdatering, højst to minutter — kiosken skal ikke genstartes.

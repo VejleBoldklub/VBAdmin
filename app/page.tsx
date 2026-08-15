@@ -24,7 +24,7 @@ const modules: ModuleCardProps[] = [
     index: 2,
   },
   {
-    title: "Infoskærm",
+    title: "Infoskærm Cafeteria",
     description: "Sæt farve og besked på cafeteriets infoskærm.",
     status: "Aktiv",
     href: "/admin/infoskaerm",
