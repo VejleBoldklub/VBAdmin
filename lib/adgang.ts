@@ -1,5 +1,11 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { supabaseSession } from "@/lib/supabase-session";
+import { erModul, MODULER, type Modul } from "@/lib/moduler";
+
+// Genudstilles, så eksisterende serverkode kan blive ved at importere herfra.
+// Klientkomponenter skal derimod importere fra @/lib/moduler direkte — dette
+// modul trækker service_role-klienten med sig.
+export { MODULER, type Modul };
 
 // Hvem er logget ind, og hvad må de?
 //
@@ -15,20 +21,12 @@ import { supabaseSession } from "@/lib/supabase-session";
 //              beskytter /admin. Begrundelsen er den samme som før, den blot
 //              hed erAdmin() dengang adgangen var ét delt kodeord.
 
-export const MODULER = ["baneplan", "lokalebooking", "infoskaerm"] as const;
-
-export type Modul = (typeof MODULER)[number];
-
 export type AdminBruger = {
   authUserId: string;
   email: string;
   rolle: "admin" | "user";
   moduler: Modul[];
 };
-
-function erModul(vaerdi: unknown): vaerdi is Modul {
-  return typeof vaerdi === "string" && MODULER.some((m) => m === vaerdi);
-}
 
 // Den indloggede bruger, eller null.
 //

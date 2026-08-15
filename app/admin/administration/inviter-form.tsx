@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { Modul } from "@/lib/adgang";
+import type { Modul } from "@/lib/moduler";
 import { inviterBruger } from "./actions";
 import { ModulVaelger } from "./modul-vaelger";
 

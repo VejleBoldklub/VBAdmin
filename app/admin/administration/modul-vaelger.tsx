@@ -1,6 +1,8 @@
 "use client";
 
-import { MODULER, type Modul } from "@/lib/adgang";
+// Fra @/lib/moduler, ikke @/lib/adgang. Sidstnævnte importerer
+// service_role-klienten, og den ville følge med i browserbundtet herfra.
+import { MODULER, type Modul } from "@/lib/moduler";
 
 export const MODUL_NAVNE: Record<Modul, string> = {
   baneplan: "Baneplan",
