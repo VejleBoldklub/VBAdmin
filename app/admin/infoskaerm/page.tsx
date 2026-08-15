@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AdminPageShell } from "@/components/admin-page-shell";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getUpcomingPlan, todayKey } from "@/lib/infoskaerm/data";
@@ -49,6 +50,13 @@ export default async function InfoskaermAdminPage() {
         Farven bestemmer selv dagens navn: Rød er Performance, Gul er Recovery, Grøn er Health.
         Ændringer slår igennem på skærmen ved næste opdatering, højst to minutter.
       </p>
+
+      <Link
+        href="/admin/infoskaerm/indhold"
+        className="mt-4 inline-block rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:border-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+      >
+        Redigér kostindhold →
+      </Link>
 
       {/* Kan planen ikke læses, siger siden det. Ellers ligner en fejl bare en
           uge, hvor ingen har sat farver på endnu. */}

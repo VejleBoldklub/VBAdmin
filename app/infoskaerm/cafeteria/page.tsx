@@ -1,6 +1,6 @@
 import { supabasePublic } from "@/lib/supabase-public";
-import { getTodayPlan } from "@/lib/infoskaerm/data";
-import { DAY_CONTENT, farveTilNavn, type DagFarve } from "@/lib/infoskaerm/content";
+import { getIndhold, getTodayPlan } from "@/lib/infoskaerm/data";
+import type { DagFarve } from "@/lib/infoskaerm/content";
 import ScreenView from "./screen-view";
 
 // Cafeteriets infoskærm. Kiosk-pc'en peger på denne rute.
@@ -16,16 +16,22 @@ import ScreenView from "./screen-view";
 export const dynamic = "force-dynamic";
 
 export default async function CafeteriaInfoskaermPage() {
-  const row = await getTodayPlan(supabasePublic());
+  const client = supabasePublic();
+
+  const row = await getTodayPlan(client);
   const farve: DagFarve = row?.farve ?? "Grøn";
+
+  // Kostindholdet redigeres fra adminfladen og hentes derfor med. Kan det ikke
+  // hentes, falder getIndhold tilbage til de hardcodede værdier.
+  const content = await getIndhold(client, farve);
 
   return (
     <ScreenView
       initial={{
         farve,
-        navn: farveTilNavn(farve),
+        navn: content.shortName,
         ekstraBesked: row?.ekstra_besked ?? "",
-        content: DAY_CONTENT[farve],
+        content,
       }}
     />
   );
