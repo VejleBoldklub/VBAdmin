@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { sendViaResend } from "./mail-resend";
 import { sendViaSmtp } from "./mail-smtp";
 
@@ -52,26 +51,8 @@ export async function sendMail(mail: Mail): Promise<MailResultat> {
   return sendViaSmtp(mail, fra);
 }
 
-// Absolut adresse til links i mails. Et relativt link er ubrugeligt i en mail.
-//
-// APP_BASE_URL vinder, når den er sat. Ellers bruges værtsnavnet fra den
-// forespørgsel, mailen udspringer af — det giver af sig selv de rigtige links
-// både i produktion og i et preview-deployment, hvor et fast domæne ville pege
-// det forkerte sted hen.
-export async function appBaseUrl(): Promise<string> {
-  const eksplicit = process.env.APP_BASE_URL;
-  if (eksplicit) return eksplicit.replace(/\/+$/, "");
-
-  const h = await headers();
-  const vaert = h.get("x-forwarded-host") ?? h.get("host");
-
-  if (vaert) {
-    const protokol = h.get("x-forwarded-proto") ?? (vaert.startsWith("localhost") ? "http" : "https");
-    return `${protokol}://${vaert}`;
-  }
-
-  const vercel = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-  if (vercel) return `https://${vercel}`;
-
-  throw new Error("Kunne ikke bestemme sidens adresse. Sæt APP_BASE_URL.");
-}
+// Adressen til links i mails ligger nu i lib/base-url.ts. Den bruges også af
+// invitationsmailen fra Administration og af kiosklinket på infoskærmen, og
+// hørte derfor ikke længere hjemme i ét moduls mail-lag. Eksporten bliver
+// stående her, så varsling.ts og eventuelle andre kald ikke skal ændres.
+export { appBaseUrl } from "@/lib/base-url";

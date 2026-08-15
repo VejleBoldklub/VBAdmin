@@ -1,83 +1,143 @@
+import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Adgangskontrol til adminfladen.
 //
-// Uden dette er adminværktøjet offentligt tilgængeligt. Alle skrivninger derfra
-// går gennem service_role-nøglen, så enhver med adressen kunne redigere,
-// publicere eller kassere baneplaner.
-//
-// Dette er en mellemløsning, ikke rigtige brugerlogins. Brugere, roller og
-// rettigheder ligger i Fase 5 i SYSTEM.md §18. Formålet her er alene at lukke en
-// åben dør, indtil den rigtige adgangsstyring findes.
+// Erstatter ADMIN_BASIC_AUTH, som var ét delt kodeord til hele adminfladen.
+// Nu logger hver bruger ind med sin egen adresse gennem Supabase Auth, og
+// adgangen afgøres pr. modul af rækken i admin_users.
 //
 // Hvad der beskyttes:
-//   "/"                 forsiden, altså modulmenuen "Vælg et modul". Kun den
-//                       eksakte sti — mønsteret er ikke et wildcard og rammer
-//                       derfor ikke ruter under roden.
-//   "/admin"            oversigten over baneplaner
-//   "/admin/:path*"     alt derunder, inklusive kladde-editoren
+//   "/"                 forsiden, altså modulmenuen. Kun den eksakte sti —
+//                       mønsteret er ikke et wildcard.
+//   "/admin"            og alt derunder, med hver sit modulkrav
 //
 // Hvad der IKKE beskyttes, og bevidst ikke må blive det:
-//   "/baneplan/*"       de offentlige baneplaner. De vises i en iframe i klubbens
-//                       CMS og skal være tilgængelige uden login. Derfor kan
-//                       Vercels egen adgangsbeskyttelse ikke bruges: den dækker
-//                       hele deploymentet og ville også lukke disse ruter.
+//   "/baneplan/*"           de offentlige baneplaner, vist i klubbens CMS
+//   "/lokalebooking/*"      den offentlige booking
+//   "/infoskaerm/cafeteria" kioskskærmen, som ingen kan logge ind på
+//   "/godkend/*", "/afvis/*" mail-linkene til den lokaleansvarlige
+//   "/login", "/auth/*"     ellers kunne ingen komme ind
 //
-// Filen heder proxy.ts, ikke middleware.ts. Sidstnævnte konvention er deprecated
-// fra Next 16 og advarer under build.
+// Dette lag er brugerfladen: det sender den, der ikke må, videre til /login
+// eller /ingen-adgang. Det er ikke spærren. En server action slås op på sit id
+// og kan rammes fra enhver rute i appen, så hver handling kontrollerer sin egen
+// adgang med kraevAdgang() i lib/adgang.ts.
+//
+// Filen hedder proxy.ts, ikke middleware.ts. Sidstnævnte konvention er
+// deprecated fra Next 16 og advarer under build.
 export const config = {
   matcher: ["/", "/admin", "/admin/:path*"],
 };
 
-const REALM = 'Basic realm="VBAdmin", charset="UTF-8"';
+const MODUL_FOR_STI: { praefiks: string; modul: string }[] = [
+  { praefiks: "/admin/baneplan", modul: "baneplan" },
+  { praefiks: "/admin/lokalebooking", modul: "lokalebooking" },
+  { praefiks: "/admin/infoskaerm", modul: "infoskaerm" },
+];
 
-// Sammenligner uden at afslutte tidligt ved første afvigende tegn, så svartiden
-// ikke afslører hvor langt et gæt kom. Længden lækkes stadig, hvilket er
-// acceptabelt her.
-function ensKonstantTid(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let forskel = 0;
-  for (let i = 0; i < a.length; i++) {
-    forskel |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return forskel === 0;
+function tilLogin(req: NextRequest) {
+  const maal = req.nextUrl.clone();
+  maal.pathname = "/login";
+
+  // Hvor brugeren ville hen. Efter login sendes de videre dertil frem for til
+  // forsiden, så et bogmærke til en bestemt side stadig virker.
+  maal.search = `?videre=${encodeURIComponent(req.nextUrl.pathname)}`;
+
+  return NextResponse.redirect(maal);
 }
 
-function kraevLogin() {
-  return new NextResponse("Adgang kræver login.", {
-    status: 401,
-    headers: { "WWW-Authenticate": REALM },
-  });
+function tilIngenAdgang(req: NextRequest) {
+  const maal = req.nextUrl.clone();
+  maal.pathname = "/ingen-adgang";
+  maal.search = "";
+
+  return NextResponse.redirect(maal);
 }
 
-export function proxy(req: NextRequest) {
-  const forventet = process.env.ADMIN_BASIC_AUTH;
+export async function proxy(req: NextRequest) {
+  const url = process.env.SUPABASE_URL;
+  const anonKey = process.env.SUPABASE_ANON_KEY;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  // Fejl lukket, ikke åbent. Er variablen ikke sat, er adminfladen utilgængelig
-  // frem for ubeskyttet. En glemt miljøvariabel må ikke kunne åbne døren igen.
-  if (!forventet) {
+  // Fejler lukket, ikke åbent. Manglende opsætning gør adminfladen
+  // utilgængelig frem for ubeskyttet — en glemt miljøvariabel må ikke kunne
+  // åbne døren. Det var også reglen, da adgangen var et delt kodeord.
+  if (!url || !anonKey || !serviceKey) {
     return new NextResponse(
-      "Adminfladen er ikke konfigureret. ADMIN_BASIC_AUTH mangler i miljøvariablerne.",
+      "Adminfladen er ikke konfigureret. Supabase-miljøvariablerne mangler.",
       { status: 503 }
     );
   }
 
-  const header = req.headers.get("authorization");
-  if (!header?.startsWith("Basic ")) {
-    return kraevLogin();
+  let svar = NextResponse.next({ request: req });
+
+  const klient = createServerClient(url, anonKey, {
+    cookies: {
+      getAll() {
+        return req.cookies.getAll();
+      },
+      setAll(nye) {
+        // Sessionen fornys her. Det er derfor, den skal gennem proxy.ts og ikke
+        // kan klares i en Server Component, som ikke må sætte cookies.
+        for (const { name, value } of nye) {
+          req.cookies.set(name, value);
+        }
+
+        svar = NextResponse.next({ request: req });
+
+        for (const { name, value, options } of nye) {
+          svar.cookies.set(name, value, options);
+        }
+      },
+    },
+  });
+
+  // getUser, ikke getSession: cookien kommer fra browseren og får sin gyldighed
+  // bekræftet hos Supabase frem for at blive troet på.
+  const {
+    data: { user },
+  } = await klient.auth.getUser();
+
+  if (!user) return tilLogin(req);
+
+  const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+
+  const { data, error } = await admin
+    .from("admin_users")
+    .select("rolle, allowed_modules")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Kunne ikke slå adgang op i proxy:", error);
+    return tilIngenAdgang(req);
   }
 
-  let oplysninger: string;
-  try {
-    oplysninger = atob(header.slice(6));
-  } catch {
-    // Ugyldig base64 behandles som et forkert forsøg, ikke som en serverfejl.
-    return kraevLogin();
+  // Et gyldigt login uden en række i admin_users er ikke en adgang. Brugeren kan
+  // være oprettet i Supabase Auth uden at være givet adgang endnu, eller
+  // adgangen kan være trukket tilbage.
+  if (!data) return tilIngenAdgang(req);
+
+  const erAdministrator = data.rolle === "admin";
+  const sti = req.nextUrl.pathname;
+
+  // Brugerstyringen følger rollen, ikke allowed_modules. Var den et modul,
+  // kunne en bruger få adgang til at give sig selv adgang til resten.
+  if (sti.startsWith("/admin/administration")) {
+    return erAdministrator ? svar : tilIngenAdgang(req);
   }
 
-  if (!ensKonstantTid(oplysninger, forventet)) {
-    return kraevLogin();
-  }
+  if (erAdministrator) return svar;
 
-  return NextResponse.next();
+  const krav = MODUL_FOR_STI.find((m) => sti.startsWith(m.praefiks));
+
+  // Forsiden og /admin i sig selv kræver kun, at man er logget ind med en
+  // gyldig række. Forsiden viser derefter kun de moduler, brugeren må åbne.
+  if (!krav) return svar;
+
+  const moduler = Array.isArray(data.allowed_modules) ? data.allowed_modules : [];
+
+  return moduler.includes(krav.modul) ? svar : tilIngenAdgang(req);
 }

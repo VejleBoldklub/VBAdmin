@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { erAdmin } from "@/lib/admin-auth";
+import { kraevAdgang } from "@/lib/adgang";
 import { afgoerViaId, aflysViaId } from "./beslutning";
 import type { BeslutResultat } from "./types";
 
@@ -31,7 +31,7 @@ const IKKE_ADMIN =
 const GENERISK = "Handlingen kunne ikke gennemføres. Prøv igen.";
 
 export async function godkendBooking(id: string): Promise<BeslutResultat> {
-  if (!(await erAdmin())) {
+  if (!(await kraevAdgang("lokalebooking"))) {
     console.error("Afvist forsøg på at godkende en booking uden gyldig admin-adgang.");
     return { ok: false, fejl: IKKE_ADMIN };
   }
@@ -58,7 +58,7 @@ export async function godkendBooking(id: string): Promise<BeslutResultat> {
 // "aflyst" i en fart. Har bookeren brug for en forklaring, er Reply-To i mailen
 // vejen — den peger på den lokaleansvarlige.
 export async function annullerBooking(id: string): Promise<BeslutResultat> {
-  if (!(await erAdmin())) {
+  if (!(await kraevAdgang("lokalebooking"))) {
     console.error("Afvist forsøg på at annullere en booking uden gyldig admin-adgang.");
     return { ok: false, fejl: IKKE_ADMIN };
   }
@@ -75,7 +75,7 @@ export async function annullerBooking(id: string): Promise<BeslutResultat> {
 }
 
 export async function afvisBooking(id: string, grund: string): Promise<BeslutResultat> {
-  if (!(await erAdmin())) {
+  if (!(await kraevAdgang("lokalebooking"))) {
     console.error("Afvist forsøg på at afvise en booking uden gyldig admin-adgang.");
     return { ok: false, fejl: IKKE_ADMIN };
   }
