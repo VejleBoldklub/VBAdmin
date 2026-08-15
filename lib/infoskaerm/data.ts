@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import type { DagFarve } from "./content";
 
 // Læsning af ugeplanen bag infoskærmen.
@@ -74,10 +74,29 @@ export async function getTodayPlan(client: SupabaseClient): Promise<UgeplanRow |
   return erUgeplanRow(data) ? data : null;
 }
 
+// Databasefejl i klartekst.
+//
+// Bruges kun på adminfladen, som ligger bag login. En rå fejlbesked fra
+// databasen hører ikke hjemme på en offentlig side, men her er den forskellen
+// på "prøv igen" og "tabellen findes ikke — kør migrationen".
+export function beskrivSupabaseFejl(fejl: PostgrestError): string {
+  const dele = [fejl.message];
+
+  if (fejl.code) dele.push(`(kode ${fejl.code})`);
+  if (fejl.hint) dele.push(`Tip: ${fejl.hint}`);
+
+  return dele.join(" ");
+}
+
+// Adminfladens læsning returnerer fejlen frem for at sluge den.
+//
+// Den offentlige skærm falder med vilje tilbage til Grøn, når noget går galt —
+// den har ingen at fortælle det til. Adminfladen har, og en tom liste, der i
+// virkeligheden var en fejl, ser ud som om der bare ikke er planlagt noget.
 export async function getUpcomingPlan(
   client: SupabaseClient,
   days = 14
-): Promise<UgeplanRow[]> {
+): Promise<{ raekker: UgeplanRow[]; fejl: string | null }> {
   const { data, error } = await client
     .from("infoskaerm_ugeplan")
     .select(KOLONNER)
@@ -87,8 +106,11 @@ export async function getUpcomingPlan(
 
   if (error) {
     console.error("infoskaerm_ugeplan liste-fejl:", error);
-    return [];
+    return { raekker: [], fejl: beskrivSupabaseFejl(error) };
   }
 
-  return Array.isArray(data) ? data.filter(erUgeplanRow) : [];
+  return {
+    raekker: Array.isArray(data) ? data.filter(erUgeplanRow) : [],
+    fejl: null,
+  };
 }

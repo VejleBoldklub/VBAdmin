@@ -38,8 +38,8 @@ function labelFor(dato: string): string {
 }
 
 export default async function InfoskaermAdminPage() {
-  const rows = await getUpcomingPlan(supabaseAdmin, ANTAL_DAGE);
-  const efterDato = new Map(rows.map((r) => [r.dato, r]));
+  const { raekker, fejl } = await getUpcomingPlan(supabaseAdmin, ANTAL_DAGE);
+  const efterDato = new Map(raekker.map((r) => [r.dato, r]));
   const dage = dageFra(todayKey(), ANTAL_DAGE);
 
   return (
@@ -49,6 +49,23 @@ export default async function InfoskaermAdminPage() {
         Farven bestemmer selv dagens navn: Rød er Performance, Gul er Recovery, Grøn er Health.
         Ændringer slår igennem på skærmen ved næste opdatering, højst to minutter.
       </p>
+
+      {/* Kan planen ikke læses, siger siden det. Ellers ligner en fejl bare en
+          uge, hvor ingen har sat farver på endnu. */}
+      {fejl && (
+        <div
+          role="alert"
+          className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900"
+        >
+          <p className="font-bold">Ugeplanen kunne ikke hentes.</p>
+          <p className="mt-1 font-mono text-xs leading-5 break-words">{fejl}</p>
+          <p className="mt-2">
+            Findes tabellen ikke, mangler migrationen{" "}
+            <code className="font-mono">supabase/infoskaerm-ugeplan.sql</code> at blive kørt i
+            Supabase.
+          </p>
+        </div>
+      )}
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {dage.map((dato) => {

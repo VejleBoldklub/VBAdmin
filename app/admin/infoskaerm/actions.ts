@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { erAdmin } from "@/lib/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { beskrivSupabaseFejl } from "@/lib/infoskaerm/data";
 import type { DagFarve } from "@/lib/infoskaerm/content";
 import type { GemResultat } from "@/lib/infoskaerm/types";
 
@@ -75,7 +76,11 @@ export async function gemDag(
 
   if (error) {
     console.error("Kunne ikke gemme infoskærmens ugeplan:", error);
-    return { ok: false, fejl: GENERISK };
+
+    // Databasens egen besked vises. Siden ligger bag login, og uden beskeden
+    // ser en manglende tabel, en manglende rettighed og en tastefejl ens ud —
+    // "prøv igen" fører kun til at man prøver igen.
+    return { ok: false, fejl: `Kunne ikke gemme: ${beskrivSupabaseFejl(error)}` };
   }
 
   revalidatePath(ADMIN_STI);

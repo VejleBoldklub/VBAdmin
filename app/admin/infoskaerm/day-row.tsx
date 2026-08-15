@@ -35,13 +35,25 @@ export default function DayRow({
   // ændringen var gemt, indtil siden blev genindlæst.
   function save(nextFarve: DagFarve, nextBesked: string) {
     startTransition(async () => {
-      const svar = await gemDag(dato, nextFarve, nextBesked);
+      try {
+        const svar = await gemDag(dato, nextFarve, nextBesked);
 
-      if (svar.ok) {
-        setFejl(null);
-        setGemt(true);
-      } else {
-        setFejl(svar.fejl);
+        if (svar.ok) {
+          setFejl(null);
+          setGemt(true);
+        } else {
+          setFejl(svar.fejl);
+          setGemt(false);
+        }
+      } catch (err) {
+        // Handlingen kan også fejle uden at nå at svare — mistet forbindelse,
+        // eller en fejl allerede ved import af serverkoden, fx en manglende
+        // miljøvariabel. Uden dette forsvinder klikket sporløst.
+        //
+        // Next skjuler den egentlige besked i produktion og sender kun et
+        // digest-id med. Det er stadig nok til at kunne slås op i Vercels log.
+        console.error("Kald til gemDag fejlede:", err);
+        setFejl(err instanceof Error ? err.message : "Serveren svarede ikke. Prøv igen.");
         setGemt(false);
       }
     });
