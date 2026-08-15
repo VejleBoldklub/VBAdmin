@@ -85,8 +85,8 @@ export default async function Home() {
             <Image
               src="/vb-logo.png"
               alt="Vejle Boldklub"
-              width={1291}
-              height={1237}
+              width={500}
+              height={500}
               priority
               className="h-14 w-auto object-contain sm:h-16"
             />
