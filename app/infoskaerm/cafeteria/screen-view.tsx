@@ -183,8 +183,8 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
         <Image
           src="/vb-logo.png"
           alt="Vejle Boldklub"
-          width={1291}
-          height={1237}
+          width={500}
+          height={500}
           priority
           className="w-auto object-contain"
           style={{
