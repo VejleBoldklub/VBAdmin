@@ -4,12 +4,21 @@ import Image from 'next/image';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { DAY_CONTENT, type DagFarve, type DagIndhold } from '@/lib/infoskaerm/content';
 
-interface ScreenData {
-  farve: DagFarve;
-  navn: string;
-  ekstraBesked: string;
-  content: DagIndhold;
-}
+// Enten er der en plan for dagen, eller også er der ikke.
+//
+// En union frem for felter, der kan være null: uden en farve findes hverken
+// navn eller indhold, og en type, der lod dem stå tomme, ville invitere til at
+// tegne et halvt kort. Rækken i databasen kræver en farve, så en dag uden
+// farve har heller ingen besked.
+export type ScreenData =
+  | {
+      harPlan: true;
+      farve: DagFarve;
+      navn: string;
+      ekstraBesked: string;
+      content: DagIndhold;
+    }
+  | { harPlan: false };
 
 const POLL_INTERVAL_MS = 120_000; // 2 min, samme som den gamle Apps Script-løsning
 
@@ -33,8 +42,14 @@ function erSkaermData(vaerdi: unknown): vaerdi is ScreenData & { ok: true } {
 
   const v = vaerdi as Record<string, unknown>;
 
+  if (v.ok !== true) return false;
+
+  // Ingen plan er et gyldigt svar, ikke en fejl. Det er netop det, skærmen skal
+  // kunne vise frem for at gætte på en farve.
+  if (v.harPlan === false) return true;
+
   return (
-    v.ok === true &&
+    v.harPlan === true &&
     typeof v.farve === 'string' &&
     v.farve in DAY_CONTENT &&
     typeof v.navn === 'string' &&
@@ -124,8 +139,6 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
     };
   }, []);
 
-  const c = data.content;
-
   // Roboto er projektets skrifttype, jf. SYSTEM.md §10. Leverancen bad om
   // Quicksand, som ikke er indlæst nogen steder i appen og derfor i praksis
   // ville være blevet til Arial.
@@ -134,6 +147,52 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
     background: '#F4F6FB',
     '--skala': 1,
   } as React.CSSProperties;
+
+  // Ingen farve sat for dagen.
+  //
+  // Skærmen viser bevidst IKKE et af de tre kostkort. Et kort ville se ud som
+  // dagens plan, og så ville en glemt indtastning være usynlig — hverken
+  // køkkenet eller spillerne kunne se forskel på "i dag er grøn" og "ingen har
+  // taget stilling".
+  //
+  // Det skal samtidig ikke ligne en fejl. Derfor logo, rolig baggrund og en
+  // sætning på begge sprog, som resten af skærmen bruger.
+  if (!data.harPlan) {
+    return (
+      <div
+        ref={rodRef}
+        className="min-h-screen w-full flex flex-col items-center justify-center gap-[4vh] px-[6vw]"
+        style={skaermStil}
+      >
+        <Image
+          src="/vb-logo.png"
+          alt="Vejle Boldklub"
+          width={500}
+          height={500}
+          priority
+          className="w-auto object-contain"
+          style={{ height: skaleret('clamp(140px, 12vw, 340px)') }}
+        />
+
+        <div className="text-center">
+          <p
+            className="font-black leading-[1.15] text-slate-700"
+            style={{ fontSize: skaleret('clamp(48px, 4vw, 130px)') }}
+          >
+            Ingen kostplan valgt for i dag
+          </p>
+          <p
+            className="mt-[2vh] font-bold leading-[1.2] text-slate-500"
+            style={{ fontSize: skaleret('clamp(30px, 2.4vw, 78px)') }}
+          >
+            No meal plan selected for today
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const c = data.content;
 
   // Kortets ramme. Ingen overflow-hidden og ingen min-h-0: begge dele fik
   // kortet til at klippe sit eget indhold i stedet for at vokse.

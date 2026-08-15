@@ -26,18 +26,28 @@ export default async function CafeteriaInfoskaermPage() {
   const client = supabasePublic();
 
   const row = await getTodayPlan(client);
-  const farve: DagFarve = row?.farve ?? "Grøn";
+
+  // Ingen farve sat for dagen: skærmen siger det frem for at vise et kostkort,
+  // ingen har valgt. En reserve her ville skjule en glemt indtastning — det så
+  // ud som en plan, og så opdagede ingen, at der ikke var nogen.
+  if (!row) {
+    return <ScreenView initial={{ harPlan: false }} />;
+  }
+
+  const farve: DagFarve = row.farve;
 
   // Kostindholdet redigeres fra adminfladen og hentes derfor med. Kan det ikke
-  // hentes, falder getIndhold tilbage til de hardcodede værdier.
+  // hentes, falder getIndhold tilbage til de hardcodede værdier. Den reserve
+  // bliver: teksterne er indholdet i et valgt kort, ikke selve valget.
   const content = await getIndhold(client, farve);
 
   return (
     <ScreenView
       initial={{
+        harPlan: true,
         farve,
         navn: content.shortName,
-        ekstraBesked: row?.ekstra_besked ?? "",
+        ekstraBesked: row.ekstra_besked,
         content,
       }}
     />

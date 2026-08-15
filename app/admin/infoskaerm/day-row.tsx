@@ -21,10 +21,12 @@ export default function DayRow({
 }: {
   dato: string;
   labelDato: string;
-  initialFarve: DagFarve;
+  // null betyder, at ingen har sat en farve på dagen endnu. Det er ikke det
+  // samme som Grøn, og adminfladen må ikke få det til at ligne det.
+  initialFarve: DagFarve | null;
   initialBesked: string;
 }) {
-  const [farve, setFarve] = useState<DagFarve>(initialFarve);
+  const [farve, setFarve] = useState<DagFarve | null>(initialFarve);
   const [besked, setBesked] = useState(initialBesked);
   const [gemt, setGemt] = useState(false);
   const [fejl, setFejl] = useState<string | null>(null);
@@ -86,17 +88,26 @@ export default function DayRow({
           })}
         </div>
 
+        {/* Beskeden kan først skrives, når dagen har en farve. Rækken i
+            databasen kræver en farve, så en besked alene kan ikke gemmes — og
+            et felt, der tog imod tekst og tabte den ved genindlæsning, ville
+            være værre end et, der siger hvorfor. */}
         <input
           type="text"
           value={besked}
+          disabled={farve === null}
           aria-label={`Besked på skærmen ${labelDato}`}
-          placeholder="Besked til skærmen den dag (valgfri)"
+          placeholder={
+            farve === null ? "Vælg først en farve for dagen" : "Besked til skærmen den dag (valgfri)"
+          }
           onChange={(e) => {
             setBesked(e.target.value);
             setGemt(false);
           }}
-          onBlur={() => save(farve, besked)}
-          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+          onBlur={() => {
+            if (farve !== null) save(farve, besked);
+          }}
+          className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 disabled:bg-slate-50 disabled:text-slate-400 disabled:placeholder:text-slate-400"
         />
 
         {/* aria-live, så en skærmlæser også får besked om at der blev gemt. */}
