@@ -10,7 +10,16 @@ import KodeForm from "./kode-form";
 // selv om der ikke er givet moduladgang endnu.
 export const dynamic = "force-dynamic";
 
-export default async function OpretAdgangskodePage() {
+type Props = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function OpretAdgangskodePage({ searchParams }: Props) {
+  // Samme side dækker begge flows. Invitationen sender hertil uden parameter,
+  // nulstillingen med ?nulstil=1. Kun teksten er forskellig — handlingen er den
+  // samme, og en side mere ville skulle vedligeholdes to steder.
+  const erNulstilling = (await searchParams).nulstil === "1";
+
   const klient = await supabaseSession();
 
   const {
@@ -23,8 +32,12 @@ export default async function OpretAdgangskodePage() {
 
   return (
     <AuthShell
-      title="Vælg din adgangskode"
-      undertitel="Første gang du logger ind, skal du vælge din egen adgangskode. Mindst 10 tegn."
+      title={erNulstilling ? "Vælg en ny adgangskode" : "Vælg din adgangskode"}
+      undertitel={
+        erNulstilling
+          ? "Skriv din nye adgangskode. Mindst 10 tegn. Den gamle holder op med at virke med det samme."
+          : "Første gang du logger ind, skal du vælge din egen adgangskode. Mindst 10 tegn."
+      }
     >
       <p className="mt-4 text-sm text-slate-600">
         Bruger: <span className="font-semibold text-slate-950">{user.email}</span>
