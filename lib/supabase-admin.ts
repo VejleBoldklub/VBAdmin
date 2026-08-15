@@ -1,3 +1,13 @@
+// Fejler ved build, hvis en klientkomponent importerer dette modul — direkte
+// eller gennem et andet modul.
+//
+// Uden den her var fejlen tavs: modulet blev pakket med i browserbundtet, og da
+// service_role-nøglen ikke findes der, kastede det ved indlæsning, og siden
+// kunne ikke hydreres. Det ramte /admin/administration, fordi en
+// klientkomponent hentede modullisten fra lib/adgang.ts, som importerer
+// herfra. Selve nøglen slap ikke ud — Next inliner kun NEXT_PUBLIC-variabler —
+// men siden holdt op med at virke.
+import "server-only";
 import { createClient } from "@supabase/supabase-js";
 
 // VIGTIGT: Denne fil må KUN importeres i server-kode
