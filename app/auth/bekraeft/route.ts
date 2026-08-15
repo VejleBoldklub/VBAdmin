@@ -62,9 +62,15 @@ export async function GET(req: NextRequest) {
     return tilFejl(req, "Linket manglede oplysninger. Bed om en ny invitation.");
   }
 
-  const maal = req.nextUrl.clone();
-  maal.pathname = videre;
-  maal.search = "";
-
-  return NextResponse.redirect(maal);
+  // new URL frem for at sætte pathname.
+  //
+  // videre kan indeholde et query-parameter — nulstillingen sender
+  // "/opret-adgangskode?nulstil=1". Sættes den streng som pathname, koder
+  // URL-API'et spørgsmålstegnet ind i stien, og resultatet bliver
+  // "/opret-adgangskode%3Fnulstil=1", altså en 404. Invitationen slap forbi,
+  // fordi dens sti ingen parametre har.
+  //
+  // Kontrollen ovenfor har allerede sikret, at videre er en sti på vores eget
+  // domæne, så en relativ opløsning mod origin kan ikke føre ud af huset.
+  return NextResponse.redirect(new URL(videre, req.nextUrl.origin));
 }
