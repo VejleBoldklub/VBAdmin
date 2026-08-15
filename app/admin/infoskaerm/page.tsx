@@ -82,12 +82,19 @@ export default async function InfoskaermAdminPage() {
       <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {dage.map((dato) => {
           const row = efterDato.get(dato);
+
+          // null, ikke "Grøn". En dag uden række i databasen har ingen farve,
+          // og et forvalgt Grøn så ud som en beslutning, ingen havde truffet —
+          // man kunne ikke se forskel på "sat til Grøn" og "ikke sat endnu".
+          //
+          // Den offentlige skærm falder stadig tilbage til Grøn. Den skal vise
+          // noget fornuftigt uden opsyn; adminfladen skal vise sandheden.
           return (
             <DayRow
               key={dato}
               dato={dato}
               labelDato={labelFor(dato)}
-              initialFarve={row?.farve ?? "Grøn"}
+              initialFarve={row?.farve ?? null}
               initialBesked={row?.ekstra_besked ?? ""}
             />
           );
