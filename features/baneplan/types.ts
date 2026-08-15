@@ -65,7 +65,23 @@ export type BaneplanData = {
   // Valgfri. Vinterplanen har ingen måloversigt, fordi alle mål om vinteren er
   // samlet på to baner, og der derfor ikke er en fordeling at vise.
   maaltavle?: Maaltavle;
+  // Om måloversigten vises på den offentlige plan.
+  //
+  // Valgfri, og fravær betyder synlig. Feltet ligger i planens jsonb, så alle
+  // eksisterende planer mangler det — og de skal blive ved med at se ud, som de
+  // gjorde. Derfor ingen migration: standardværdien ligger i koden, ikke i
+  // databasen, og en plan skifter først opførsel, når nogen aktivt slår tavlen
+  // fra.
+  //
+  // Gælder kun den offentlige visning. Kladden viser altid tavlen, så den kan
+  // redigeres, mens den er skjult udadtil.
+  maaltavleSynlig?: boolean;
 };
+
+// Læs synligheden ét sted, så fraværende og true ikke skal håndteres hver gang.
+export function erMaaltavleSynlig(data: BaneplanData): boolean {
+  return data.maaltavleSynlig !== false;
+}
 
 export type BaneplanStatus = "draft" | "live" | "archived";
 

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { MaaltavleTabel } from "@/components/baneplan/maaltavle";
 import { baneplaner, findBaneplan } from "@/features/baneplan/plans";
 import { hentOffentligLivePlan } from "@/features/baneplan/public-plan";
+import { erMaaltavleSynlig } from "@/features/baneplan/types";
 import ScheduleView from "@/app/admin/baneplan/[plan]/schedule-view";
 
 type OffentligBaneplanPageProps = {
@@ -52,7 +53,12 @@ export default async function OffentligBaneplanPage({ params }: OffentligBanepla
       {live ? (
         <>
           <ScheduleView fields={live.data.fields} events={live.data.events} />
-          {live.data.maaltavle && (
+
+          {/* Slået fra i kladden betyder helt fraværende her — ingen tom ramme
+              og ingen pladsholder, præcis som vinterplanen, der aldrig har haft
+              en tavle. En markering af, at noget er skjult, ville netop
+              fortælle det, skjulningen skulle undgå. */}
+          {live.data.maaltavle && erMaaltavleSynlig(live.data) && (
             <MaaltavleTabel maaltavle={live.data.maaltavle} fields={live.data.fields} />
           )}
         </>
