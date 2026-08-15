@@ -119,3 +119,117 @@ export const DAY_CONTENT: Record<DagFarve, DagIndhold> = {
 export function farveTilNavn(farve: DagFarve): string {
   return DAY_CONTENT[farve].shortName;
 }
+
+// ---------------------------------------------------------------------------
+// Indhold fra infoskaerm_indhold
+//
+// DAY_CONTENT ovenfor er ikke længere den eneste kilde, men den er stadig
+// reserven. Kan en farve ikke hentes eller består rækken ikke kontrollen, viser
+// skærmen den hardcodede udgave. En skærm i et cafeteria uden opsyn skal hellere
+// vise et forældet kostråd end ingenting.
+// ---------------------------------------------------------------------------
+
+export interface IndholdBlokRow {
+  titel_da: string;
+  titel_en: string;
+  tekst_da: string;
+  tekst_en: string;
+}
+
+export interface IndholdRow {
+  farve: DagFarve;
+  titel: string;
+  undertitel_da: string;
+  undertitel_en: string;
+  kortnavn: string;
+  farvekode: string;
+  lys_farvekode: string;
+  blokke: IndholdBlokRow[];
+}
+
+const HEX = /^#[0-9A-Fa-f]{6}$/;
+
+// Tekstfarven på headeren udregnes frem for at være et felt, nogen skal huske
+// at rette med. Formlen er den gængse YIQ-lysstyrke; grænsen ved 150 giver
+// præcis de tre værdier, indholdet havde i forvejen — mørk tekst på gul, hvid
+// på rød og grøn — og holder også en ny farvekode læselig.
+export function headerTekstFarve(baggrund: string): string {
+  if (!HEX.test(baggrund)) return "#FFFFFF";
+
+  const r = parseInt(baggrund.slice(1, 3), 16);
+  const g = parseInt(baggrund.slice(3, 5), 16);
+  const b = parseInt(baggrund.slice(5, 7), 16);
+
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 150 ? "#111827" : "#FFFFFF";
+}
+
+function erBlok(vaerdi: unknown): vaerdi is IndholdBlokRow {
+  if (typeof vaerdi !== "object" || vaerdi === null) return false;
+
+  const b = vaerdi as Record<string, unknown>;
+
+  return (
+    typeof b.titel_da === "string" &&
+    typeof b.titel_en === "string" &&
+    typeof b.tekst_da === "string" &&
+    typeof b.tekst_en === "string"
+  );
+}
+
+export function erIndholdRow(vaerdi: unknown): vaerdi is IndholdRow {
+  if (typeof vaerdi !== "object" || vaerdi === null) return false;
+
+  const r = vaerdi as Record<string, unknown>;
+
+  return (
+    typeof r.farve === "string" &&
+    r.farve in DAY_CONTENT &&
+    typeof r.titel === "string" &&
+    typeof r.undertitel_da === "string" &&
+    typeof r.undertitel_en === "string" &&
+    typeof r.kortnavn === "string" &&
+    typeof r.farvekode === "string" &&
+    HEX.test(r.farvekode) &&
+    typeof r.lys_farvekode === "string" &&
+    HEX.test(r.lys_farvekode) &&
+    Array.isArray(r.blokke) &&
+    r.blokke.every(erBlok)
+  );
+}
+
+export function tilDagIndhold(row: IndholdRow): DagIndhold {
+  return {
+    title: row.titel,
+    subtitleDa: row.undertitel_da,
+    subtitleEn: row.undertitel_en,
+    shortName: row.kortnavn,
+    color: row.farvekode,
+    lightColor: row.lys_farvekode,
+    headerTextColor: headerTekstFarve(row.farvekode),
+    blocks: row.blokke.map((b) => ({
+      titleDa: b.titel_da,
+      titleEn: b.titel_en,
+      da: b.tekst_da,
+      en: b.tekst_en,
+    })),
+  };
+}
+
+// Den anden vej, til adminfladens formular og til seed-værdier.
+export function fraDagIndhold(farve: DagFarve, indhold: DagIndhold): IndholdRow {
+  return {
+    farve,
+    titel: indhold.title,
+    undertitel_da: indhold.subtitleDa,
+    undertitel_en: indhold.subtitleEn,
+    kortnavn: indhold.shortName,
+    farvekode: indhold.color,
+    lys_farvekode: indhold.lightColor,
+    blokke: indhold.blocks.map((b) => ({
+      titel_da: b.titleDa,
+      titel_en: b.titleEn,
+      tekst_da: b.da,
+      tekst_en: b.en,
+    })),
+  };
+}

@@ -1,5 +1,13 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
-import type { DagFarve } from "./content";
+import {
+  DAY_CONTENT,
+  erIndholdRow,
+  fraDagIndhold,
+  tilDagIndhold,
+  type DagFarve,
+  type DagIndhold,
+  type IndholdRow,
+} from "./content";
 
 // Læsning af ugeplanen bag infoskærmen.
 //
@@ -72,6 +80,62 @@ export async function getTodayPlan(client: SupabaseClient): Promise<UgeplanRow |
   // En manglende række er ikke en fejl. Har ingen sat en farve på dagen, falder
   // skærmen tilbage til Grøn — det er den almindelige dag.
   return erUgeplanRow(data) ? data : null;
+}
+
+const INDHOLD_KOLONNER =
+  "farve, titel, undertitel_da, undertitel_en, kortnavn, farvekode, lys_farvekode, blokke";
+
+// Kostindholdet for én farve, med den hardcodede udgave som reserve.
+//
+// Fejler opslaget, eller består rækken ikke kontrollen, viser skærmen DAY_CONTENT
+// frem for ingenting. Det er samme afvejning som resten af den offentlige side:
+// en skærm uden opsyn skal hellere vise noget forældet end stå tom.
+export async function getIndhold(
+  client: SupabaseClient,
+  farve: DagFarve
+): Promise<DagIndhold> {
+  const { data, error } = await client
+    .from("infoskaerm_indhold")
+    .select(INDHOLD_KOLONNER)
+    .eq("farve", farve)
+    .maybeSingle();
+
+  if (error) {
+    console.error("infoskaerm_indhold fetch fejl:", error);
+    return DAY_CONTENT[farve];
+  }
+
+  return erIndholdRow(data) ? tilDagIndhold(data) : DAY_CONTENT[farve];
+}
+
+// Alle tre farver til adminfladens formular.
+//
+// Her fylder reserven et andet formål: mangler en farve i tabellen, får
+// formularen de hardcodede værdier at starte fra, så den kan gemmes og dermed
+// oprette rækken. Ellers ville en manglende seed give en tom formular.
+export async function getAltIndhold(
+  client: SupabaseClient
+): Promise<{ indhold: Record<DagFarve, IndholdRow>; fejl: string | null }> {
+  const reserve = {
+    Rød: fraDagIndhold("Rød", DAY_CONTENT["Rød"]),
+    Gul: fraDagIndhold("Gul", DAY_CONTENT["Gul"]),
+    Grøn: fraDagIndhold("Grøn", DAY_CONTENT["Grøn"]),
+  };
+
+  const { data, error } = await client.from("infoskaerm_indhold").select(INDHOLD_KOLONNER);
+
+  if (error) {
+    console.error("infoskaerm_indhold liste-fejl:", error);
+    return { indhold: reserve, fejl: beskrivSupabaseFejl(error) };
+  }
+
+  const indhold = { ...reserve };
+
+  for (const raekke of Array.isArray(data) ? data : []) {
+    if (erIndholdRow(raekke)) indhold[raekke.farve] = raekke;
+  }
+
+  return { indhold, fejl: null };
 }
 
 // Databasefejl i klartekst.
