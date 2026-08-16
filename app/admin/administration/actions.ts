@@ -34,8 +34,29 @@ function tjekRolle(vaerdi: unknown): "admin" | "user" | null {
   return vaerdi === "admin" || vaerdi === "user" ? vaerdi : null;
 }
 
+// Navnet er valgfrit. Et blankt felt bliver til null, ikke til en tom streng —
+// databasen afviser tomme strenge, og null er det, der betyder "intet navn"
+// hele vejen op gennem visningen.
+const NAVN_MAKS = 80;
+
+function renseNavn(vaerdi: unknown): string | null | { fejl: string } {
+  if (typeof vaerdi !== "string") return null;
+
+  const rent = vaerdi.trim();
+
+  if (rent === "") return null;
+  if (rent.length > NAVN_MAKS) return { fejl: `Navnet må højst være ${NAVN_MAKS} tegn.` };
+
+  return rent;
+}
+
+function erNavnefejl(v: string | null | { fejl: string }): v is { fejl: string } {
+  return typeof v === "object" && v !== null;
+}
+
 export async function inviterBruger(
   email: string,
+  navn: string,
   rolle: string,
   moduler: string[]
 ): Promise<GemResultat> {
@@ -44,6 +65,9 @@ export async function inviterBruger(
     console.error("Afvist forsøg på at invitere en bruger uden administratoradgang.");
     return { ok: false, fejl: IKKE_ADMIN };
   }
+
+  const rentNavn = renseNavn(navn);
+  if (erNavnefejl(rentNavn)) return { ok: false, fejl: rentNavn.fejl };
 
   const adresse = email.trim().toLowerCase();
 
@@ -84,6 +108,7 @@ export async function inviterBruger(
     {
       auth_user_id: data.user.id,
       email: adresse,
+      navn: rentNavn,
       rolle: renRolle,
       allowed_modules: renRolle === "admin" ? [] : renModuler,
     },
@@ -106,6 +131,7 @@ export async function inviterBruger(
 
 export async function opdaterBruger(
   authUserId: string,
+  navn: string,
   rolle: string,
   moduler: string[]
 ): Promise<GemResultat> {
@@ -114,6 +140,9 @@ export async function opdaterBruger(
     console.error("Afvist forsøg på at ændre en bruger uden administratoradgang.");
     return { ok: false, fejl: IKKE_ADMIN };
   }
+
+  const rentNavn = renseNavn(navn);
+  if (erNavnefejl(rentNavn)) return { ok: false, fejl: rentNavn.fejl };
 
   const renRolle = tjekRolle(rolle);
   if (!renRolle) return { ok: false, fejl: "Ukendt rolle." };
@@ -141,6 +170,7 @@ export async function opdaterBruger(
   const { error } = await supabaseAdmin
     .from("admin_users")
     .update({
+      navn: rentNavn,
       rolle: renRolle,
       allowed_modules: renRolle === "admin" ? [] : renModuler,
     })

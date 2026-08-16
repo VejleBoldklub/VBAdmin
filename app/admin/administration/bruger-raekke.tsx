@@ -13,6 +13,7 @@ export default function BrugerRaekke({
   bruger: AdminBrugerRaekke;
   erMigSelv: boolean;
 }) {
+  const [navn, setNavn] = useState(bruger.navn ?? "");
   const [rolle, setRolle] = useState<"admin" | "user">(bruger.rolle);
   const [moduler, setModuler] = useState<Modul[]>(bruger.moduler);
   const [fejl, setFejl] = useState<string | null>(null);
@@ -43,21 +44,40 @@ export default function BrugerRaekke({
   return (
     <div className="border-b border-slate-200 px-4 py-4 last:border-b-0 sm:px-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Navnet er overskriften, hvor der er et. Uden navn står adressen
+            alene som før — ingen tom plads og ingen "intet navn angivet", som
+            kun ville fylde en linje med en oplysning, ingen kan bruge. */}
         <div>
           <p className="font-semibold text-slate-950">
-            {bruger.email}
+            {bruger.navn ?? bruger.email}
             {erMigSelv && (
               <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">
                 dig
               </span>
             )}
           </p>
+          {bruger.navn && <p className="mt-0.5 text-sm text-slate-600">{bruger.email}</p>}
           <p className="mt-0.5 text-xs text-slate-500">
             Oprettet {new Date(bruger.oprettet).toLocaleDateString("da-DK")}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="text-sm">
+            <span className="sr-only">Navn for {bruger.email}</span>
+            <input
+              type="text"
+              value={navn}
+              placeholder="Navn (valgfrit)"
+              autoComplete="name"
+              onChange={(e) => {
+                setNavn(e.target.value);
+                setGemt(false);
+              }}
+              className="w-44 rounded-lg border border-slate-300 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+            />
+          </label>
+
           <label className="text-sm">
             <span className="sr-only">Rolle for {bruger.email}</span>
             <select
@@ -76,7 +96,7 @@ export default function BrugerRaekke({
           <button
             type="button"
             disabled={isPending}
-            onClick={() => kald(() => opdaterBruger(bruger.authUserId, rolle, moduler))}
+            onClick={() => kald(() => opdaterBruger(bruger.authUserId, navn, rolle, moduler))}
             className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:border-slate-400 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
           >
             {isPending ? "Gemmer…" : "Gem"}

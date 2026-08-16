@@ -12,6 +12,7 @@ const ETIKET = "block text-xs font-bold uppercase tracking-[0.12em] text-slate-5
 
 export default function InviterForm() {
   const [email, setEmail] = useState("");
+  const [navn, setNavn] = useState("");
   const [rolle, setRolle] = useState<"admin" | "user">("user");
   const [moduler, setModuler] = useState<Modul[]>([]);
   const [fejl, setFejl] = useState<string | null>(null);
@@ -21,12 +22,14 @@ export default function InviterForm() {
   function inviter() {
     startTransition(async () => {
       try {
-        const svar = await inviterBruger(email, rolle, moduler);
+        const svar = await inviterBruger(email, navn, rolle, moduler);
 
         if (svar.ok) {
           setFejl(null);
-          setSendtTil(email.trim().toLowerCase());
+          // Navnet er mere sigende end adressen, hvor det er skrevet.
+          setSendtTil(navn.trim() || email.trim().toLowerCase());
           setEmail("");
+          setNavn("");
           setModuler([]);
           setRolle("user");
         } else {
@@ -50,6 +53,19 @@ export default function InviterForm() {
       </p>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <label className="block">
+          <span className={ETIKET}>Navn</span>
+          <input
+            className={FELT}
+            type="text"
+            value={navn}
+            placeholder="Fx Sine Lyse"
+            autoComplete="name"
+            onChange={(e) => setNavn(e.target.value)}
+          />
+          <span className="mt-1 block text-xs text-slate-500">Valgfrit. Vises i listen i stedet for adressen.</span>
+        </label>
+
         <label className="block">
           <span className={ETIKET}>E-mail</span>
           <input
