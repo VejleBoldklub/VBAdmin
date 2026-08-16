@@ -11,6 +11,9 @@ import { beskrivSupabaseFejl } from "@/lib/infoskaerm/data";
 export type AdminBrugerRaekke = {
   authUserId: string;
   email: string;
+  // Null, når ingen har skrevet et navn. Listen viser så adressen alene frem
+  // for en tom plads eller en pladsholdertekst.
+  navn: string | null;
   rolle: "admin" | "user";
   moduler: Modul[];
   oprettet: string;
@@ -26,7 +29,8 @@ export async function hentBrugere(): Promise<{
 }> {
   const { data, error } = await supabaseAdmin
     .from("admin_users")
-    .select("auth_user_id, email, rolle, allowed_modules, oprettet")
+    .select("auth_user_id, email, navn, rolle, allowed_modules, oprettet")
+    .order("navn", { ascending: true, nullsFirst: false })
     .order("email", { ascending: true });
 
   if (error) {
@@ -37,6 +41,7 @@ export async function hentBrugere(): Promise<{
   const brugere = (Array.isArray(data) ? data : []).map((r) => ({
     authUserId: String(r.auth_user_id),
     email: String(r.email),
+    navn: typeof r.navn === "string" && r.navn.trim() !== "" ? r.navn : null,
     rolle: r.rolle === "admin" ? ("admin" as const) : ("user" as const),
     moduler: Array.isArray(r.allowed_modules) ? r.allowed_modules.filter(erModul) : [],
     oprettet: String(r.oprettet),
