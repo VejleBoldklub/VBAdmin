@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { AdminPageShell } from "@/components/admin-page-shell";
 import { baneplaner, findBaneplan } from "@/features/baneplan/plans";
 import { hentLivePlan, hentKladde, opretKladdeFraLive } from "@/features/baneplan/actions";
+import { erMaaltavleSynlig } from "@/features/baneplan/types";
 import ScheduleView from "./schedule-view";
 import KladdeEditor from "./kladde-editor";
 
@@ -68,6 +69,7 @@ export default async function BaneplanAdminPage({ params }: BaneplanAdminPagePro
           initialFields={kladde.data.fields}
           initialEvents={kladde.data.events}
           initialMaaltavle={kladde.data.maaltavle}
+          initialMaaltavleSynlig={erMaaltavleSynlig(kladde.data)}
         />
       ) : (
         <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center sm:p-6">

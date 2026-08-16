@@ -6,6 +6,7 @@ import type { Maaltavle, ScheduleEvent, ScheduleField } from "@/features/banepla
 import { gemKladde, publicerKladde, kasserKladde } from "@/features/baneplan/actions";
 import BaneTags from "./bane-tags";
 import MaaltavleEditor from "./maaltavle-editor";
+import MaaltavleSynligKontakt from "./maaltavle-synlig-kontakt";
 import ScheduleEditor from "./schedule-editor";
 
 type KladdeEditorProps = {
@@ -15,6 +16,7 @@ type KladdeEditorProps = {
   initialFields: ScheduleField[];
   initialEvents: ScheduleEvent[];
   initialMaaltavle: Maaltavle | undefined;
+  initialMaaltavleSynlig: boolean;
 };
 
 type GemStatus = "gemt" | "ugemt" | "gemmer" | "fejl";
@@ -31,11 +33,13 @@ export default function KladdeEditor({
   initialFields,
   initialEvents,
   initialMaaltavle,
+  initialMaaltavleSynlig,
 }: KladdeEditorProps) {
   const [saesontitel, setSaesontitel] = useState(initialSaesontitel);
   const [fields, setFields] = useState<ScheduleField[]>(initialFields);
   const [events, setEvents] = useState<ScheduleEvent[]>(initialEvents);
   const [maaltavle, setMaaltavle] = useState<Maaltavle | undefined>(initialMaaltavle);
+  const [maaltavleSynlig, setMaaltavleSynlig] = useState(initialMaaltavleSynlig);
   const [gemStatus, setGemStatus] = useState<GemStatus>("gemt");
   const [sidstGemt, setSidstGemt] = useState<string | null>(null);
   const [fejl, setFejl] = useState<string | null>(null);
@@ -54,7 +58,7 @@ export default function KladdeEditor({
     const rev = revision.current;
     setGemStatus("gemmer");
     try {
-      await gemKladde(kladdeId, saesontitel, { fields, events, maaltavle });
+      await gemKladde(kladdeId, saesontitel, { fields, events, maaltavle, maaltavleSynlig });
       setFejl(null);
       setSidstGemt(new Date().toLocaleTimeString("da-DK", { hour: "2-digit", minute: "2-digit" }));
       // Kom der ændringer, mens vi gemte, er kladden stadig ugemt.
@@ -63,7 +67,7 @@ export default function KladdeEditor({
       setGemStatus("fejl");
       setFejl(e instanceof Error ? e.message : "Kunne ikke gemme kladden.");
     }
-  }, [kladdeId, saesontitel, fields, events, maaltavle]);
+  }, [kladdeId, saesontitel, fields, events, maaltavle, maaltavleSynlig]);
 
   // Autosave. Nulstilles ved hver ændring, så et træk kun gemmer én gang.
   useEffect(() => {
@@ -128,7 +132,7 @@ export default function KladdeEditor({
     const fane = window.open("", "_blank");
 
     try {
-      await gemKladde(kladdeId, saesontitel, { fields, events, maaltavle });
+      await gemKladde(kladdeId, saesontitel, { fields, events, maaltavle, maaltavleSynlig });
       setGemStatus("gemt");
       if (fane) fane.location.href = `/admin/baneplan/${slug}/print`;
       else setFejl("Kunne ikke åbne printvisningen. Tillad pop op-vinduer for dette site.");
@@ -144,7 +148,7 @@ export default function KladdeEditor({
     setFejl(null);
     setArbejder(true);
     try {
-      await gemKladde(kladdeId, saesontitel, { fields, events, maaltavle });
+      await gemKladde(kladdeId, saesontitel, { fields, events, maaltavle, maaltavleSynlig });
       setGemStatus("gemt");
       await publicerKladde(kladdeId, slug);
     } catch (e) {
@@ -221,6 +225,20 @@ export default function KladdeEditor({
         <h3 className="mb-2 text-sm font-bold uppercase tracking-wide text-slate-500">
           Måloversigt
         </h3>
+
+        {/* Kontakten vises kun, når planen har en tavle. Vinterplanen har ingen,
+            og en kontakt til at skjule noget, der ikke findes, ville kun rejse
+            spørgsmålet om, hvor tavlen så er. */}
+        {maaltavle && (
+          <MaaltavleSynligKontakt
+            synlig={maaltavleSynlig}
+            onSkift={(naeste) => {
+              setMaaltavleSynlig(naeste);
+              markerAendret();
+            }}
+          />
+        )}
+
         <MaaltavleEditor
           maaltavle={maaltavle}
           fields={fields}
