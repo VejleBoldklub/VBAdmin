@@ -38,7 +38,7 @@ const modules: Modulkort[] = [
   },
   {
     title: "Infoskærm Cafeteria",
-    description: "Sæt farve og besked på cafeteriets infoskærm.",
+    description: "Administrer kostplaner og Infoskærm",
     status: "Aktiv",
     href: "/admin/infoskaerm",
     index: 3,
