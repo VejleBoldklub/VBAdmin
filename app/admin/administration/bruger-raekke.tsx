@@ -2,9 +2,42 @@
 
 import { useState, useTransition } from "react";
 import type { Modul } from "@/lib/moduler";
-import type { AdminBrugerRaekke } from "@/lib/administration";
+import type { AdminBrugerRaekke, SidsteLogin } from "@/lib/administration";
 import { fjernBruger, opdaterBruger } from "./actions";
 import { ModulVaelger } from "./modul-vaelger";
+
+// Datoerne formateres med eksplicit tidszone.
+//
+// Komponenten er en klientkomponent og tegnes både på serveren og i browseren.
+// Serveren kører i UTC, brugeren sidder i dansk tid — uden en fast tidszone
+// ville de to give hver sin tekst, og React ville melde en hydreringsfejl. Kort
+// efter midnat ville datoen oven i købet være forkert.
+const TIDSZONE = "Europe/Copenhagen";
+
+function formaterDato(iso: string): string {
+  return new Date(iso).toLocaleDateString("da-DK", {
+    timeZone: TIDSZONE,
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formaterSidsteLogin(v: SidsteLogin): string {
+  if (v.slags === "aldrig") return "Endnu ikke logget ind";
+  if (v.slags === "ukendt") return "Sidste login kunne ikke hentes";
+
+  const tid = new Date(v.iso).toLocaleString("da-DK", {
+    timeZone: TIDSZONE,
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return `Sidste login ${tid}`;
+}
 
 export default function BrugerRaekke({
   bruger,
@@ -58,7 +91,9 @@ export default function BrugerRaekke({
           </p>
           {bruger.navn && <p className="mt-0.5 text-sm text-slate-600">{bruger.email}</p>}
           <p className="mt-0.5 text-xs text-slate-500">
-            Oprettet {new Date(bruger.oprettet).toLocaleDateString("da-DK")}
+            Oprettet {formaterDato(bruger.oprettet)}
+            <span aria-hidden="true"> · </span>
+            {formaterSidsteLogin(bruger.sidsteLogin)}
           </p>
         </div>
 
