@@ -54,3 +54,22 @@ export async function logUd() {
 
   redirect("/login");
 }
+
+// Logud, som brugeren ikke selv bad om. Kaldes af Inaktivitetsvagt, når
+// adminfladen har stået urørt for længe.
+//
+// Adskilt fra logUd alene for at kunne sige hvorfor på loginsiden. Uden en
+// besked ville brugeren møde en almindelig loginside og tro, at systemet smed
+// dem ud af sig selv.
+//
+// Handlingen kræver ingen adgangskontrol: den kan kun rydde kalderens egen
+// session, og en ikke-indlogget bruger, der rammer den, mister ingenting.
+//
+// Til forskel fra logUd viderestiller den ikke. Vagten sender selv browseren til
+// loginsiden med en almindelig sideindlæsning, netop fordi det er et logud: en
+// blød viderestilling ville lade Nexts routercache i browseren beholde de
+// adminsider, brugeren lige forlod, og de kunne stadig vises med tilbageknappen.
+export async function logUdVedInaktivitet(): Promise<void> {
+  const klient = await supabaseSession();
+  await klient.auth.signOut();
+}

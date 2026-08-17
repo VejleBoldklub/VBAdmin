@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
+import { Inaktivitetsvagt } from "@/components/inaktivitetsvagt";
 import { ModuleCard, type ModuleCardProps } from "@/components/module-card";
 import { hentBruger, harAdgangTil, type Modul } from "@/lib/adgang";
 import { logUd } from "@/app/login/actions";
@@ -137,6 +138,11 @@ export default async function Home() {
           © {new Date().getFullYear()} Vejle Boldklub
         </footer>
       </div>
+
+      {/* Forsiden ligger uden for /admin og dækkes derfor ikke af
+          app/admin/layout.tsx. Den kræver login som resten af adminfladen, og
+          det er den side, der oftest bliver stående åben. */}
+      <Inaktivitetsvagt />
     </main>
   );
 }
