@@ -178,7 +178,7 @@ Mails sendes med Resend fra et domæne, der er verificeret der. Tre mails:
 
 1. **Kvittering til bookeren** ved oprettelse — bekræftet med det samme for mødelokalet, "afventer godkendelse" for cafeteriet
 2. **Notifikation til den lokaleansvarlige** ved en cafeteria-booking, med et godkend- og et afvis-link
-3. **Svar til bookeren**, når nogen har taget stilling — med begrundelsen, hvis bookingen blev afvist
+3. **Svar til bookeren**, når nogen har taget stilling — ved et afslag med begrundelsen, hvis der blev skrevet en. Afvisning kræver ikke en begrundelse, men den kan gives
 
 Reply-To er den lokaleansvarlige, hvor der findes en. For cafeteriet er det `cafeteria@vejleboldklub.dk`, og det betyder mest på svarmailen: det er der, en træner kan få et afslag og have brug for at spørge hvorfor. Mødelokalet har ingen ansvarlig og bliver aldrig afvist; dets mails har ingen Reply-To, og de lover derfor heller ikke, at man kan svare. Notifikationen til den ansvarlige har bookeren som Reply-To, så et spørgsmål kan stilles direkte, før der tages stilling.
 
