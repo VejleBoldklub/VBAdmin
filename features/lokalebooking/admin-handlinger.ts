@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { kraevAdgang } from "@/lib/adgang";
-import { afgoerViaId, aflysViaId } from "./beslutning";
+import { afgoerViaId, aflysSerieViaId, aflysViaId } from "./beslutning";
 import type { BeslutResultat } from "./types";
 
 // Godkendelse og afvisning fra adminfladen.
@@ -102,6 +102,31 @@ export async function afvisBooking(id: string, grund: string): Promise<BeslutRes
   // bekræftede bookinger, så tidsrummet bliver ledigt i samme øjeblik. Den
   // offentlige side hentes altid på ny og viser det med det samme — derfor er der
   // ingen revalidering af den her.
+  revalidatePath(ADMIN_STI);
+
+  return svar;
+}
+
+// Aflysning af en hel serie på én gang.
+//
+// Egen handling frem for et flag på annullerBooking. De to gør forskellige ting i
+// forskelligt omfang, og en knap, der kan aflyse tolv bookinger, skal ikke kunne
+// forveksles med en, der aflyser én — hverken i brugerfladen eller her.
+//
+// Bookeren får én samlet mail om hele serien; det sker inde i aflysSerieViaId,
+// sammen med opdateringen.
+export async function annullerSerie(serieId: string): Promise<BeslutResultat> {
+  if (!(await kraevAdgang("lokalebooking"))) {
+    console.error("Afvist forsøg på at aflyse en serie uden gyldig admin-adgang.");
+    return { ok: false, fejl: IKKE_ADMIN };
+  }
+
+  if (!UUID.test(serieId)) {
+    return { ok: false, fejl: GENERISK };
+  }
+
+  const svar = await aflysSerieViaId(serieId);
+
   revalidatePath(ADMIN_STI);
 
   return svar;

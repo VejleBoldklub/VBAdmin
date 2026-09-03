@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import type { Booking, BookingFilter } from "./types";
+import { tidsrumDelt } from "./regler";
+import type { Booking, BookingFilter, SerieOverblik } from "./types";
 
 // Læsning af bookinger til adminfladen, med kontaktoplysninger.
 //
@@ -18,7 +19,7 @@ import type { Booking, BookingFilter } from "./types";
 // aldrig forlader databasen, kan ikke lækkes ved et uheld.
 const KOLONNER =
   "id,lokale,start_tid,slut_tid,status,formaal,hold,navn,email,mobil,besked," +
-  "besluttet_af,besluttet_tid,afvisningsgrund,created_at,updated_at";
+  "besluttet_af,besluttet_tid,afvisningsgrund,serie_id,created_at,updated_at";
 
 // Loftet findes for at en side aldrig kan hente et ubegrænset antal rækker.
 // Rammes det, siger listen det højt frem for tavst at vise et udsnit.
@@ -87,4 +88,53 @@ export async function hentAfventende(): Promise<Booking[]> {
   }
 
   return (data ?? []) as unknown as Booking[];
+}
+
+export async function hentSerieOverblik(
+  serieIds: string[]
+): Promise<Record<string, SerieOverblik>> {
+  const unikke = [...new Set(serieIds)];
+  if (unikke.length === 0) return {};
+
+  const { data, error } = await supabaseAdmin
+    .from("lokale_bookinger")
+    .select("serie_id,start_tid,slut_tid,status")
+    .in("serie_id", unikke)
+    .order("start_tid", { ascending: true });
+
+  if (error) {
+    // Ikke en fejl, der skal vælte siden. Uden overblikket mister rækkerne deres
+    // seriemarkering, og en samlet aflysning kan ikke tilbydes — men listen selv
+    // er der stadig, og den er det, siden er til for.
+    console.error(`Kunne ikke hente serieoverblik: ${error.message}`);
+    return {};
+  }
+
+  type Raekke = {
+    serie_id: string;
+    start_tid: string;
+    slut_tid: string;
+    status: Booking["status"];
+  };
+
+  const ud: Record<string, SerieOverblik> = {};
+
+  for (const r of (data ?? []) as unknown as Raekke[]) {
+    const dag = tidsrumDelt(new Date(r.start_tid), new Date(r.slut_tid)).dag;
+    const aktiv = r.status === "afventer" || r.status === "bekraeftet";
+    const kendt = ud[r.serie_id];
+
+    if (!kendt) {
+      ud[r.serie_id] = { ialt: 1, aktive: aktiv ? 1 : 0, foersteDag: dag, sidsteDag: dag };
+      continue;
+    }
+
+    kendt.ialt += 1;
+    if (aktiv) kendt.aktive += 1;
+    // Rækkerne kommer sorteret på starttidspunkt, så den sidste, der ses, er den
+    // seneste.
+    kendt.sidsteDag = dag;
+  }
+
+  return ud;
 }

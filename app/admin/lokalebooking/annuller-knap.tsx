@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { annullerBooking } from "@/features/lokalebooking/admin-handlinger";
+import { annullerBooking, annullerSerie } from "@/features/lokalebooking/admin-handlinger";
+import type { SerieVisning } from "@/features/lokalebooking/types";
 
 // Annullér-knap med bekræftelse.
 //
@@ -13,29 +14,45 @@ import { annullerBooking } from "@/features/lokalebooking/admin-handlinger";
 // sig selv, og et fejlklik skal ikke kunne aflyse en anden aftale end den, man
 // troede — derfor gentages hvilken booking der er tale om, frem for bare at
 // spørge "er du sikker?".
+//
+// Hører bookingen til en serie, er der to handlinger bag den samme knap: aflys
+// kun denne dato, eller aflys hele rækken. Valget står som to udtrykkelige
+// muligheder, og der er ingen forvalgt genvej til den store: den, der rammer tolv
+// bookinger, skal vælges aktivt. Af samme grund skifter både overskriften og
+// teksten på bekræftelsesknappen med valget — knappen skal sige, hvad der sker,
+// ikke bare "OK".
 
 type AnnullerKnapProps = {
   id: string;
   lokaleNavn: string;
   dag: string;
   klokke: string;
+  // Sat, hvis bookingen er én forekomst i en gentagen serie.
+  serie?: SerieVisning;
   // Kompakt udgave til tabellen, hvor knappen skal fylde lidt.
   kompakt?: boolean;
 };
+
+type Omfang = "denne" | "serien";
 
 export default function AnnullerKnap({
   id,
   lokaleNavn,
   dag,
   klokke,
+  serie,
   kompakt = false,
 }: AnnullerKnapProps) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [venter, startOvergang] = useTransition();
   const [fejl, setFejl] = useState<string | null>(null);
+  const [omfang, setOmfang] = useState<Omfang>("denne");
 
   const aabn = () => {
     setFejl(null);
+    // Valget nulstilles hver gang. Ellers ville et "hele serien" fra sidste gang
+    // stå og vente på næste klik — på en anden booking.
+    setOmfang("denne");
     dialog.current?.showModal();
   };
 
@@ -43,19 +60,44 @@ export default function AnnullerKnap({
     if (!venter) dialog.current?.close();
   };
 
+  const rammerSerien = serie !== undefined && omfang === "serien";
+
   const annuller = () =>
     startOvergang(async () => {
-      const svar = await annullerBooking(id);
+      const svar = rammerSerien ? await annullerSerie(serie.id) : await annullerBooking(id);
 
       if (!svar.ok) {
         setFejl(svar.fejl);
         return;
       }
 
-      // Ved held lukkes dialogen, og siden gengives igen. Bookingen står nu som
+      // Ved held lukkes dialogen, og siden gengives igen. Bookingerne står nu som
       // aflyst, og knappen forsvinder af sig selv.
       dialog.current?.close();
     });
+
+  const valgmulighed = (vaerdi: Omfang, titel: string, forklaring: string) => (
+    <label
+      key={vaerdi}
+      className={`flex cursor-pointer gap-3 rounded-lg border px-3 py-2.5 ${
+        omfang === vaerdi ? "border-red-700 bg-red-50" : "border-slate-300 bg-white"
+      }`}
+    >
+      <input
+        type="radio"
+        name={`omfang-${id}`}
+        value={vaerdi}
+        checked={omfang === vaerdi}
+        onChange={() => setOmfang(vaerdi)}
+        disabled={venter}
+        className="mt-0.5 h-4 w-4 accent-red-700"
+      />
+      <span>
+        <span className="block text-sm font-semibold text-slate-950">{titel}</span>
+        <span className="mt-0.5 block text-xs leading-5 text-slate-600">{forklaring}</span>
+      </span>
+    </label>
+  );
 
   return (
     <>
@@ -66,7 +108,7 @@ export default function AnnullerKnap({
           kompakt ? "px-2.5 py-1.5 text-xs" : "px-4 py-2 text-sm"
         }`}
       >
-        Annullér
+        Annullér{serie ? " …" : ""}
       </button>
 
       <dialog
@@ -88,7 +130,9 @@ export default function AnnullerKnap({
       >
         <div className="p-5 sm:p-6">
           <h2 className="text-lg font-bold tracking-tight text-slate-950">
-            Er du sikker på du vil annullere denne booking?
+            {serie
+              ? "Denne booking er del af en serie"
+              : "Er du sikker på du vil annullere denne booking?"}
           </h2>
 
           <dl className="mt-4 grid gap-x-5 gap-y-1.5 text-sm sm:grid-cols-[auto_1fr]">
@@ -100,11 +144,47 @@ export default function AnnullerKnap({
 
             <dt className="text-slate-500">Tidsrum</dt>
             <dd className="font-medium tabular-nums text-slate-900">{klokke}</dd>
+
+            {serie && (
+              <>
+                <dt className="text-slate-500">Serie</dt>
+                <dd className="font-medium text-slate-900">
+                  Serie {serie.maerke} · {serie.foersteDag} – {serie.sidsteDag}
+                </dd>
+              </>
+            )}
           </dl>
 
+          {serie ? (
+            <fieldset className="mt-5">
+              <legend className="text-sm font-semibold text-slate-800">
+                Hvad skal annulleres?
+              </legend>
+              <div className="mt-2 grid gap-2">
+                {valgmulighed(
+                  "denne",
+                  "Kun denne dato",
+                  `Resten af serien bliver stående. ${
+                    serie.aktive - 1 === 1
+                      ? "1 booking i serien fortsætter."
+                      : `${Math.max(serie.aktive - 1, 0)} bookinger i serien fortsætter.`
+                  }`
+                )}
+                {valgmulighed(
+                  "serien",
+                  `Hele serien — ${serie.aktive} ${
+                    serie.aktive === 1 ? "booking" : "bookinger"
+                  }`,
+                  "Alle datoer i rækken, der stadig gælder, annulleres på én gang. Allerede aflyste datoer røres ikke."
+                )}
+              </div>
+            </fieldset>
+          ) : null}
+
           <p className="mt-4 text-sm leading-6 text-slate-600">
-            Tidsrummet bliver ledigt igen, og bookeren får en mail om, at klubben har annulleret
-            bookingen.
+            {rammerSerien
+              ? "Alle tidsrummene bliver ledige igen, og bookeren får én samlet mail om, at klubben har annulleret rækken."
+              : "Tidsrummet bliver ledigt igen, og bookeren får en mail om, at klubben har annulleret bookingen."}
           </p>
 
           {fejl && (
@@ -123,7 +203,13 @@ export default function AnnullerKnap({
               disabled={venter}
               className="rounded-lg bg-red-700 px-4 py-2 text-sm font-bold text-white hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {venter ? "Annullerer …" : "Ja, annullér bookingen"}
+              {venter
+                ? "Annullerer …"
+                : rammerSerien
+                  ? `Ja, annullér alle ${serie.aktive}`
+                  : serie
+                    ? "Ja, annullér denne dato"
+                    : "Ja, annullér bookingen"}
             </button>
             <button
               type="button"
@@ -131,7 +217,7 @@ export default function AnnullerKnap({
               disabled={venter}
               className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Behold bookingen
+              {serie ? "Behold alle" : "Behold bookingen"}
             </button>
           </div>
         </div>

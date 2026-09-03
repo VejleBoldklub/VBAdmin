@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { supabasePublic } from "@/lib/supabase-public";
+import { tekstFra, tjekFelter, tomTilNull } from "./felter";
 import { HONEYPOT, type Indtastning, type OpretResultat } from "./formular";
 import { ipHash, ManglerSalt } from "./ip";
 import { findLokale, startStatus } from "./lokaler";
@@ -33,50 +34,20 @@ import { varslOmNyBooking } from "./varsling";
 // tid. Kan sættes ned, hvis der viser sig at komme spam.
 const MAKS_FORSOEG_PR_TIME = 10;
 
-// Samme mønster som check-reglen i databasen. Bevidst løs: formålet er at fange
-// tastefejl, ikke at afgøre om en adresse findes.
-const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-
-function tekst(fd: FormData, navn: string): string {
-  const v = fd.get(navn);
-  return typeof v === "string" ? v.trim() : "";
-}
-
+// Feltkontrollen ligger i felter.ts, fordi adminfladens egen oprettelsesformular
+// skal stille de samme krav. To kopier ville komme fra hinanden.
 function laesIndtastning(fd: FormData): Indtastning {
   return {
-    dato: tekst(fd, "dato"),
-    start: tekst(fd, "start"),
-    slut: tekst(fd, "slut"),
-    formaal: tekst(fd, "formaal"),
-    hold: tekst(fd, "hold"),
-    navn: tekst(fd, "navn"),
-    email: tekst(fd, "email"),
-    mobil: tekst(fd, "mobil"),
-    besked: tekst(fd, "besked"),
+    dato: tekstFra(fd, "dato"),
+    start: tekstFra(fd, "start"),
+    slut: tekstFra(fd, "slut"),
+    formaal: tekstFra(fd, "formaal"),
+    hold: tekstFra(fd, "hold"),
+    navn: tekstFra(fd, "navn"),
+    email: tekstFra(fd, "email"),
+    mobil: tekstFra(fd, "mobil"),
+    besked: tekstFra(fd, "besked"),
   };
-}
-
-// Længderne er de samme som check-reglerne i skemaet. Er de to uenige, vinder
-// databasen, og brugeren får en generisk fejl i stedet for en brugbar — derfor
-// skal de holdes ens.
-function tjekFelter(v: Indtastning): string[] {
-  const fejl: string[] = [];
-
-  if (v.formaal.length < 1) fejl.push("Skriv hvad lokalet skal bruges til.");
-  else if (v.formaal.length > 200) fejl.push("Formålet må højst være 200 tegn.");
-
-  if (v.hold.length > 100) fejl.push("Hold må højst være 100 tegn.");
-
-  if (v.navn.length < 2) fejl.push("Skriv dit navn.");
-  else if (v.navn.length > 100) fejl.push("Navnet må højst være 100 tegn.");
-
-  if (!EMAIL.test(v.email)) fejl.push("Skriv en gyldig e-mailadresse.");
-
-  if (v.mobil.length < 6 || v.mobil.length > 20) fejl.push("Skriv et mobilnummer.");
-
-  if (v.besked.length > 2000) fejl.push("Beskeden må højst være 2000 tegn.");
-
-  return fejl;
 }
 
 export async function opretBooking(
@@ -137,7 +108,7 @@ export async function opretBooking(
   // skjulte felt, får et rigtigt medlem en bekræftelse på en booking, der ikke
   // findes. Loggen er det eneste sted, det kan opdages — hold øje med linjen her,
   // hvis nogen melder om en booking, klubben ikke kan se.
-  if (tekst(fd, HONEYPOT) !== "") {
+  if (tekstFra(fd, HONEYPOT) !== "") {
     console.warn(
       `Bookingforsøg med udfyldt honeypot fik et tavst ja (${lokale.slug}, ${vaerdier.email}).`
     );
@@ -201,11 +172,11 @@ export async function opretBooking(
     slut_tid: slut.toISOString(),
     status,
     formaal: vaerdier.formaal,
-    hold: vaerdier.hold === "" ? null : vaerdier.hold,
+    hold: tomTilNull(vaerdier.hold),
     navn: vaerdier.navn,
     email: vaerdier.email,
     mobil: vaerdier.mobil,
-    besked: vaerdier.besked === "" ? null : vaerdier.besked,
+    besked: tomTilNull(vaerdier.besked),
   });
 
   if (error) {
@@ -244,11 +215,11 @@ export async function opretBooking(
       start,
       slut,
       formaal: vaerdier.formaal,
-      hold: vaerdier.hold === "" ? null : vaerdier.hold,
+      hold: tomTilNull(vaerdier.hold),
       navn: vaerdier.navn,
       email: vaerdier.email,
       mobil: vaerdier.mobil,
-      besked: vaerdier.besked === "" ? null : vaerdier.besked,
+      besked: tomTilNull(vaerdier.besked),
     });
   } catch (e) {
     console.error(

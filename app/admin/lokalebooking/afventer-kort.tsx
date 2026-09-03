@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { StatusMaerke } from "@/components/lokalebooking/status-maerke";
 import { afvisBooking, godkendBooking } from "@/features/lokalebooking/admin-handlinger";
 import { findLokale } from "@/features/lokalebooking/lokaler";
-import type { Booking } from "@/features/lokalebooking/types";
+import type { Booking, SerieVisning } from "@/features/lokalebooking/types";
 import AnnullerKnap from "./annuller-knap";
 
 // Ét kort pr. cafeteria-booking, der venter på en beslutning.
@@ -20,12 +20,24 @@ type AfventerKortProps = {
   // Sandt, hvis tidsrummet er passeret. En beslutning er stadig mulig, men skal
   // markeres: at godkende en booking, der er overstået, er sjældent meningen.
   erPasseret: boolean;
+  // Serier oprettes fra adminfladen og er bekræftet med det samme, så en
+  // afventende booking har normalt ingen serie. Den sendes med alligevel, så
+  // annulleringen her opfører sig som i listen nedenfor, hvis det en dag ændrer
+  // sig — en knap, der rammer forskelligt afhængigt af hvor den står, er værre
+  // end en, der aldrig får brug for muligheden.
+  serie?: SerieVisning;
 };
 
 const KNAP =
   "rounded-lg px-4 py-2 text-sm font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 
-export default function AfventerKort({ booking, dag, klokke, erPasseret }: AfventerKortProps) {
+export default function AfventerKort({
+  booking,
+  dag,
+  klokke,
+  erPasseret,
+  serie,
+}: AfventerKortProps) {
   const [venter, startOvergang] = useTransition();
   const [fejl, setFejl] = useState<string | null>(null);
   const [viserAfvis, setViserAfvis] = useState(false);
@@ -186,6 +198,7 @@ export default function AfventerKort({ booking, dag, klokke, erPasseret }: Afven
             lokaleNavn={findLokale(booking.lokale)?.navn ?? booking.lokale}
             dag={dag}
             klokke={klokke}
+            serie={serie}
           />
         </div>
       )}

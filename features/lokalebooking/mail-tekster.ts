@@ -52,6 +52,13 @@ function raekkerFor(b: MailBooking): Raekke[] {
   return raekker;
 }
 
+// Samme oversigt uden "Tidspunkt". Bruges af serie-mailene, hvor tiderne ikke er
+// én værdi, men en liste, og hvor en enkelt "Tidspunkt"-linje derfor ville vise et
+// af tidsrummene og fortie resten.
+function raekkerUdenTid(b: MailBooking): Raekke[] {
+  return raekkerFor(b).filter((r) => r.navn !== "Tidspunkt");
+}
+
 function htmlRaekker(raekker: Raekke[]): string {
   return raekker
     .map(
@@ -258,6 +265,119 @@ export function beslutningTilBooker(
       "",
       tekstRaekker(raekker),
       ...(!godkendt && grund ? ["", `Begrundelse: ${grund}`] : []),
+      "",
+      forklaring,
+      "",
+      "Vejle Boldklub — VB Parkens lokalebooking",
+    ].join("\n"),
+  };
+}
+
+// 5) Kvittering til bookeren, når adminfladen har oprettet en hel serie.
+//
+// Én mail for hele serien, ikke én pr. dato. En fast ugentlig aftale hen over en
+// sæson bliver til over tyve bookinger, og tyve ens mails i indbakken er ikke en
+// service — de ville blive læst som en fejl og i værste fald få hele afsenderen
+// markeret som spam.
+//
+// Datoerne står som en liste, fordi det er det, modtageren skal kunne tjekke:
+// serien er allerede bekræftet, og det eneste, der er tilbage at gøre, er at se
+// efter, om dagene passer.
+function serieListe(tidspunkter: string[]): { html: string; tekst: string } {
+  return {
+    html: `<ul style="margin:16px 0;padding-left:20px;color:${MOERK};font-size:14px;line-height:1.7;">${tidspunkter
+      .map((t) => `<li>${esc(t)}</li>`)
+      .join("")}</ul>`,
+    tekst: tidspunkter.map((t) => `- ${t}`).join("\n"),
+  };
+}
+
+export function serieBekraeftelseTilBooker(
+  b: MailBooking,
+  tidspunkter: string[],
+  moenster: string,
+  kanSvares: boolean
+): MailIndhold {
+  const raekker = [...raekkerUdenTid(b), { navn: "Gentagelse", vaerdi: moenster }];
+  const liste = serieListe(tidspunkter);
+
+  const overskrift =
+    tidspunkter.length === 1 ? "Din booking er bekræftet" : "Dine bookinger er bekræftet";
+
+  const forklaring =
+    "Tidsrummene er reserveret, og du behøver ikke gøre mere. Skal en af dagene aflyses, så kontakt klubben — hver dato kan aflyses for sig, uden at resten af rækken bliver rørt.";
+
+  return {
+    emne: `Bekræftet: ${tidspunkter.length} ${
+      tidspunkter.length === 1 ? "booking" : "bookinger"
+    } af ${b.lokaleNavn}`,
+    html: layout(
+      overskrift,
+      afsnit(`Hej ${b.navn}`) +
+        tabel(raekker) +
+        afsnit("Bookingerne gælder disse dage:") +
+        liste.html +
+        afsnit(forklaring),
+      kanSvares
+    ),
+    tekst: [
+      `Hej ${b.navn}`,
+      "",
+      overskrift,
+      "",
+      tekstRaekker(raekker),
+      "",
+      "Bookingerne gælder disse dage:",
+      liste.tekst,
+      "",
+      forklaring,
+      "",
+      "Vejle Boldklub — VB Parkens lokalebooking",
+    ].join("\n"),
+  };
+}
+
+// 6) Besked til bookeren, når klubben aflyser en hel serie på én gang.
+//
+// Også her én mail frem for én pr. dato, og af samme grund som ved oprettelsen.
+// Tonen er aflysningens, ikke afslagets: bookeren troede, rækken var på plads.
+export function serieAflysningTilBooker(
+  b: MailBooking,
+  tidspunkter: string[],
+  kanSvares: boolean
+): MailIndhold {
+  const raekker = raekkerUdenTid(b);
+  const liste = serieListe(tidspunkter);
+
+  const overskrift =
+    tidspunkter.length === 1 ? "Din booking er annulleret" : "Dine bookinger er annulleret";
+
+  const forklaring =
+    "Klubben har annulleret hele rækken, og tidsrummene er givet fri igen. Har du brug for lokalet, er du velkommen til at booke nye tider.";
+
+  return {
+    emne: `Annulleret: ${tidspunkter.length} ${
+      tidspunkter.length === 1 ? "booking" : "bookinger"
+    } af ${b.lokaleNavn}`,
+    html: layout(
+      overskrift,
+      afsnit(`Hej ${b.navn}`) +
+        tabel(raekker) +
+        afsnit("Det gælder disse dage:") +
+        liste.html +
+        afsnit(forklaring) +
+        (kanSvares ? afsnit("Har du spørgsmål til hvorfor, kan du svare på denne mail.") : ""),
+      kanSvares
+    ),
+    tekst: [
+      `Hej ${b.navn}`,
+      "",
+      overskrift,
+      "",
+      tekstRaekker(raekker),
+      "",
+      "Det gælder disse dage:",
+      liste.tekst,
       "",
       forklaring,
       "",
