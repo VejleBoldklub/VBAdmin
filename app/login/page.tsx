@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthShell } from "@/components/auth-shell";
 import { hentBruger } from "@/lib/adgang";
+import { INAKTIVITET_MINUTTER } from "@/lib/inaktivitet";
 import LoginForm from "./login-form";
 
 // Ruten er offentlig og ligger uden for matcheren i proxy.ts. Ellers kunne
@@ -26,8 +27,22 @@ export default async function LoginPage({ searchParams }: LoginProps) {
   // forstod ikke, hvorfor linket ikke virkede.
   const fejl = typeof sp.fejl === "string" ? sp.fejl : null;
 
+  // Sat af logUdVedInaktivitet. Et flag, ikke en tekst: beskeden står her, så
+  // adressen ikke kan bruges til at få vist en vilkårlig besked på loginsiden.
+  const inaktiv = sp.inaktiv === "1";
+
   return (
     <AuthShell title="Log ind" undertitel="Brug din klubadresse og din egen adgangskode.">
+      {inaktiv && (
+        <p
+          role="status"
+          className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700"
+        >
+          Du blev logget ud, fordi der ikke skete noget på siden i{" "}
+          {INAKTIVITET_MINUTTER} minutter. Log ind igen for at fortsætte.
+        </p>
+      )}
+
       {fejl && (
         <p
           role="alert"
