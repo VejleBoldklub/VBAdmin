@@ -52,11 +52,11 @@ export async function godkendBooking(id: string): Promise<BeslutResultat> {
 // Annullering af en booking, klubben tager tilbage — uanset om den afventer eller
 // allerede er bekræftet, og uanset lokale.
 //
-// Ingen begrundelse. Afvisning har en, fordi den er svaret på en forespørgsel, og
-// bookeren har brug for at vide hvorfor. En annullering sker typisk, fordi
-// klubben selv skal bruge lokalet, og et påkrævet felt ville blive udfyldt med
-// "aflyst" i en fart. Har bookeren brug for en forklaring, er Reply-To i mailen
-// vejen — den peger på den lokaleansvarlige.
+// Ingen begrundelse. Afvisning har et felt til en, fordi den er svaret på en
+// forespørgsel, men heller ikke dér er det et krav. En annullering har slet ikke
+// noget felt: den sker typisk, fordi klubben selv skal bruge lokalet, og
+// afvisningsgrund hører til et afslag. Har bookeren brug for en forklaring, er
+// Reply-To i mailen vejen — den peger på den lokaleansvarlige.
 export async function annullerBooking(id: string): Promise<BeslutResultat> {
   if (!(await kraevAdgang("lokalebooking"))) {
     console.error("Afvist forsøg på at annullere en booking uden gyldig admin-adgang.");
@@ -74,6 +74,18 @@ export async function annullerBooking(id: string): Promise<BeslutResultat> {
   return svar;
 }
 
+// Grunden er VALGFRI. Er feltet tomt, gemmes null, og bookeren får den samme
+// generiske afslagstekst som hidtil — mail-teksten har altid kunnet klare et
+// afslag uden begrundelse, det var kun de to indgange, der krævede et udfyldt
+// felt.
+//
+// Valget er klubbens: de fleste afslag har den samme banale årsag, og et påkrævet
+// felt bliver i praksis udfyldt med et ord, der intet siger. Skal der forklares
+// noget, skal det stå der, fordi den der afviser mener det — ikke fordi knappen
+// ellers er grå.
+//
+// Tom streng normaliseres til null, ikke til "". "Ikke udfyldt" skal kun have én
+// repræsentation i databasen, og resten af koden tjekker på null.
 export async function afvisBooking(id: string, grund: string): Promise<BeslutResultat> {
   if (!(await kraevAdgang("lokalebooking"))) {
     console.error("Afvist forsøg på at afvise en booking uden gyldig admin-adgang.");
@@ -86,17 +98,11 @@ export async function afvisBooking(id: string, grund: string): Promise<BeslutRes
 
   const renGrund = grund.trim();
 
-  // Grunden er påkrævet. Den står i afslagsmailen til bookeren, og et afslag uden
-  // forklaring er ikke til nogen nytte — hverken for den, der har booket, eller
-  // for den, der senere skal forstå hvorfor.
-  if (renGrund === "") {
-    return { ok: false, fejl: "Skriv en kort begrundelse for afvisningen." };
-  }
   if (renGrund.length > AFVISNING_MAKS) {
     return { ok: false, fejl: `Begrundelsen må højst være ${AFVISNING_MAKS} tegn.` };
   }
 
-  const svar = await afgoerViaId(id, "afvis", renGrund);
+  const svar = await afgoerViaId(id, "afvis", renGrund === "" ? null : renGrund);
 
   // Bemærk hvad afvisningen også gør: udelukkelsesreglen dækker kun afventende og
   // bekræftede bookinger, så tidsrummet bliver ledigt i samme øjeblik. Den

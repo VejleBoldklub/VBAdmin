@@ -34,7 +34,7 @@ export default function BeslutningForm({ art, handling }: BeslutningFormProps) {
         <p className="mt-1.5 text-sm leading-6 text-slate-600">
           {art === "godkend"
             ? "Bookeren har fået besked på mail, og tidsrummet står nu som bekræftet."
-            : "Bookeren har fået besked på mail med din begrundelse, og tidsrummet er givet fri igen."}
+            : "Bookeren har fået besked på mail, og tidsrummet er givet fri igen."}
         </p>
       </div>
     );
@@ -55,16 +55,17 @@ export default function BeslutningForm({ art, handling }: BeslutningFormProps) {
         <div className="mb-4">
           <label className="block text-sm font-semibold text-slate-800" htmlFor="grund">
             Begrundelse
+            <span className="ml-1.5 text-xs font-normal text-slate-500">valgfrit</span>
           </label>
           <p className="mt-0.5 text-xs text-slate-500">
-            Bookeren får begrundelsen i afslagsmailen. Skriv den, som den skal læses.
+            Skriver du noget, kommer det med i afslagsmailen til bookeren. Lader du feltet stå
+            tomt, sendes den almindelige afslagsmail uden en begrundelse.
           </p>
           <textarea
             id="grund"
             name="grund"
             rows={3}
             maxLength={500}
-            required
             placeholder="Fx: Cafeteriet er reserveret til kampdag."
             className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm focus:border-red-700 focus:outline-none focus:ring-1 focus:ring-red-700"
           />

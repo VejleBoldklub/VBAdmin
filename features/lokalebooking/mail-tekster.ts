@@ -165,7 +165,7 @@ export function notifikationTilAnsvarlig(
       "En cafeteria-booking venter på svar",
       tabel(raekker) +
         `<div style="margin:20px 0 4px;">${knap("Godkend booking", godkendLink, ROED, ROED, "#ffffff")}${knap("Afvis booking", afvisLink, "#ffffff", "#cbd5e1", MOERK)}</div>` +
-        `<p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:${GRAA};">Begge links åbner en side, hvor du bekræfter valget — der sker ingenting, før du trykker på knappen dér. Ved afvisning skal du skrive en kort begrundelse, som bookeren får at vide.</p>`,
+        `<p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:${GRAA};">Begge links åbner en side, hvor du bekræfter valget — der sker ingenting, før du trykker på knappen dér. Ved afvisning kan du skrive en kort begrundelse, som bookeren får at vide.</p>`,
       // Svar på denne mail går til bookeren, så et spørgsmål kan stilles direkte,
       // før der tages stilling.
       "Denne mail er sendt automatisk fra VB Parkens lokalebooking. Svarer du på den, går svaret til den, der har booket."
