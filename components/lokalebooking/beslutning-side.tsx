@@ -130,7 +130,7 @@ export function BeslutningSide({ art, booking, handling }: BeslutningSideProps) 
       <p className="mt-3 text-sm leading-6 text-slate-600">
         {art === "godkend"
           ? "Bookeren får en mail om, at tidsrummet er bekræftet."
-          : "Bookeren får en mail med din begrundelse, og tidsrummet bliver ledigt igen."}
+          : "Bookeren får en mail om afslaget, og tidsrummet bliver ledigt igen. Skriver du en begrundelse, kommer den med i mailen."}
       </p>
 
       {oversigt}

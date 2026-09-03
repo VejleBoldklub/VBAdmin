@@ -25,19 +25,20 @@ export async function afgoerMedToken(
 
   if (art === "afvis") {
     const raa = fd.get("grund");
-    grund = typeof raa === "string" ? raa.trim() : "";
+    const renGrund = typeof raa === "string" ? raa.trim() : "";
 
-    // Bookeren får begrundelsen i afslagsmailen. Et afslag uden forklaring er
-    // ikke til nogen nytte.
-    if (grund === "") {
-      return { tilstand: "fejl", fejl: "Skriv en kort begrundelse for afvisningen." };
-    }
-    if (grund.length > AFVISNING_MAKS) {
+    if (renGrund.length > AFVISNING_MAKS) {
       return {
         tilstand: "fejl",
         fejl: `Begrundelsen må højst være ${AFVISNING_MAKS} tegn.`,
       };
     }
+
+    // Valgfri, præcis som i adminfladen. De to veje er den samme beslutning truffet
+    // af den samme person, og de skal derfor stille det samme krav — ellers
+    // afhænger det af, om Sine sad i adminfladen eller havde mailen fremme.
+    // Tom streng bliver til null, så "ikke udfyldt" kun har én repræsentation.
+    grund = renGrund === "" ? null : renGrund;
   }
 
   const svar = await afgoerViaToken(art, token, grund);

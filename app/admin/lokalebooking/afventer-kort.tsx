@@ -122,10 +122,12 @@ export default function AfventerKort({ booking, dag, klokke, erPasseret }: Afven
         <div className="mt-4 border-t border-slate-200 pt-4">
           <label className="block text-sm font-semibold text-slate-800" htmlFor={`grund-${booking.id}`}>
             Begrundelse for afvisning
+            <span className="ml-1.5 text-xs font-normal text-slate-500">valgfrit</span>
           </label>
           <p className="mt-0.5 text-xs text-slate-500">
-            Bookeren får begrundelsen at vide, når afslagsmailen bygges. Skriv den, som den skal
-            læses.
+            Skriver du noget, kommer det med i afslagsmailen til bookeren — skriv det derfor, som
+            det skal læses. Lader du feltet stå tomt, får bookeren den almindelige afslagsmail
+            uden en begrundelse.
           </p>
           <textarea
             id={`grund-${booking.id}`}
@@ -140,7 +142,7 @@ export default function AfventerKort({ booking, dag, klokke, erPasseret }: Afven
             <button
               type="button"
               onClick={afvis}
-              disabled={venter || grund.trim() === ""}
+              disabled={venter}
               className={`${KNAP} bg-slate-800 text-white hover:bg-slate-900 focus-visible:ring-slate-800`}
             >
               {venter ? "Afviser …" : "Bekræft afvisning"}

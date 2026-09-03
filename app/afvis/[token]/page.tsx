@@ -4,8 +4,9 @@ import { findBookingViaToken } from "@/features/lokalebooking/beslutning";
 import { afgoerMedToken } from "@/features/lokalebooking/token-handlinger";
 
 // Afvisningslinket fra notifikationsmailen. Samme opdeling som /godkend: siden
-// viser, beslutningen sker først ved et tryk. Her skal der desuden skrives en
-// begrundelse, som bookeren får i afslagsmailen.
+// viser, beslutningen sker først ved et tryk. Her kan der desuden skrives en
+// begrundelse, som bookeren får i afslagsmailen — feltet er valgfrit, præcis som
+// i adminfladen.
 
 type AfvisPageProps = {
   params: Promise<{ token: string }>;
