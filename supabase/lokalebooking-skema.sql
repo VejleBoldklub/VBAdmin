@@ -75,6 +75,23 @@ create table if not exists lokale_bookinger (
   besluttet_tid       timestamptz,
   afvisningsgrund     text check (afvisningsgrund is null or length(afvisningsgrund) <= 500),
 
+  -- Gentagne bookinger. Hver forekomst i en serie er en helt almindelig,
+  -- selvstændig række — samme datamodel som en enkeltbooking, samme regler,
+  -- samme udelukkelsesregel. serie_id er det eneste, der binder dem sammen, og
+  -- den er null på alt, der ikke er oprettet som en serie.
+  --
+  -- Det er med vilje ikke en fremmednøgle til en serie-tabel. En serie har ingen
+  -- egenskaber ud over sine bookinger: mønstret er brugt én gang, ved
+  -- oprettelsen, og en tabel til det ville skulle holdes i takt med rækker, der
+  -- bagefter kan aflyses enkeltvis. Et delt id er nok til at kunne slå de
+  -- sammenhørende bookinger op og til at aflyse dem samlet.
+  --
+  -- Kolonnen er IKKE med i grant insert-listen for anon nedenfor, og skal ikke
+  -- være det. Serier oprettes udelukkende fra adminfladen med service_role; kunne
+  -- den offentlige rute sætte den, kunne enhver hægte sin booking på en andens
+  -- serie og få den aflyst sammen med den.
+  serie_id            uuid,
+
   created_at          timestamptz not null default now(),
   updated_at          timestamptz not null default now(),
 
@@ -109,6 +126,9 @@ create table if not exists lokale_bookinger (
 -- køres igen uden at gøre skade.
 alter table lokale_bookinger
   add column if not exists hold text;
+
+alter table lokale_bookinger
+  add column if not exists serie_id uuid;
 
 -- Navnet er ikke tilfældigt: det er præcis det navn, Postgres selv giver check-
 -- reglen på kolonnen i create table ovenfor. På en ny database findes reglen
@@ -160,6 +180,14 @@ end $$;
 
 create index if not exists lokale_bookinger_opslag
   on lokale_bookinger (lokale, start_tid);
+
+-- Adminfladen slår en hel serie op ad gangen: for at kunne vise hvor mange
+-- bookinger den består af, og for at kunne aflyse dem alle på én gang. Delvist
+-- indeks, fordi langt de fleste rækker er enkeltbookinger med serie_id null, og
+-- de har intet at gøre i indekset.
+create index if not exists lokale_bookinger_serie
+  on lokale_bookinger (serie_id, start_tid)
+  where serie_id is not null;
 
 
 -- 3) Optagethed uden persondata
@@ -411,6 +439,14 @@ grant execute on function registrer_bookingforsoeg(text, int) to anon;
 --
 -- Praktisk prøve udefra med anon-nøglen: et forsøg på at sætte en kolonne uden
 -- for listen skal afvises. Fx godkend_token_hash i en ellers gyldig booking.
+--
+-- Findes serie_id, og er den holdt UDE af anons insert-rettighed? Den første
+-- forespørgsel skal give én række, den anden nul:
+--   select column_name, data_type from information_schema.columns
+--    where table_name = 'lokale_bookinger' and column_name = 'serie_id';
+--   select column_name from information_schema.column_privileges
+--    where table_name = 'lokale_bookinger' and grantee = 'anon'
+--      and privilege_type = 'INSERT' and column_name = 'serie_id';
 --
 -- Findes hold-kolonnen med sin check-regel, og kun én gang?
 --   select conname, pg_get_constraintdef(oid) from pg_constraint

@@ -21,6 +21,9 @@ export type Booking = {
   besluttet_af: "mail" | "admin" | null;
   besluttet_tid: string | null;
   afvisningsgrund: string | null;
+  // Sat, hvis bookingen er én forekomst i en gentagen serie. Alle bookinger i
+  // samme serie deler værdien; null på alt andet. Se features/lokalebooking/serie.ts.
+  serie_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -53,6 +56,36 @@ export type Optagethed = {
   navn: string;
   mobil: string;
 };
+
+// Hvor stor en serie er, og hvor meget af den der stadig gælder.
+//
+// Adminlisten viser kun de bookinger, filtrene slipper igennem, og en serie kan
+// sagtens række ud over dem: en filtreret uge kan indeholde tre af tolv tirsdage.
+// Skal en knap kunne sige "aflys hele serien (12 bookinger)", er tallet nødt til
+// at komme fra et selvstændigt opslag — ellers ville den love at aflyse tre og
+// aflyse tolv.
+//
+// Typen ligger HER og ikke i bookinger.ts, selv om det er den fil, der henter
+// tallene. Knappen, der bruger dem, er en klientkomponent, og bookinger.ts
+// importerer service_role-klienten — samme fælde som beskrevet i lib/moduler.ts.
+export type SerieOverblik = {
+  // Alle bookinger i serien, uanset status.
+  ialt: number;
+  // Dem, der stadig holder tid: afventende og bekræftede. Det er dem, en samlet
+  // aflysning vil ramme.
+  aktive: number;
+  foersteDag: string;
+  sidsteDag: string;
+};
+
+// Overblikket plus det mærke, listen sætter på rækkerne — "A", "B" og så videre.
+//
+// Mærket er ikke gemt nogen steder og skal ikke være det. Det er en etiket, der
+// kun har betydning inden for den liste, man kigger på: to serier på skærmen skal
+// kunne kendes fra hinanden, og et UUID er ikke noget, et menneske kan se forskel
+// på i en tabel. Filtreres listen anderledes, kan den samme serie få et andet
+// bogstav, og det gør ingen skade — mærket bruges aldrig til at slå noget op.
+export type SerieVisning = SerieOverblik & { id: string; maerke: string };
 
 // Filtrene på adminoversigten. Ligger i URL'en, så en filtreret liste kan deles
 // og genindlæses uden at ende et andet sted.

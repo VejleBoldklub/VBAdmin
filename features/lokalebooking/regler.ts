@@ -143,6 +143,20 @@ export function kvartererPaaDag(isoDag: number): number[] {
   return ud;
 }
 
+// Sluttider der kan vælges efter et givet starttidspunkt: fra et kvarter efter
+// start til lukketid, dog højst otte timer. Samme grænser som tjekTidsrum og som
+// check-reglerne i databasen.
+//
+// Ligger her frem for i den ene formular, fordi begge oprettelsesflader — den
+// offentlige og adminfladens egen — skal tilbyde nøjagtig de samme sluttider.
+export function slutKvarterer(start: number): number[] {
+  const ud: number[] = [];
+  for (let m = start + SNAP; m <= Math.min(LUKKER, start + MAKS_VARIGHED); m += SNAP) {
+    ud.push(m);
+  }
+  return ud;
+}
+
 export function minutterTilKlokke(minutter: number): string {
   const t = Math.floor(minutter / 60);
   const m = minutter % 60;

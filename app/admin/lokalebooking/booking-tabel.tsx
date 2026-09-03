@@ -1,17 +1,29 @@
 import { StatusMaerke } from "@/components/lokalebooking/status-maerke";
 import { findLokale } from "@/features/lokalebooking/lokaler";
 import { tidsrumDelt } from "@/features/lokalebooking/regler";
-import type { Booking } from "@/features/lokalebooking/types";
+import type { Booking, SerieVisning } from "@/features/lokalebooking/types";
 import AnnullerKnap from "./annuller-knap";
 
 // Den samlede liste. Ren visning uden tilstand, så den bliver på serveren —
 // kontaktoplysningerne skal ikke længere ud end nødvendigt.
+//
+// Bookinger, der hører til en gentagen serie, er mærket. Uden mærket ville en
+// række i tabellen se ud som en helt almindelig enkeltbooking, og en annullering
+// ville komme bag på den, der troede, den kun ramte den ene dag — eller omvendt
+// lade elleve andre datoer blive stående, uden at nogen opdagede det.
 
 const CELLE = "px-3 py-2.5 align-top text-sm text-slate-700";
 const OVERSKRIFT =
   "px-3 py-2 text-left text-[11px] font-bold uppercase tracking-wide text-slate-600";
 
-export default function BookingTabel({ bookinger }: { bookinger: Booking[] }) {
+type BookingTabelProps = {
+  bookinger: Booking[];
+  // Slået op pr. serie_id. Serier, der ikke kunne hentes, mangler simpelthen, og
+  // rækken vises så som en almindelig booking frem for med et halvt mærke.
+  serier: Record<string, SerieVisning>;
+};
+
+export default function BookingTabel({ bookinger, serier }: BookingTabelProps) {
   if (bookinger.length === 0) {
     return (
       <p className="rounded-xl border border-slate-200 bg-white px-4 py-10 text-center text-sm text-slate-600">
@@ -47,6 +59,8 @@ export default function BookingTabel({ bookinger }: { bookinger: Booking[] }) {
             // Bemærkninger står på en linje for sig under bookingen frem for i en
             // kolonne. En fri besked kan være lang, og en kolonne til den ville
             // gøre alle rækker høje, også de mange uden besked.
+            const serie = booking.serie_id ? serier[booking.serie_id] : undefined;
+
             const bemaerkninger = [
               booking.besked ? { navn: "Besked", tekst: booking.besked } : null,
               booking.afvisningsgrund
@@ -61,6 +75,14 @@ export default function BookingTabel({ bookinger }: { bookinger: Booking[] }) {
                   <span className="block whitespace-nowrap tabular-nums text-slate-600">
                     {klokke}
                   </span>
+                  {serie && (
+                    <span
+                      className="mt-1.5 inline-block whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-700 ring-1 ring-inset ring-slate-200"
+                      title={`Gentagen booking · ${serie.ialt} datoer · ${serie.foersteDag} – ${serie.sidsteDag}`}
+                    >
+                      Serie {serie.maerke} · {serie.ialt} datoer
+                    </span>
+                  )}
                   {bemaerkninger.length > 0 && (
                     <span className="mt-1.5 block max-w-xs text-xs leading-5 text-slate-600">
                       {bemaerkninger.map((b) => (
@@ -107,6 +129,7 @@ export default function BookingTabel({ bookinger }: { bookinger: Booking[] }) {
                       lokaleNavn={lokale?.navn ?? booking.lokale}
                       dag={dag}
                       klokke={klokke}
+                      serie={serie}
                       kompakt
                     />
                   )}

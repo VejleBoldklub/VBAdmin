@@ -131,6 +131,23 @@ Bookingregler: kvarterers præcision, åbent kl. 14.00–22.00 på hverdage og k
 - anons insert-rettighed er kolonnebegrænset, så token- og beslutningsfelter ikke kan sættes udefra
 - anon har ingen select-rettighed på bookingtabellen, og skal ikke have det. Viewet `lokale_optagethed` findes fortsat og indeholder kun tidsrum og status
 
+### Gentagne bookinger, oprettet fra adminfladen
+
+Adminfladen har sin egen oprettelsesformular på `/admin/lokalebooking/ny`. Den offentlige rute er urørt og kan fortsat kun oprette én booking ad gangen; det er et bevidst valg, fordi den ligger i en iframe på klubbens hjemmeside og skriver med anon-nøglen bag rækkesikkerhed.
+
+Fra adminfladen kan en booking gentages **ugentligt, hver anden uge eller månedligt**, og serien slutter enten på en slutdato eller efter et antal bookinger — admin vælger den ene metode. Månedsmønstret klemmer ikke datoen ind i en kortere måned: den 31. januar følges af den 31. marts, og februar springes over. En serie kan højst bestå af 52 bookinger, og de almindelige bookingregler gælder hver eneste dato — herunder at der højst kan bookes 6 måneder frem.
+
+**Alle datoer i serien tjekkes for konflikter, før noget gemmes.** Findes der konflikter, gemmes ingenting: admin får listen over de optagede datoer og vælger enten at oprette de øvrige og springe dem over, eller at annullere hele oprettelsen. Selve indsættelsen sker som én forespørgsel, så der ikke kan blive efterladt en halv serie, hvis en tid bliver taget undervejs — og udelukkelsesreglen er stadig den eneste egentlige garanti mod dobbeltbooking.
+
+Hver forekomst er en helt almindelig, selvstændig række i `lokale_bookinger` med samme datamodel som en enkeltbooking. Kolonnen `serie_id` er det eneste, der binder dem sammen. Den er **ikke** med i anons kolonnebegrænsede insert-rettighed og skal ikke blive det: kunne den offentlige rute sætte den, kunne enhver hægte sin booking på en andens serie og få den aflyst sammen med den.
+
+To ting er anderledes for en booking oprettet herfra:
+
+- **Den er bekræftet med det samme, også i cafeteriet.** Den er lagt ind af den, der ellers skulle godkende den, og en tur gennem godkendelseskøen ville være en formalitet, klubben selv skulle klikke sig igennem. Derfor skrives den med service_role: rækkesikkerhedspolicyen kræver med vilje, at en cafeteria-booking oprettet udefra starter som `afventer`. Konsekvensen er, at policyens regler ikke gælder for denne vej, og at de derfor håndhæves i koden i stedet — se `features/lokalebooking/admin-opret.ts`.
+- **Bookeren får én samlet mail**, ikke én pr. dato. Tyve enslydende mails om den samme aftale ville blive læst som en fejl. Det samme gælder, når en hel serie aflyses.
+
+I adminlisten er en booking i en serie mærket med seriens omfang, og annulleringen spørger, hvad den skal ramme: **kun den ene dato**, så resten af rækken bliver stående, eller **hele serien** på én gang. Der slettes ikke noget — status bliver `aflyst`, ligesom for enkeltbookinger, og sporet bliver stående i listen.
+
 ### Bookingoplysninger er offentlige i kalenderen
 
 Ugekalenderen på de offentlige ruter viser **formål, hold, navn og mobil** på den, der har booket. Siden kræver ikke login.

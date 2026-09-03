@@ -7,7 +7,7 @@ import {
   type Indtastning,
   type OpretResultat,
 } from "@/features/lokalebooking/formular";
-import { kvartererPaaDag, LUKKER, MAKS_VARIGHED, SNAP } from "@/features/lokalebooking/regler";
+import { kvartererPaaDag, LUKKER, slutKvarterer } from "@/features/lokalebooking/regler";
 import { isoDagFor } from "@/features/lokalebooking/uge";
 import BookingForm from "./booking-form";
 import UgeTabel from "./uge-tabel";
@@ -45,16 +45,6 @@ type BookingPanelProps = {
   kunneIkkeLaese: boolean;
   handling: (forrige: OpretResultat, fd: FormData) => Promise<OpretResultat>;
 };
-
-// Sluttider der kan vælges: fra et kvarter efter start til lukketid, dog højst
-// otte timer. Samme grænser som tjekTidsrum og som check-reglerne i databasen.
-function slutMulighederFor(start: number): number[] {
-  const ud: number[] = [];
-  for (let m = start + SNAP; m <= Math.min(LUKKER, start + MAKS_VARIGHED); m += SNAP) {
-    ud.push(m);
-  }
-  return ud;
-}
 
 export default function BookingPanel({
   lokaleNavn,
@@ -258,7 +248,7 @@ export default function BookingPanel({
           saetStart={saetStart}
           startMuligheder={mulighederFor(indtastning.dato)}
           slutMuligheder={
-            indtastning.start === "" ? [] : slutMulighederFor(Number(indtastning.start))
+            indtastning.start === "" ? [] : slutKvarterer(Number(indtastning.start))
           }
           minDato={iDag}
           maksDato={maksDato}
