@@ -455,7 +455,12 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
                   const trukket = preview?.id === seg.id ? preview : null;
                   const delta = trukket ? trukket.start - seg.start : 0;
                   const { top, height } = segmentGeometri(
-                    { segStart: seg.segStart + delta, segEnd: seg.segEnd + delta },
+                    {
+                      segStart: seg.segStart + delta,
+                      segEnd: seg.segEnd + delta,
+                      topRand: seg.topRand,
+                      bundRand: seg.bundRand,
+                    },
                     range,
                     ppm
                   );
@@ -470,6 +475,8 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
                     widthPct={100 / seg.cols}
                     first={seg.first}
                     last={seg.last}
+                    topRand={seg.topRand}
+                    bundRand={seg.bundRand}
                     selected={valgt === seg.id}
                     dragging={traekkerId === seg.id}
                     onPointerDownBody={(e) => startTraek(e, seg, "move")}
