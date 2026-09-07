@@ -477,6 +477,7 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
                     widthPct={100 / seg.cols}
                     first={seg.first}
                     last={seg.last}
+                    visLabel={seg.visLabel}
                     selected={valgt === seg.id}
                     dragging={traekkerId === seg.id}
                     onPointerDownBody={(e) => startTraek(e, seg, "move")}

@@ -21,11 +21,20 @@ type EventBoxProps = {
   // Er tildelingen delt i flere tidssegmenter (kun i det tidsrum, den
   // overlapper en anden på samme bane), er dette ét af dem. first/last siger,
   // om det er DENNE TILDELINGS øverste hhv. nederste segment — kun dér skal
-  // kanten til at ændre varighed, tekstfelterne, kategori-chippen og
-  // tastaturfokus sidde, så de ikke gentages i hvert segment eller havner midt
-  // i et forløb.
+  // kanten til at ændre varighed sidde, så den bliver ved den reelle start
+  // hhv. slutning, uanset hvilket segment der viser tekstfelterne (se
+  // visLabel).
   first: boolean;
   last: boolean;
+  // Hvilket af tildelingens (nu sammenlagte) segmenter der skal vise
+  // kategori-chip, tidspunkt, tekstfelter og tastaturfokus — samme udvælgelse
+  // som DagGitter bruger til holdnavnet (se layoutEvents), nemlig det
+  // segment, der har mest lodret plads til dem. Det er IKKE nødvendigvis
+  // first: er tildelingens eget første segment kun en kort bid, hvor den
+  // overlapper en anden i starten af sit forløb, ville felterne blive klemt
+  // ind i den bid, mens det lange, rummelige segment stod helt tomt — præcis
+  // det, der skete i den læsende visning, før DagGitter fik samme rettelse.
+  visLabel: boolean;
   onPointerDownBody: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerDownResize: (e: PointerEvent<HTMLDivElement>, kant: "top" | "bottom") => void;
   onPatch: (patch: Partial<ScheduleEvent>) => void;
@@ -49,6 +58,7 @@ export default function EventBox({
   dragging,
   first,
   last,
+  visLabel,
   onPointerDownBody,
   onPointerDownResize,
   onPatch,
@@ -143,18 +153,18 @@ export default function EventBox({
 
   return (
     <div
-      role={first ? "button" : undefined}
-      tabIndex={first ? 0 : -1}
-      aria-hidden={first ? undefined : true}
+      role={visLabel ? "button" : undefined}
+      tabIndex={visLabel ? 0 : -1}
+      aria-hidden={visLabel ? undefined : true}
       aria-label={
-        first
+        visLabel
           ? `${ev.team || "Uden navn"}, ${minutesToLabel(ev.start)} til ${minutesToLabel(
               ev.end
             )}, ${ev.field}`
           : undefined
       }
       onPointerDown={onPointerDownBody}
-      onKeyDown={first ? onKeyDown : undefined}
+      onKeyDown={visLabel ? onKeyDown : undefined}
       onContextMenu={(e) => {
         e.preventDefault();
         onOpenMenu(e.clientX, e.clientY);
@@ -202,7 +212,7 @@ export default function EventBox({
         </div>
       )}
 
-      {first && (
+      {visLabel && (
         <>
           {/* Kategori-chip. Nødvendig på touch, hvor der ikke findes højreklik. */}
           <button
