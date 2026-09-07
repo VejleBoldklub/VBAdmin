@@ -7,6 +7,7 @@ import {
   MIN_FIELD_W,
   rangeForDay,
   ROW_H,
+  segmentGeometri,
   tildelingerPaaDag,
   TIME_W,
 } from "@/features/baneplan/layout";
@@ -118,47 +119,48 @@ export default function DagGitter({
             className="relative border-r border-slate-200 last:border-r-0"
             style={{ gridColumn: i + 2, gridRow: 2, height: bodyH }}
           >
-            {laneEvents.map((ev) => {
-              const top = (Math.max(ev.start, range.min) - range.min) * ppm;
-              const height = Math.max(
-                (Math.min(ev.end, range.max) - Math.max(ev.start, range.min)) * ppm - 6,
-                24
-              );
-              const width = 100 / ev.cols;
-              const left = ev.col * width;
-              const hasRoom = ev.room && ev.room !== "-";
+            {laneEvents.map((seg) => {
+              const { top, height } = segmentGeometri(seg, range, ppm);
+              const width = 100 / seg.cols;
+              const left = seg.col * width;
+              const hasRoom = seg.room && seg.room !== "-";
+              // Kun det øverste/nederste segment runder de tilsvarende hjørner
+              // — et segment midt i tildelingens forløb støder direkte op til
+              // naboerne over og under.
+              const afrunding = `${seg.first ? "rounded-t-md" : ""} ${seg.last ? "rounded-b-md" : ""}`.trim();
               return (
                 <div
-                  key={ev.id}
-                  className={`absolute flex flex-col items-center justify-center overflow-hidden rounded-md border-2 px-1.5 py-1 text-center shadow-sm ${categoryClass(
-                    ev.category
+                  key={`${seg.id}-${seg.segStart}`}
+                  className={`absolute flex flex-col items-center justify-center overflow-hidden border-2 px-1.5 py-1 text-center shadow-sm ${afrunding} ${categoryClass(
+                    seg.category
                   )}`}
                   style={{
-                    top: top + 3,
+                    top,
                     height,
                     left: `calc(${left}% + 3px)`,
                     width: `calc(${width}% - 6px)`,
                   }}
-                  onMouseEnter={tooltip ? (e) => tooltip.vis(ev, e.clientX, e.clientY) : undefined}
-                  onMouseMove={tooltip ? (e) => tooltip.vis(ev, e.clientX, e.clientY) : undefined}
+                  onMouseEnter={tooltip ? (e) => tooltip.vis(seg, e.clientX, e.clientY) : undefined}
+                  onMouseMove={tooltip ? (e) => tooltip.vis(seg, e.clientX, e.clientY) : undefined}
                   onMouseLeave={tooltip ? () => tooltip.skjul() : undefined}
                 >
-                  <div className="text-xs font-semibold leading-tight">{ev.team}</div>
+                  <div className="text-xs font-semibold leading-tight">{seg.team}</div>
                   {tilPrint ? (
                     // På papir står tiden i boksen. På skærmen kan man læse den
                     // af tidsaksen eller holde markøren over boksen; på en
                     // udskrift er der ingen markør, og en bred plan er nem at
-                    // læse forkert på tværs.
+                    // læse forkert på tværs. Tiden her er hele tildelingens —
+                    // ikke kun dette segments udsnit af den.
                     //
                     // Tid og omklædning deler én linje, så en kort tildeling ikke
                     // skal have tre linjer i en boks, der kun har plads til to.
                     <div className="text-[9px] leading-tight opacity-80">
-                      {minutesToLabel(ev.start)}–{minutesToLabel(ev.end)}
-                      {hasRoom && ` · Omkl. ${ev.room}`}
+                      {minutesToLabel(seg.start)}–{minutesToLabel(seg.end)}
+                      {hasRoom && ` · Omkl. ${seg.room}`}
                     </div>
                   ) : (
                     hasRoom && (
-                      <div className="mt-1 text-[11px] leading-tight opacity-90">Omkl. {ev.room}</div>
+                      <div className="mt-1 text-[11px] leading-tight opacity-90">Omkl. {seg.room}</div>
                     )
                   )}
                 </div>

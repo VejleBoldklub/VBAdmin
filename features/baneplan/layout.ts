@@ -208,57 +208,137 @@ function afstandTilLinje(rects: TagRect[], linje: number[], y: number): number {
   return 0;
 }
 
-export type LaidOutEvent = ScheduleEvent & { col: number; cols: number };
+// Et tidssegment af én tildeling. En tildeling, der kun overlapper en anden i
+// en del af sit forløb, får ét segment pr. tidsrum, hvor det aktive antal
+// side-om-side tildelinger på banen (cols) er konstant — se layoutEvents.
+//
+// start/end (arvet fra ScheduleEvent) er fortsat tildelingens EGNE, fulde
+// tider. segStart/segEnd er dette ene segments udsnit af dem og bruges kun til
+// at udregne segmentets lodrette placering; alt andet (træk, tastatur,
+// tooltip, print-klokkeslæt) skal blive ved med at forholde sig til hele
+// tildelingen, ikke udsnittet.
+export type LaidOutSegment = ScheduleEvent & {
+  segStart: number;
+  segEnd: number;
+  col: number;
+  cols: number;
+  // Øverste hhv. nederste segment af tildelingen — det er her, kanterne til at
+  // ændre varighed skal sidde, og her toppen/bunden af boksen reelt er.
+  first: boolean;
+  last: boolean;
+};
 
-// Fordeler tildelinger på en bane i kolonner, så overlappende tildelinger vises
-// side om side. Tildelinger, der overlapper direkte eller gennem en kæde af
-// overlap, samles i én klynge og deler kolonnebredden.
-export function layoutEvents(events: ScheduleEvent[]): LaidOutEvent[] {
+// Fordeler tildelinger på en bane i tidssegmenter, så to tildelinger kun deler
+// bredden i det tidsrum, de faktisk overlapper. Uden for overlap fylder hver
+// tildeling banens fulde bredde.
+//
+// Fremgangsmåde: alle tildelingers start- og sluttidspunkter er de eneste
+// steder, det aktive antal tildelinger på banen kan ændre sig — mellem to på
+// hinanden følgende af disse tidspunkter er mængden af aktive tildelinger
+// konstant. Banen deles derfor op i disse tidsrum, og for hvert af dem
+// afgøres hvilke tildelinger der er aktive, og hvor mange de skal deles
+// imellem.
+//
+// Kolonnenummeret inden for et tidsrum kommer fra en fast rangordning pr.
+// tildeling (samme grådige sweep som tidligere var det endelige layout), så
+// rækkefølgen fra venstre mod højre ikke hopper rundt, blot fordi en nabo
+// kommer og går — kun selve antallet af kolonner (cols) varierer med tiden.
+export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
+  if (events.length === 0) return [];
   const sorted = [...events].sort((a, b) => a.start - b.start || a.end - b.end);
-  const clusters: { start: number; end: number; events: ScheduleEvent[] }[] = [];
 
-  for (const ev of sorted) {
-    const hit = clusters.find((c) => c.events.some((x) => overlaps(x, ev)));
-    if (hit) {
-      hit.events.push(ev);
-      hit.start = Math.min(hit.start, ev.start);
-      hit.end = Math.max(hit.end, ev.end);
-    } else {
-      clusters.push({ start: ev.start, end: ev.end, events: [ev] });
+  const colRank = new Map<string, number>();
+  {
+    const kolonner: ScheduleEvent[][] = [];
+    for (const ev of sorted) {
+      let col = 0;
+      while (kolonner[col] && kolonner[col].some((x) => overlaps(x, ev))) col++;
+      (kolonner[col] ||= []).push(ev);
+      colRank.set(ev.id, col);
     }
   }
 
-  let changed = true;
-  while (changed) {
-    changed = false;
-    outer: for (let i = 0; i < clusters.length; i++) {
-      for (let j = i + 1; j < clusters.length; j++) {
-        if (clusters[i].events.some((a) => clusters[j].events.some((b) => overlaps(a, b)))) {
-          clusters[i].events.push(...clusters[j].events);
-          clusters[i].start = Math.min(clusters[i].start, clusters[j].start);
-          clusters[i].end = Math.max(clusters[i].end, clusters[j].end);
-          clusters.splice(j, 1);
-          changed = true;
-          break outer;
-        }
+  // Tidspunkter, hvor mindst én tildeling starter eller slutter — grænserne
+  // mellem tidssegmenterne.
+  const graenser = Array.from(new Set(sorted.flatMap((e) => [e.start, e.end]))).sort((a, b) => a - b);
+
+  const segments: LaidOutSegment[] = [];
+  for (let i = 0; i < graenser.length - 1; i++) {
+    const segStart = graenser[i];
+    const segEnd = graenser[i + 1];
+    // Et tidsrum kan kun være tomt, hvis to grænser falder sammen — sker ikke,
+    // da graenser er et Set, men vagten koster intet.
+    if (segStart >= segEnd) continue;
+
+    // Grænserne stammer udelukkende fra tildelingernes egne start/end, så en
+    // tildeling enten dækker tidsrummet fuldt ud eller slet ikke — den kan
+    // ikke starte eller slutte midt i det.
+    const aktive = sorted.filter((e) => e.start <= segStart && e.end >= segEnd);
+    if (aktive.length === 0) continue;
+
+    const rangeret = [...aktive].sort((a, b) => (colRank.get(a.id) ?? 0) - (colRank.get(b.id) ?? 0));
+    rangeret.forEach((ev, idx) => {
+      segments.push({
+        ...ev,
+        segStart,
+        segEnd,
+        col: idx,
+        cols: rangeret.length,
+        first: segStart === ev.start,
+        last: segEnd === ev.end,
+      });
+    });
+  }
+
+  // To fortløbende segmenter for samme tildeling kan ende med samme kolonne og
+  // samme kolonneantal, hvis en helt anden tildeling på banen både starter og
+  // slutter præcis der (fx to andre, der afløser hinanden på slaget). Så ville
+  // boksen få en synlig søm midt i et forløb, hvor intet reelt skifter for den
+  // selv. Slå dem sammen til ét segment.
+  const perTildeling = new Map<string, LaidOutSegment[]>();
+  for (const seg of segments) {
+    const liste = perTildeling.get(seg.id);
+    if (liste) liste.push(seg);
+    else perTildeling.set(seg.id, [seg]);
+  }
+
+  const out: LaidOutSegment[] = [];
+  for (const segs of perTildeling.values()) {
+    let current = segs[0];
+    for (let i = 1; i < segs.length; i++) {
+      const next = segs[i];
+      if (current.col === next.col && current.cols === next.cols && current.segEnd === next.segStart) {
+        current = { ...current, segEnd: next.segEnd, last: next.last };
+      } else {
+        out.push(current);
+        current = next;
       }
     }
-  }
-
-  const out: LaidOutEvent[] = [];
-  for (const c of clusters) {
-    const cols: ScheduleEvent[][] = [];
-    const laidOut: LaidOutEvent[] = [];
-    c.events
-      .sort((a, b) => a.start - b.start || a.end - b.end)
-      .forEach((ev) => {
-        let col = 0;
-        while (cols[col] && cols[col].some((x) => overlaps(x, ev))) col++;
-        (cols[col] ||= []).push(ev);
-        laidOut.push({ ...ev, col, cols: 0 }); // cols udfyldes, når klyngens bredde kendes
-      });
-    for (const ev of laidOut) ev.cols = cols.length;
-    out.push(...laidOut);
+    out.push(current);
   }
   return out;
+}
+
+// Lodret placering af ét tidssegment i pixels. De 3 px's mellemrum til
+// naboerne ovenfor/nedenfor hører kun til, hvor segmentet selv er tildelingens
+// første/sidste — ellers skal det slutte, præcis hvor næste segment for samme
+// tildeling begynder, uden mellemrum, så boksen ser sammenhængende ud hen over
+// et bredde-skift.
+//
+// Gulvet for højden er det samme, som et udelt (first && last) segment altid
+// har haft (24 px), og aftrappes med den mængde rand, segmentet selv har.
+export function segmentGeometri(
+  seg: { segStart: number; segEnd: number; first: boolean; last: boolean },
+  range: { min: number; max: number },
+  ppm: number
+): { top: number; height: number } {
+  const fra = Math.max(seg.segStart, range.min);
+  const til = Math.min(seg.segEnd, range.max);
+  const topRand = seg.first ? 3 : 0;
+  const bundRand = seg.last ? 3 : 0;
+  const raaHoejde = (til - fra) * ppm;
+  return {
+    top: (fra - range.min) * ppm + topRand,
+    height: Math.max(raaHoejde - topRand - bundRand, 18 + topRand + bundRand),
+  };
 }

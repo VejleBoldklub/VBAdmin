@@ -19,6 +19,7 @@ import {
   pickInitialDay,
   rangeForDay,
   ROW_H,
+  segmentGeometri,
   SNAP,
   tildelingerPaaDag,
   tilpasTilDag,
@@ -442,33 +443,42 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
                 className="relative border-r border-slate-200 last:border-r-0"
                 style={{ gridColumn: i + 2, gridRow: 2, height: bodyH, ...laneBaggrund }}
               >
-                {laneEvents.map((ev) => {
+                {laneEvents.map((seg) => {
                   // Under et træk vises den trukne boks på preview'ets tid og
                   // forskydes vandret, men beholder sin kolonne og sin plads i
                   // DOM'en. Derfor kan den ikke rives ned og op af et re-render.
-                  const trukket = preview?.id === ev.id ? preview : null;
-                  const visEv = trukket ? { ...ev, start: trukket.start, end: trukket.end } : ev;
+                  //
+                  // Kolonnerne (og dermed opdelingen i tidssegmenter) fastfryses
+                  // ved trækkets begyndelse — se kommentaren ved dagensEvents.
+                  // Er tildelingen delt i flere segmenter, skal de derfor flyttes
+                  // samlet: samme delta lagt til hvert segments eget tidsrum.
+                  const trukket = preview?.id === seg.id ? preview : null;
+                  const delta = trukket ? trukket.start - seg.start : 0;
+                  const { top, height } = segmentGeometri(
+                    { segStart: seg.segStart + delta, segEnd: seg.segEnd + delta, first: seg.first, last: seg.last },
+                    range,
+                    ppm
+                  );
                   return (
                   <EventBox
-                    key={ev.id}
-                    ev={visEv}
+                    key={`${seg.id}-${seg.segStart}`}
+                    ev={seg}
                     offsetX={trukket?.dx ?? 0}
-                    top={(Math.max(visEv.start, range.min) - range.min) * ppm + 3}
-                    height={Math.max(
-                      (Math.min(visEv.end, range.max) - Math.max(visEv.start, range.min)) * ppm - 6,
-                      24
-                    )}
-                    leftPct={ev.col * (100 / ev.cols)}
-                    widthPct={100 / ev.cols}
-                    selected={valgt === ev.id}
-                    dragging={traekkerId === ev.id}
-                    onPointerDownBody={(e) => startTraek(e, ev, "move")}
+                    top={top}
+                    height={height}
+                    leftPct={seg.col * (100 / seg.cols)}
+                    widthPct={100 / seg.cols}
+                    first={seg.first}
+                    last={seg.last}
+                    selected={valgt === seg.id}
+                    dragging={traekkerId === seg.id}
+                    onPointerDownBody={(e) => startTraek(e, seg, "move")}
                     onPointerDownResize={(e, kant) =>
-                      startTraek(e, ev, kant === "top" ? "resize-top" : "resize-bottom")
+                      startTraek(e, seg, kant === "top" ? "resize-top" : "resize-bottom")
                     }
-                    onPatch={(p) => patch(ev.id, p)}
-                    onOpenMenu={(x, y) => setMenu({ id: ev.id, x, y })}
-                    onKeyDown={(e) => taster(e, ev)}
+                    onPatch={(p) => patch(seg.id, p)}
+                    onOpenMenu={(x, y) => setMenu({ id: seg.id, x, y })}
+                    onKeyDown={(e) => taster(e, seg)}
                   />
                   );
                 })}
