@@ -124,21 +124,25 @@ export default function DagGitter({
               const width = 100 / seg.cols;
               const left = seg.col * width;
               const hasRoom = seg.room && seg.room !== "-";
-              // Runding og rand følger topRand/bundRand — er der reelt et skel
-              // ved den kant, ikke om dette er tildelingens egen første/sidste
-              // segment. Uden dette ville hvert segment stadig tegne sin egen
-              // fulde kant på alle fire sider, og to segmenter, der ellers
-              // støder pixel-nøjagtigt op til hinanden (se segmentGeometri),
-              // ville få en synlig skillelinje midt i et forløb, der ikke
-              // reelt skifter.
+              // Rundingen følger topRand/bundRand — kun de kanter, hvor
+              // banens aktive mængde reelt skifter fuldstændigt, får den
+              // bløde, runde outline; en kant, hvor tildelingen selv
+              // fortsætter (blot med en anden bredde, fx ind i eller ud af et
+              // overlap), forbliver skarp. Kanten (border) er derimod ALTID
+              // med på alle fire sider: to segmenter, der støder
+              // pixel-nøjagtigt op til hinanden (se segmentGeometri), får
+              // dermed en tynd, skarp streg lige i overgangen — det er det
+              // synlige "sving", der viser, hvor tildelingen skifter bredde,
+              // uden at der er noget mellemrum eller nogen afrundet, adskilt
+              // boks. Kun HVIS begge sider af en grænse reelt er den samme,
+              // uændrede bredde for samme tildeling, er de to segmenter
+              // allerede slået sammen til ét (se layoutEvents) og har derfor
+              // slet ingen indbyrdes kant at vise.
               const afrunding = `${seg.topRand ? "rounded-t-md" : ""} ${seg.bundRand ? "rounded-b-md" : ""}`.trim();
-              const kanter = `border-x-2 ${seg.topRand ? "border-t-2" : "border-t-0"} ${
-                seg.bundRand ? "border-b-2" : "border-b-0"
-              }`;
               return (
                 <div
                   key={`${seg.id}-${seg.segStart}`}
-                  className={`absolute flex flex-col items-center justify-center overflow-hidden px-1.5 py-1 text-center shadow-sm ${afrunding} ${kanter} ${categoryClass(
+                  className={`absolute flex flex-col items-center justify-center overflow-hidden border-2 px-1.5 py-1 text-center shadow-sm ${afrunding} ${categoryClass(
                     seg.category
                   )}`}
                   style={{
