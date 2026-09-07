@@ -455,7 +455,7 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
                   const trukket = preview?.id === seg.id ? preview : null;
                   const delta = trukket ? trukket.start - seg.start : 0;
                   const { top, height } = segmentGeometri(
-                    { segStart: seg.segStart + delta, segEnd: seg.segEnd + delta, first: seg.first, last: seg.last },
+                    { segStart: seg.segStart + delta, segEnd: seg.segEnd + delta },
                     range,
                     ppm
                   );

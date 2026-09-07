@@ -319,26 +319,34 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
   return out;
 }
 
-// Lodret placering af ét tidssegment i pixels. De 3 px's mellemrum til
-// naboerne ovenfor/nedenfor hører kun til, hvor segmentet selv er tildelingens
-// første/sidste — ellers skal det slutte, præcis hvor næste segment for samme
-// tildeling begynder, uden mellemrum, så boksen ser sammenhængende ud hen over
-// et bredde-skift.
+// Lodret placering af ét tidssegment i pixels. Samme 3 px mellemrum foroven og
+// forneden som et helt (udelt) event altid har haft — og bevidst ens for ALLE
+// segmenter, uanset first/last.
 //
-// Gulvet for højden er det samme, som et udelt (first && last) segment altid
-// har haft (24 px), og aftrappes med den mængde rand, segmentet selv har.
+// Det er ikke en detalje: to tildelinger, der overlapper i det samme tidsrum,
+// får hver deres segment med præcis samme segStart/segEnd, og de skal derfor
+// stå nøjagtigt ud for hinanden — samme top, samme højde. Ville randen afhænge
+// af den enkelte tildelings egen first/last (som først forsøgt), ville fx den
+// tildeling, hvis segment tilfældigvis er dens SIDSTE, kun få bundrand og ikke
+// topRand, mens naboens segment (dens FØRSTE) kun fik topRand — to bokse for
+// samme tidsrum ville så få forskellig top og højde og ligge skævt for
+// hinanden. Den fejl gav netop et lille, fejlplaceret "spjæt" midt i overlappet
+// i praksis.
+//
+// Konsekvensen af ens rand er, at en tildeling, der er delt i flere segmenter
+// (fordi den kun overlapper i en del af sit forløb), får et lille, synligt
+// mellemrum mellem sine egne segmenter, ligesom mellem to helt separate
+// tildelinger — det er en bevidst, enkel afvejning: et par pixels luft midt i
+// forløbet er et langt mindre problem end bokse, der ikke passer sammen.
 export function segmentGeometri(
-  seg: { segStart: number; segEnd: number; first: boolean; last: boolean },
+  seg: { segStart: number; segEnd: number },
   range: { min: number; max: number },
   ppm: number
 ): { top: number; height: number } {
   const fra = Math.max(seg.segStart, range.min);
   const til = Math.min(seg.segEnd, range.max);
-  const topRand = seg.first ? 3 : 0;
-  const bundRand = seg.last ? 3 : 0;
-  const raaHoejde = (til - fra) * ppm;
   return {
-    top: (fra - range.min) * ppm + topRand,
-    height: Math.max(raaHoejde - topRand - bundRand, 18 + topRand + bundRand),
+    top: (fra - range.min) * ppm + 3,
+    height: Math.max((til - fra) * ppm - 6, 24),
   };
 }
