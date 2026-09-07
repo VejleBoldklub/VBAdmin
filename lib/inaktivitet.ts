@@ -11,17 +11,11 @@
 // (Inactivity timeout). Fremgangsmåden står i .env.example, hvor de øvrige
 // Supabase-indstillinger til login er beskrevet.
 
-// !!! MIDLERTIDIGE TESTVÆRDIER — MÅ IKKE MERGES !!!
-//
-// Sat ned til 1 og 2 minutter, så forløbet kan afprøves uden at vente en halv
-// time. De rigtige værdier er 30 og 29 og skal sættes tilbage, før PR'en merges.
-// Ændringen ligger i sin egen commit netop for at kunne fjernes med et
-// `git revert`.
-export const INAKTIVITET_MINUTTER = 2;
+export const INAKTIVITET_MINUTTER = 30;
 
 // Hvornår advarslen vises. Skal være mindre end INAKTIVITET_MINUTTER, ellers
 // bliver brugeren logget ud uden varsel.
-export const ADVARSEL_MINUTTER = 1;
+export const ADVARSEL_MINUTTER = 29;
 
 export const INAKTIVITET_MS = INAKTIVITET_MINUTTER * 60_000;
 export const ADVARSEL_MS = ADVARSEL_MINUTTER * 60_000;
