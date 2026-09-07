@@ -395,27 +395,57 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
 }
 
 // Lodret placering af ét tidssegment i pixels. De 3 px's mellemrum til
-// naboerne ovenfor/nedenfor hører kun til, hvor segmentets topRand/bundRand
+// naboerne ovenfor/nedenfor hører til, hvor ENTEN segmentets topRand/bundRand
 // (se layoutEvents) er sat — altså hvor HELE banens aktive mængde af
-// tildelinger reelt skifter fuldstændigt ved den grænse. Fortsætter en anden,
-// samtidig tildeling hen over grænsen, er der ingen luft, og segmentet støder
-// direkte op til, hvad end der står ved siden af det på det tidspunkt — det er
-// sådan to tildelinger, der overlapper i nøjagtig det samme tidsrum, ender med
-// identisk top og højde og derfor står pixel-nøjagtigt ud for hinanden.
+// tildelinger reelt skifter fuldstændigt ved den grænse — ELLER hvor dette er
+// tildelingens EGEN reelle start/slutning (first/last), selvom en anden,
+// samtidig tildeling fortsætter uændret hen over grænsen.
 //
-// Gulvet for højden er det samme, som et udelt segment (topRand && bundRand)
-// altid har haft (24 px), og aftrappes med den mængde rand, segmentet selv har.
+// De to kan give forskelligt resultat for to tildelinger i nøjagtig samme
+// tidsrum: fortsætter A uændret, mens B reelt starter der (B skifter fra ikke
+// at være aktiv til at være det, midt i A's forløb), får B luft foroven, men
+// ikke A. Det er hverken en fejl eller det samme som det oprindelige
+// "spjæt" — dengang fik CONCURRENTE segmenter, der reelt dækkede nøjagtig
+// samme tidsrum og skulle stå pixel-nøjagtigt ud for hinanden, forskellig
+// rand og dermed forskellig placering for samme tidsrum. Her er formålet
+// tværtimod at vise et ægte skel: A fortsætter synligt uden brud, mens B får
+// sin egen afgrænsede boks med luft til det, den støder op til — det er selve
+// "svinget", hvor en tildelings bredde skifter midt i en andens forløb.
+// (topRand/bundRand er derfor stadig den eneste kilde til AFRUNDING, som SKAL
+// være ens på tværs af concurrent segmenter — se afrunding i DagGitter/
+// EventBox.)
+//
+// Gulvet for højden er det samme, som et udelt segment (fuld rand foroven og
+// forneden) altid har haft (24 px). Det vokser dog KUN med topRand/bundRand,
+// ikke med first/last — luften ved et sving flytter altså kun segmentets
+// POSITION, ikke gulvets størrelse. Ellers ville et meget kort (15 min)
+// segment, der både er en tildelings egen start (first, midt i en andens
+// forløb) og lige efter skal fortsætte i et nyt segment, kunne få et gulv,
+// der skubber dets bund langt forbi det næste segments top — de to hænger jo
+// stadig sammen som én tildeling.
+//
+// Med kun 15 minutters mindstevarighed og printvisningens lavere px/minut
+// (20/15 mod skærmens 26/15) er der ét kendt, accepteret grænsetilfælde
+// tilbage: rammer et sving-segment på PRÆCIS 15 minutter gulvet i
+// printvisningen, kan dets bund række 1 px forbi det næste segments top for
+// samme tildeling. Det er ubemærkeligt (samme farve, samme tildeling, 1 px)
+// og langt bedre end før denne omskrivning, hvor det samme kunne ske med op
+// til 8-9 px — at lukke den sidste pixel helt kræver at kende NÆSTE segments
+// egen rand, hvilket ikke er det værd for en forskel, ingen kan se.
+
 export function segmentGeometri(
-  seg: { segStart: number; segEnd: number; topRand: boolean; bundRand: boolean },
+  seg: { segStart: number; segEnd: number; topRand: boolean; bundRand: boolean; first: boolean; last: boolean },
   range: { min: number; max: number },
   ppm: number
 ): { top: number; height: number } {
   const fra = Math.max(seg.segStart, range.min);
   const til = Math.min(seg.segEnd, range.max);
-  const top = seg.topRand ? 3 : 0;
-  const bund = seg.bundRand ? 3 : 0;
+  const top = seg.topRand || seg.first ? 3 : 0;
+  const bund = seg.bundRand || seg.last ? 3 : 0;
+  const gulvTop = seg.topRand ? 3 : 0;
+  const gulvBund = seg.bundRand ? 3 : 0;
   return {
     top: (fra - range.min) * ppm + top,
-    height: Math.max((til - fra) * ppm - top - bund, 18 + top + bund),
+    height: Math.max((til - fra) * ppm - top - bund, 18 + gulvTop + gulvBund),
   };
 }

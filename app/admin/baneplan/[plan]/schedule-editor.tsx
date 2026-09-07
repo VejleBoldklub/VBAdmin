@@ -460,6 +460,8 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
                       segEnd: seg.segEnd + delta,
                       topRand: seg.topRand,
                       bundRand: seg.bundRand,
+                      first: seg.first,
+                      last: seg.last,
                     },
                     range,
                     ppm
