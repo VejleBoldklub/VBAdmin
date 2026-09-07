@@ -222,10 +222,17 @@ export type LaidOutSegment = ScheduleEvent & {
   segEnd: number;
   col: number;
   cols: number;
-  // Øverste hhv. nederste segment af tildelingen — det er her, kanterne til at
-  // ændre varighed skal sidde, og her toppen/bunden af boksen reelt er.
+  // Øverste hhv. nederste segment af DENNE tildeling — det er her, kanterne
+  // til at ændre varighed, tekstfelterne og tastaturfokus skal sidde. Uafhængigt
+  // af topRand/bundRand herunder: en tildeling kan sagtens have sit eget første
+  // segment, uden at der skal vises nogen luft/runding der (se dem).
   first: boolean;
   last: boolean;
+  // Skal segmentet vises med luft og runding foroven hhv. forneden? Det
+  // afgøres IKKE af denne ene tildelings first/last, men af om HELE banens
+  // aktive mængde reelt skifter fuldstændigt ved den grænse — se layoutEvents.
+  topRand: boolean;
+  bundRand: boolean;
 };
 
 // Fordeler tildelinger på en bane i tidssegmenter, så to tildelinger kun deler
@@ -243,6 +250,17 @@ export type LaidOutSegment = ScheduleEvent & {
 // tildeling (samme grådige sweep som tidligere var det endelige layout), så
 // rækkefølgen fra venstre mod højre ikke hopper rundt, blot fordi en nabo
 // kommer og går — kun selve antallet af kolonner (cols) varierer med tiden.
+//
+// Luft/runding (topRand/bundRand) er en egenskab ved GRÆNSEN, ikke ved den
+// enkelte tildeling: en grænse viser kun luft, hvis INGEN tildeling fortsætter
+// hen over den (mængden af aktive tildelinger skifter fuldstændigt). Fortsætter
+// blot én tildeling — fx fordi den er midt i sit eget forløb, mens en anden
+// samtidig starter eller slutter ved siden af den — skal grænsen være uden luft
+// for ALLE tildelinger, der er aktive på begge sider af den. Ellers ville to
+// tildelinger, der er aktive i nøjagtig det samme tidsrum (fx under et
+// overlap), kunne få forskellig rand og dermed forskellig lodret placering for
+// samme tidsrum — det var netop det, der gav et fejlplaceret "spjæt" midt i et
+// overlap i en tidligere udgave af denne funktion.
 export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
   if (events.length === 0) return [];
   const sorted = [...events].sort((a, b) => a.start - b.start || a.end - b.end);
@@ -259,42 +277,58 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
   }
 
   // Tidspunkter, hvor mindst én tildeling starter eller slutter — grænserne
-  // mellem tidssegmenterne.
+  // mellem tidsrummene.
   const graenser = Array.from(new Set(sorted.flatMap((e) => [e.start, e.end]))).sort((a, b) => a - b);
 
-  const segments: LaidOutSegment[] = [];
+  // Aktive tildelinger pr. tidsrum. Grænserne stammer udelukkende fra
+  // tildelingernes egne start/end, så en tildeling enten dækker et tidsrum
+  // fuldt ud eller slet ikke — den kan ikke starte eller slutte midt i det.
+  const rum: { start: number; end: number; aktive: ScheduleEvent[] }[] = [];
   for (let i = 0; i < graenser.length - 1; i++) {
-    const segStart = graenser[i];
-    const segEnd = graenser[i + 1];
-    // Et tidsrum kan kun være tomt, hvis to grænser falder sammen — sker ikke,
-    // da graenser er et Set, men vagten koster intet.
-    if (segStart >= segEnd) continue;
+    const start = graenser[i];
+    const end = graenser[i + 1];
+    if (start >= end) continue; // Kan kun ske ved dubletter i graenser — sker ikke, da det er et Set.
+    rum.push({ start, end, aktive: sorted.filter((e) => e.start <= start && e.end >= end) });
+  }
 
-    // Grænserne stammer udelukkende fra tildelingernes egne start/end, så en
-    // tildeling enten dækker tidsrummet fuldt ud eller slet ikke — den kan
-    // ikke starte eller slutte midt i det.
-    const aktive = sorted.filter((e) => e.start <= segStart && e.end >= segEnd);
-    if (aktive.length === 0) continue;
+  // Fortsætter mindst én tildeling fra ét tidsrum til et andet (er med i begge
+  // rums aktive liste)? Det er det eneste, der afgør, om grænsen mellem dem
+  // skal vises som et reelt skel (luft + runding) eller ej.
+  function nogenFortsaetter(a: ScheduleEvent[], b: ScheduleEvent[]): boolean {
+    if (a.length === 0 || b.length === 0) return false;
+    const ids = new Set(a.map((e) => e.id));
+    return b.some((e) => ids.has(e.id));
+  }
 
-    const rangeret = [...aktive].sort((a, b) => (colRank.get(a.id) ?? 0) - (colRank.get(b.id) ?? 0));
+  const segments: LaidOutSegment[] = [];
+  rum.forEach((r, i) => {
+    if (r.aktive.length === 0) return;
+    const forrige = i > 0 ? rum[i - 1] : null;
+    const naeste = i < rum.length - 1 ? rum[i + 1] : null;
+    const topRand = !forrige || !nogenFortsaetter(forrige.aktive, r.aktive);
+    const bundRand = !naeste || !nogenFortsaetter(r.aktive, naeste.aktive);
+
+    const rangeret = [...r.aktive].sort((a, b) => (colRank.get(a.id) ?? 0) - (colRank.get(b.id) ?? 0));
     rangeret.forEach((ev, idx) => {
       segments.push({
         ...ev,
-        segStart,
-        segEnd,
+        segStart: r.start,
+        segEnd: r.end,
         col: idx,
         cols: rangeret.length,
-        first: segStart === ev.start,
-        last: segEnd === ev.end,
+        first: r.start === ev.start,
+        last: r.end === ev.end,
+        topRand,
+        bundRand,
       });
     });
-  }
+  });
 
-  // To fortløbende segmenter for samme tildeling kan ende med samme kolonne og
-  // samme kolonneantal, hvis en helt anden tildeling på banen både starter og
-  // slutter præcis der (fx to andre, der afløser hinanden på slaget). Så ville
-  // boksen få en synlig søm midt i et forløb, hvor intet reelt skifter for den
-  // selv. Slå dem sammen til ét segment.
+  // To fortløbende segmenter for samme tildeling har pr. definition altid
+  // topRand/bundRand = false ved den fælles grænse (tildelingen selv er jo det,
+  // der fortsætter). De kan derfor altid slås sammen uden at ændre udseende —
+  // det sparer blot en ekstra DOM-boks og en overflødig, usynlig kant midt i
+  // forløbet, hvis kolonnen også er uændret.
   const perTildeling = new Map<string, LaidOutSegment[]>();
   for (const seg of segments) {
     const liste = perTildeling.get(seg.id);
@@ -308,7 +342,7 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
     for (let i = 1; i < segs.length; i++) {
       const next = segs[i];
       if (current.col === next.col && current.cols === next.cols && current.segEnd === next.segStart) {
-        current = { ...current, segEnd: next.segEnd, last: next.last };
+        current = { ...current, segEnd: next.segEnd, last: next.last, bundRand: next.bundRand };
       } else {
         out.push(current);
         current = next;
@@ -319,34 +353,28 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
   return out;
 }
 
-// Lodret placering af ét tidssegment i pixels. Samme 3 px mellemrum foroven og
-// forneden som et helt (udelt) event altid har haft — og bevidst ens for ALLE
-// segmenter, uanset first/last.
+// Lodret placering af ét tidssegment i pixels. De 3 px's mellemrum til
+// naboerne ovenfor/nedenfor hører kun til, hvor segmentets topRand/bundRand
+// (se layoutEvents) er sat — altså hvor HELE banens aktive mængde af
+// tildelinger reelt skifter fuldstændigt ved den grænse. Fortsætter en anden,
+// samtidig tildeling hen over grænsen, er der ingen luft, og segmentet støder
+// direkte op til, hvad end der står ved siden af det på det tidspunkt — det er
+// sådan to tildelinger, der overlapper i nøjagtig det samme tidsrum, ender med
+// identisk top og højde og derfor står pixel-nøjagtigt ud for hinanden.
 //
-// Det er ikke en detalje: to tildelinger, der overlapper i det samme tidsrum,
-// får hver deres segment med præcis samme segStart/segEnd, og de skal derfor
-// stå nøjagtigt ud for hinanden — samme top, samme højde. Ville randen afhænge
-// af den enkelte tildelings egen first/last (som først forsøgt), ville fx den
-// tildeling, hvis segment tilfældigvis er dens SIDSTE, kun få bundrand og ikke
-// topRand, mens naboens segment (dens FØRSTE) kun fik topRand — to bokse for
-// samme tidsrum ville så få forskellig top og højde og ligge skævt for
-// hinanden. Den fejl gav netop et lille, fejlplaceret "spjæt" midt i overlappet
-// i praksis.
-//
-// Konsekvensen af ens rand er, at en tildeling, der er delt i flere segmenter
-// (fordi den kun overlapper i en del af sit forløb), får et lille, synligt
-// mellemrum mellem sine egne segmenter, ligesom mellem to helt separate
-// tildelinger — det er en bevidst, enkel afvejning: et par pixels luft midt i
-// forløbet er et langt mindre problem end bokse, der ikke passer sammen.
+// Gulvet for højden er det samme, som et udelt segment (topRand && bundRand)
+// altid har haft (24 px), og aftrappes med den mængde rand, segmentet selv har.
 export function segmentGeometri(
-  seg: { segStart: number; segEnd: number },
+  seg: { segStart: number; segEnd: number; topRand: boolean; bundRand: boolean },
   range: { min: number; max: number },
   ppm: number
 ): { top: number; height: number } {
   const fra = Math.max(seg.segStart, range.min);
   const til = Math.min(seg.segEnd, range.max);
+  const top = seg.topRand ? 3 : 0;
+  const bund = seg.bundRand ? 3 : 0;
   return {
-    top: (fra - range.min) * ppm + 3,
-    height: Math.max((til - fra) * ppm - 6, 24),
+    top: (fra - range.min) * ppm + top,
+    height: Math.max((til - fra) * ppm - top - bund, 18 + top + bund),
   };
 }

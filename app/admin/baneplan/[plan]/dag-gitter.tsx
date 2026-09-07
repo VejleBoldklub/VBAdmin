@@ -124,12 +124,13 @@ export default function DagGitter({
               const width = 100 / seg.cols;
               const left = seg.col * width;
               const hasRoom = seg.room && seg.room !== "-";
+              // Runding følger topRand/bundRand — er der reelt et skel ved den
+              // kant, ikke om dette er tildelingens egen første/sidste segment.
+              const afrunding = `${seg.topRand ? "rounded-t-md" : ""} ${seg.bundRand ? "rounded-b-md" : ""}`.trim();
               return (
                 <div
                   key={`${seg.id}-${seg.segStart}`}
-                  // Alle segmenter har samme lodrette rand (se segmentGeometri),
-                  // så hvert segment vises som sin egen, fuldt afrundede boks.
-                  className={`absolute flex flex-col items-center justify-center overflow-hidden rounded-md border-2 px-1.5 py-1 text-center shadow-sm ${categoryClass(
+                  className={`absolute flex flex-col items-center justify-center overflow-hidden border-2 px-1.5 py-1 text-center shadow-sm ${afrunding} ${categoryClass(
                     seg.category
                   )}`}
                   style={{

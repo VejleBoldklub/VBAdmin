@@ -20,11 +20,18 @@ type EventBoxProps = {
   dragging: boolean;
   // Er tildelingen delt i flere tidssegmenter (kun i det tidsrum, den
   // overlapper en anden på samme bane), er dette ét af dem. first/last siger,
-  // om det er det øverste hhv. nederste — kun dér skal kanten til at ændre
-  // varighed, tekstfelterne, kategori-chippen og tastaturfokus sidde, så de
-  // ikke gentages i hvert segment eller havner midt i et forløb.
+  // om det er DENNE TILDELINGS øverste hhv. nederste segment — kun dér skal
+  // kanten til at ændre varighed, tekstfelterne, kategori-chippen og
+  // tastaturfokus sidde, så de ikke gentages i hvert segment eller havner midt
+  // i et forløb.
   first: boolean;
   last: boolean;
+  // Skal segmentet vises med luft/runding foroven hhv. forneden? Uafhængigt af
+  // first/last: et segment kan sagtens være tildelingens egen første, uden at
+  // der skal vises nogen kant der, hvis en anden, samtidig tildeling fortsætter
+  // hen over grænsen — se segmentGeometri i layout.ts.
+  topRand: boolean;
+  bundRand: boolean;
   onPointerDownBody: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerDownResize: (e: PointerEvent<HTMLDivElement>, kant: "top" | "bottom") => void;
   onPatch: (patch: Partial<ScheduleEvent>) => void;
@@ -48,6 +55,8 @@ export default function EventBox({
   dragging,
   first,
   last,
+  topRand,
+  bundRand,
   onPointerDownBody,
   onPointerDownResize,
   onPatch,
@@ -118,6 +127,13 @@ export default function EventBox({
     />
   );
 
+  // Runding følger topRand/bundRand (er der reelt et skel ved den kant?), ikke
+  // first/last (er dette tildelingens egen første/sidste segment?) — de to kan
+  // være forskellige: et overlaps segment kan være tildelingens egen første,
+  // uden at der skal vises nogen kant, hvis en anden, samtidig tildeling
+  // fortsætter uændret hen over grænsen.
+  const afrunding = `${topRand ? "rounded-t-md" : ""} ${bundRand ? "rounded-b-md" : ""}`.trim();
+
   return (
     <div
       role={first ? "button" : undefined}
@@ -136,10 +152,7 @@ export default function EventBox({
         e.preventDefault();
         onOpenMenu(e.clientX, e.clientY);
       }}
-      // Alle segmenter har samme lodrette rand (se segmentGeometri), så hvert
-      // segment står som sin egen, fuldt afrundede boks — også et segment midt
-      // i tildelingens forløb, ikke kun tildelingens første/sidste.
-      className={`absolute flex flex-col overflow-hidden rounded-md border-2 px-1.5 py-1 text-center shadow-sm ${categoryClass(
+      className={`absolute flex flex-col overflow-hidden border-2 px-1.5 py-1 text-center shadow-sm ${afrunding} ${categoryClass(
         ev.category
       )} ${
         selected ? "z-20 ring-2 ring-red-700 ring-offset-1" : "hover:ring-1 hover:ring-slate-400"
