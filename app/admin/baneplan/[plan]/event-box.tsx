@@ -127,19 +127,30 @@ export default function EventBox({
     />
   );
 
-  // Rundingen følger topRand/bundRand (er der reelt et skel ved den kant?),
-  // ikke first/last (er dette tildelingens egen første/sidste segment?) — de
-  // to kan være forskellige: et overlaps segment kan være tildelingens egen
-  // første, uden at rundingen skal med der, hvis en anden, samtidig
-  // tildeling fortsætter uændret hen over grænsen. Kanten (border) er
-  // derimod ALTID med på alle fire sider: to segmenter, der støder
-  // pixel-nøjagtigt op til hinanden (se segmentGeometri), får dermed en
-  // tynd, skarp streg lige i overgangen — det synlige "sving", der viser
-  // hvor tildelingen skifter bredde, uden mellemrum eller en afrundet,
-  // adskilt boks. Er bredden helt uændret på begge sider af en grænse for
-  // samme tildeling, er de to segmenter allerede slået sammen til ét i
-  // layoutEvents og har derfor ingen indbyrdes kant at vise.
+  // Runding følger topRand/bundRand (er der reelt et skel ved DEN GRÆNSE,
+  // ens for alle samtidigt aktive tildelinger — det holder concurrent
+  // segmenter pixel-nøjagtigt ud for hinanden, se segmentGeometri).
+  //
+  // Den vandrette kant (top/bund) følger derimod tildelingens egen
+  // first/last, ikke topRand/bundRand: first/last siger, om DETTE er
+  // tildelingens egen reelle start hhv. slutning, uafhængigt af hvad andre
+  // samtidige tildelinger gør. Bruger man topRand/bundRand her i stedet,
+  // forsvinder kanten, blot fordi en ANDEN tildeling fortsætter uændret hen
+  // over grænsen, selvom DENNE tildeling reelt starter eller slutter der —
+  // det gav en løsrevet, svævende stribe uden kant, når en tildeling startede
+  // midt i en andens forløb.
+  //
+  // De lodrette kanter (venstre/højre) er altid med — sammen med det
+  // vandrette mellemrum (se style.left/width) giver de den luft mellem to
+  // side-om-side tildelinger, som skal være der overalt, også midt i et
+  // overlap. Resultatet er det "sving": en tildelings egen kant følger uden
+  // brud, når dens bredde skifter midt i dens eget forløb (first/last er
+  // false der), mens en tildeling, der reelt begynder eller slutter — selv
+  // midt i en andens forløb — altid får sin egen fulde kant.
   const afrunding = `${topRand ? "rounded-t-md" : ""} ${bundRand ? "rounded-b-md" : ""}`.trim();
+  const kanter = `border-x-2 ${first ? "border-t-2" : "border-t-0"} ${
+    last ? "border-b-2" : "border-b-0"
+  }`;
 
   return (
     <div
@@ -159,7 +170,7 @@ export default function EventBox({
         e.preventDefault();
         onOpenMenu(e.clientX, e.clientY);
       }}
-      className={`absolute flex flex-col overflow-hidden border-2 px-1.5 py-1 text-center shadow-sm ${afrunding} ${categoryClass(
+      className={`absolute flex flex-col overflow-hidden px-1.5 py-1 text-center shadow-sm ${afrunding} ${kanter} ${categoryClass(
         ev.category
       )} ${
         selected ? "z-20 ring-2 ring-red-700 ring-offset-1" : "hover:ring-1 hover:ring-slate-400"
