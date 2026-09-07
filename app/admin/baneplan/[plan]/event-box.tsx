@@ -118,11 +118,6 @@ export default function EventBox({
     />
   );
 
-  // Kun det øverste/nederste segment runder de tilsvarende hjørner — et
-  // segment midt i et forløb støder direkte op til naboerne over og under
-  // uden mellemrum, så en afrundet kant der ville se ud som et hak.
-  const afrunding = `${first ? "rounded-t-md" : ""} ${last ? "rounded-b-md" : ""}`.trim();
-
   return (
     <div
       role={first ? "button" : undefined}
@@ -141,7 +136,10 @@ export default function EventBox({
         e.preventDefault();
         onOpenMenu(e.clientX, e.clientY);
       }}
-      className={`absolute flex flex-col overflow-hidden border-2 px-1.5 py-1 text-center shadow-sm ${afrunding} ${categoryClass(
+      // Alle segmenter har samme lodrette rand (se segmentGeometri), så hvert
+      // segment står som sin egen, fuldt afrundede boks — også et segment midt
+      // i tildelingens forløb, ikke kun tildelingens første/sidste.
+      className={`absolute flex flex-col overflow-hidden rounded-md border-2 px-1.5 py-1 text-center shadow-sm ${categoryClass(
         ev.category
       )} ${
         selected ? "z-20 ring-2 ring-red-700 ring-offset-1" : "hover:ring-1 hover:ring-slate-400"
