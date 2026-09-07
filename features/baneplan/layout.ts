@@ -361,12 +361,20 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
   }
 
   // Hvilket af hver tildelings (nu sammenlagte) segmenter skal vise
-  // holdnavnet? Foretræk et, hvor den har fuld bredde (cols === 1) — findes
-  // der flere, det længste af dem. Har den aldrig fuld bredde i sit eget
-  // forløb, må det blive det længste af dens delte segmenter i stedet. Uden
-  // denne udvælgelse ville holdnavnet stå gentaget i hvert eneste segment,
-  // også i en kort bid, der kun findes, fordi tildelingen en overgang deler
-  // bredde med en anden — se DagGitter.
+  // holdnavnet? Foretræk det LÆNGSTE af tildelingens egne segmenter — det er
+  // det, der giver mest lodret plads til teksten (holdnavn + evt.
+  // omklædningsrum på egen linje). Fuld bredde (cols === 1) bruges kun som
+  // tiebreaker, når to segmenter har nøjagtig samme varighed.
+  //
+  // Tidligere blev fuld bredde foretrukket FØR varighed. Det gik galt, når en
+  // tildeling kun var alene på banen ganske kort — fx et par minutter, før en
+  // anden tildeling overlappede resten af dens forløb: det korte, fulde-
+  // bredde-segment blev valgt frem for det lange, delte segment, og teksten
+  // endte i den lille boks, klemt eller skåret af i toppen, i stedet for i den
+  // store. Bredden afgør kun, hvor meget teksten skal ombrydes ELLER
+  // afkortes vandret — det klarer overflow-hidden på selve boksen — mens en
+  // for lille HØJDE får teksten til at gå ud over boksens egen kant. Det er
+  // højden (varigheden), der er den knappe ressource, ikke bredden.
   const perTildelingUd = new Map<string, LaidOutSegment[]>();
   for (const seg of out) {
     const liste = perTildelingUd.get(seg.id);
@@ -377,13 +385,13 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
   for (const segs of perTildelingUd.values()) {
     let bedst = segs[0];
     for (const s of segs.slice(1)) {
-      const bedstFuldBredde = bedst.cols === 1;
-      const sFuldBredde = s.cols === 1;
       const bedstVarighed = bedst.segEnd - bedst.segStart;
       const sVarighed = s.segEnd - s.segStart;
+      const bedstFuldBredde = bedst.cols === 1;
+      const sFuldBredde = s.cols === 1;
       if (
-        (sFuldBredde && !bedstFuldBredde) ||
-        (sFuldBredde === bedstFuldBredde && sVarighed > bedstVarighed)
+        sVarighed > bedstVarighed ||
+        (sVarighed === bedstVarighed && sFuldBredde && !bedstFuldBredde)
       ) {
         bedst = s;
       }
