@@ -151,24 +151,33 @@ export default function DagGitter({
                   onMouseMove={tooltip ? (e) => tooltip.vis(seg, e.clientX, e.clientY) : undefined}
                   onMouseLeave={tooltip ? () => tooltip.skjul() : undefined}
                 >
-                  <div className="text-xs font-semibold leading-tight">{seg.team}</div>
-                  {tilPrint ? (
-                    // På papir står tiden i boksen. På skærmen kan man læse den
-                    // af tidsaksen eller holde markøren over boksen; på en
-                    // udskrift er der ingen markør, og en bred plan er nem at
-                    // læse forkert på tværs. Tiden her er hele tildelingens —
-                    // ikke kun dette segments udsnit af den.
-                    //
-                    // Tid og omklædning deler én linje, så en kort tildeling ikke
-                    // skal have tre linjer i en boks, der kun har plads til to.
-                    <div className="text-[9px] leading-tight opacity-80">
-                      {minutesToLabel(seg.start)}–{minutesToLabel(seg.end)}
-                      {hasRoom && ` · Omkl. ${seg.room}`}
-                    </div>
-                  ) : (
-                    hasRoom && (
-                      <div className="mt-1 text-[11px] leading-tight opacity-90">Omkl. {seg.room}</div>
-                    )
+                  {/* Holdnavn (og tid/omklædning) vises kun i det segment,
+                      layoutEvents har udpeget som tildelingens "største" — se
+                      visLabel. Ellers ville et holdnavn stå gentaget i hvert
+                      segment, også i en kort bid, der kun findes, fordi
+                      tildelingen en overgang deler bredde med en anden. */}
+                  {seg.visLabel && (
+                    <>
+                      <div className="text-xs font-semibold leading-tight">{seg.team}</div>
+                      {tilPrint ? (
+                        // På papir står tiden i boksen. På skærmen kan man læse den
+                        // af tidsaksen eller holde markøren over boksen; på en
+                        // udskrift er der ingen markør, og en bred plan er nem at
+                        // læse forkert på tværs. Tiden her er hele tildelingens —
+                        // ikke kun dette segments udsnit af den.
+                        //
+                        // Tid og omklædning deler én linje, så en kort tildeling ikke
+                        // skal have tre linjer i en boks, der kun har plads til to.
+                        <div className="text-[9px] leading-tight opacity-80">
+                          {minutesToLabel(seg.start)}–{minutesToLabel(seg.end)}
+                          {hasRoom && ` · Omkl. ${seg.room}`}
+                        </div>
+                      ) : (
+                        hasRoom && (
+                          <div className="mt-1 text-[11px] leading-tight opacity-90">Omkl. {seg.room}</div>
+                        )
+                      )}
+                    </>
                   )}
                 </div>
               );

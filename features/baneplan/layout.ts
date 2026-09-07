@@ -233,6 +233,12 @@ export type LaidOutSegment = ScheduleEvent & {
   // aktive mængde reelt skifter fuldstændigt ved den grænse — se layoutEvents.
   topRand: boolean;
   bundRand: boolean;
+  // Skal DENNE tildelings holdnavn (og evt. omklædning/tid) vises i dette
+  // segment i den læsende visning? Kun ét af tildelingens egne segmenter får
+  // dette sat — se layoutEvents for hvilket. Uden det ville et holdnavn blive
+  // gentaget i hvert segment, også i en kort bid, der kun findes, fordi
+  // tildelingen en overgang deler bredde med en anden.
+  visLabel: boolean;
 };
 
 // Fordeler tildelinger på en bane i tidssegmenter, så to tildelinger kun deler
@@ -320,6 +326,9 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
         last: r.end === ev.end,
         topRand,
         bundRand,
+        // Sættes rigtigt nedenfor, når tildelingens segmenter er lagt sammen —
+        // her er det stadig ukendt, hvilket af dem der bliver det største.
+        visLabel: false,
       });
     });
   });
@@ -350,7 +359,39 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
     }
     out.push(current);
   }
-  return out;
+
+  // Hvilket af hver tildelings (nu sammenlagte) segmenter skal vise
+  // holdnavnet? Foretræk et, hvor den har fuld bredde (cols === 1) — findes
+  // der flere, det længste af dem. Har den aldrig fuld bredde i sit eget
+  // forløb, må det blive det længste af dens delte segmenter i stedet. Uden
+  // denne udvælgelse ville holdnavnet stå gentaget i hvert eneste segment,
+  // også i en kort bid, der kun findes, fordi tildelingen en overgang deler
+  // bredde med en anden — se DagGitter.
+  const perTildelingUd = new Map<string, LaidOutSegment[]>();
+  for (const seg of out) {
+    const liste = perTildelingUd.get(seg.id);
+    if (liste) liste.push(seg);
+    else perTildelingUd.set(seg.id, [seg]);
+  }
+  const labelSegmenter = new Set<LaidOutSegment>();
+  for (const segs of perTildelingUd.values()) {
+    let bedst = segs[0];
+    for (const s of segs.slice(1)) {
+      const bedstFuldBredde = bedst.cols === 1;
+      const sFuldBredde = s.cols === 1;
+      const bedstVarighed = bedst.segEnd - bedst.segStart;
+      const sVarighed = s.segEnd - s.segStart;
+      if (
+        (sFuldBredde && !bedstFuldBredde) ||
+        (sFuldBredde === bedstFuldBredde && sVarighed > bedstVarighed)
+      ) {
+        bedst = s;
+      }
+    }
+    labelSegmenter.add(bedst);
+  }
+
+  return out.map((seg) => ({ ...seg, visLabel: labelSegmenter.has(seg) }));
 }
 
 // Lodret placering af ét tidssegment i pixels. De 3 px's mellemrum til
