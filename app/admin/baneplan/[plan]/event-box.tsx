@@ -127,12 +127,19 @@ export default function EventBox({
     />
   );
 
-  // Runding følger topRand/bundRand (er der reelt et skel ved den kant?), ikke
-  // first/last (er dette tildelingens egen første/sidste segment?) — de to kan
-  // være forskellige: et overlaps segment kan være tildelingens egen første,
-  // uden at der skal vises nogen kant, hvis en anden, samtidig tildeling
-  // fortsætter uændret hen over grænsen.
+  // Runding og rand følger topRand/bundRand (er der reelt et skel ved den
+  // kant?), ikke first/last (er dette tildelingens egen første/sidste
+  // segment?) — de to kan være forskellige: et overlaps segment kan være
+  // tildelingens egen første, uden at der skal vises nogen kant, hvis en
+  // anden, samtidig tildeling fortsætter uændret hen over grænsen. Uden en
+  // betinget rand ville hvert segment stadig tegne sin egen fulde kant på
+  // alle fire sider, og to segmenter af samme tildeling, der ellers støder
+  // pixel-nøjagtigt op til hinanden (se segmentGeometri), ville få en synlig
+  // skillelinje midt i et forløb, der ikke reelt skifter.
   const afrunding = `${topRand ? "rounded-t-md" : ""} ${bundRand ? "rounded-b-md" : ""}`.trim();
+  const kanter = `border-x-2 ${topRand ? "border-t-2" : "border-t-0"} ${
+    bundRand ? "border-b-2" : "border-b-0"
+  }`;
 
   return (
     <div
@@ -152,7 +159,7 @@ export default function EventBox({
         e.preventDefault();
         onOpenMenu(e.clientX, e.clientY);
       }}
-      className={`absolute flex flex-col overflow-hidden border-2 px-1.5 py-1 text-center shadow-sm ${afrunding} ${categoryClass(
+      className={`absolute flex flex-col overflow-hidden px-1.5 py-1 text-center shadow-sm ${afrunding} ${kanter} ${categoryClass(
         ev.category
       )} ${
         selected ? "z-20 ring-2 ring-red-700 ring-offset-1" : "hover:ring-1 hover:ring-slate-400"
