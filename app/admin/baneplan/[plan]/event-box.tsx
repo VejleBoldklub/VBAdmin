@@ -26,12 +26,6 @@ type EventBoxProps = {
   // i et forløb.
   first: boolean;
   last: boolean;
-  // Skal segmentet vises med luft/runding foroven hhv. forneden? Uafhængigt af
-  // first/last: et segment kan sagtens være tildelingens egen første, uden at
-  // der skal vises nogen kant der, hvis en anden, samtidig tildeling fortsætter
-  // hen over grænsen — se segmentGeometri i layout.ts.
-  topRand: boolean;
-  bundRand: boolean;
   onPointerDownBody: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerDownResize: (e: PointerEvent<HTMLDivElement>, kant: "top" | "bottom") => void;
   onPatch: (patch: Partial<ScheduleEvent>) => void;
@@ -55,8 +49,6 @@ export default function EventBox({
   dragging,
   first,
   last,
-  topRand,
-  bundRand,
   onPointerDownBody,
   onPointerDownResize,
   onPatch,
@@ -127,18 +119,15 @@ export default function EventBox({
     />
   );
 
-  // Runding følger topRand/bundRand (er der reelt et skel ved DEN GRÆNSE,
-  // ens for alle samtidigt aktive tildelinger — det holder concurrent
-  // segmenter pixel-nøjagtigt ud for hinanden, se segmentGeometri).
-  //
-  // Den vandrette kant (top/bund) følger derimod tildelingens egen
-  // first/last, ikke topRand/bundRand: first/last siger, om DETTE er
-  // tildelingens egen reelle start hhv. slutning, uafhængigt af hvad andre
-  // samtidige tildelinger gør. Bruger man topRand/bundRand her i stedet,
-  // forsvinder kanten, blot fordi en ANDEN tildeling fortsætter uændret hen
-  // over grænsen, selvom DENNE tildeling reelt starter eller slutter der —
-  // det gav en løsrevet, svævende stribe uden kant, når en tildeling startede
-  // midt i en andens forløb.
+  // Runding og kant følger begge tildelingens egen first/last: siger DETTE
+  // er tildelingens egen reelle start hhv. slutning, uafhængigt af hvad andre
+  // samtidige tildelinger gør. Bruges i stedet topRand/bundRand (som kun
+  // styrer GULVET for minimumshøjden i segmentGeometri, se dér, og bevidst er
+  // ens for alle samtidigt aktive tildelinger), forsvinder kant OG runding,
+  // blot fordi en ANDEN tildeling fortsætter uændret hen over grænsen, selvom
+  // DENNE tildeling reelt starter eller slutter der — det gav først en
+  // løsrevet, svævende stribe uden kant, og siden, med kanten rettet men
+  // rundingen ikke, en skarpkantet streg midt i svinget, der lignede en fejl.
   //
   // De lodrette kanter (venstre/højre) er altid med — sammen med det
   // vandrette mellemrum (se style.left/width) giver de den luft mellem to
@@ -146,8 +135,8 @@ export default function EventBox({
   // overlap. Resultatet er det "sving": en tildelings egen kant følger uden
   // brud, når dens bredde skifter midt i dens eget forløb (first/last er
   // false der), mens en tildeling, der reelt begynder eller slutter — selv
-  // midt i en andens forløb — altid får sin egen fulde kant.
-  const afrunding = `${topRand ? "rounded-t-md" : ""} ${bundRand ? "rounded-b-md" : ""}`.trim();
+  // midt i en andens forløb — altid får sin egen fulde, runde kant.
+  const afrunding = `${first ? "rounded-t-md" : ""} ${last ? "rounded-b-md" : ""}`.trim();
   const kanter = `border-x-2 ${first ? "border-t-2" : "border-t-0"} ${
     last ? "border-b-2" : "border-b-0"
   }`;

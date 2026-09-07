@@ -124,22 +124,19 @@ export default function DagGitter({
               const width = 100 / seg.cols;
               const left = seg.col * width;
               const hasRoom = seg.room && seg.room !== "-";
-              // Runding følger topRand/bundRand (er der reelt et skel ved
-              // DEN GRÆNSE, ens for alle samtidigt aktive tildelinger — det
-              // er det, der holder concurrent segmenter pixel-nøjagtigt ud
-              // for hinanden, se segmentGeometri).
-              //
-              // Den vandrette kant (top/bund) følger derimod tildelingens
-              // EGEN first/last, ikke topRand/bundRand: first/last siger, om
-              // DETTE er tildelingens egen reelle start hhv. slutning,
-              // uafhængigt af hvad andre samtidige tildelinger gør. Det er
-              // netop forskellen — bruger man topRand/bundRand her i stedet,
-              // bliver kanten fjernet, blot fordi EN ANDEN tildeling
-              // fortsætter uændret hen over grænsen, selvom DENNE tildeling
-              // reelt starter eller slutter der. Det var sådan U14 kom til at
-              // se ud som en løsrevet, svævende stribe uden kant foroven, da
-              // den startede midt i U11's forløb (grænsen får topRand=false,
-              // fordi U11 fortsætter, selvom U14 rent faktisk begynder der).
+              // Runding og kant følger begge tildelingens EGEN first/last —
+              // er DETTE segment tildelingens egen reelle start hhv.
+              // slutning? — ikke topRand/bundRand (som kun styrer GULVET for
+              // minimumshøjden i segmentGeometri og bevidst er ens for alle
+              // samtidigt aktive tildelinger, se dér). Bruger man
+              // topRand/bundRand her i stedet, forsvinder kant OG runding,
+              // blot fordi EN ANDEN tildeling fortsætter uændret hen over
+              // grænsen, selvom DENNE tildeling reelt starter eller slutter
+              // der. Det var sådan U14 kom til at se ud som en løsrevet,
+              // svævende stribe uden kant foroven, da den startede midt i
+              // U11's forløb — og siden, med kanten rettet men rundingen
+              // ikke, som en skarpkantet streg midt i svinget, der så ud som
+              // en fejl frem for en boks med luft omkring.
               //
               // De lodrette kanter (venstre/højre) er altid med — det er dem,
               // der sammen med det vandrette mellemrum (se left/width
@@ -148,11 +145,12 @@ export default function DagGitter({
               //
               // Sammen giver det det "sving": en tildelings egen kant følger
               // uden brud, når dens bredde skifter midt i sit eget forløb
-              // (ingen vandret streg der, first/last er false), mens en
-              // tildeling, der reelt begynder eller slutter — selv midt i en
-              // andens forløb — altid får sin egen fulde kant, så den ikke
-              // fremstår løsrevet.
-              const afrunding = `${seg.topRand ? "rounded-t-md" : ""} ${seg.bundRand ? "rounded-b-md" : ""}`.trim();
+              // (ingen vandret streg eller runding der, first/last er false),
+              // mens en tildeling, der reelt begynder eller slutter — selv
+              // midt i en andens forløb — altid får sin egen fulde, runde
+              // kant, så den fremstår som en rigtig boks med luft omkring,
+              // ikke en løsrevet streg.
+              const afrunding = `${seg.first ? "rounded-t-md" : ""} ${seg.last ? "rounded-b-md" : ""}`.trim();
               const kanter = `border-x-2 ${seg.first ? "border-t-2" : "border-t-0"} ${
                 seg.last ? "border-b-2" : "border-b-0"
               }`;
