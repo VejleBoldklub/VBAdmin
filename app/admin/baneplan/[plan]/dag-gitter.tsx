@@ -124,25 +124,42 @@ export default function DagGitter({
               const width = 100 / seg.cols;
               const left = seg.col * width;
               const hasRoom = seg.room && seg.room !== "-";
-              // Rundingen følger topRand/bundRand — kun de kanter, hvor
-              // banens aktive mængde reelt skifter fuldstændigt, får den
-              // bløde, runde outline; en kant, hvor tildelingen selv
-              // fortsætter (blot med en anden bredde, fx ind i eller ud af et
-              // overlap), forbliver skarp. Kanten (border) er derimod ALTID
-              // med på alle fire sider: to segmenter, der støder
-              // pixel-nøjagtigt op til hinanden (se segmentGeometri), får
-              // dermed en tynd, skarp streg lige i overgangen — det er det
-              // synlige "sving", der viser, hvor tildelingen skifter bredde,
-              // uden at der er noget mellemrum eller nogen afrundet, adskilt
-              // boks. Kun HVIS begge sider af en grænse reelt er den samme,
-              // uændrede bredde for samme tildeling, er de to segmenter
-              // allerede slået sammen til ét (se layoutEvents) og har derfor
-              // slet ingen indbyrdes kant at vise.
+              // Runding følger topRand/bundRand (er der reelt et skel ved
+              // DEN GRÆNSE, ens for alle samtidigt aktive tildelinger — det
+              // er det, der holder concurrent segmenter pixel-nøjagtigt ud
+              // for hinanden, se segmentGeometri).
+              //
+              // Den vandrette kant (top/bund) følger derimod tildelingens
+              // EGEN first/last, ikke topRand/bundRand: first/last siger, om
+              // DETTE er tildelingens egen reelle start hhv. slutning,
+              // uafhængigt af hvad andre samtidige tildelinger gør. Det er
+              // netop forskellen — bruger man topRand/bundRand her i stedet,
+              // bliver kanten fjernet, blot fordi EN ANDEN tildeling
+              // fortsætter uændret hen over grænsen, selvom DENNE tildeling
+              // reelt starter eller slutter der. Det var sådan U14 kom til at
+              // se ud som en løsrevet, svævende stribe uden kant foroven, da
+              // den startede midt i U11's forløb (grænsen får topRand=false,
+              // fordi U11 fortsætter, selvom U14 rent faktisk begynder der).
+              //
+              // De lodrette kanter (venstre/højre) er altid med — det er dem,
+              // der sammen med det vandrette mellemrum (se left/width
+              // nedenfor) giver den luft mellem to side-om-side tildelinger,
+              // som skal være der overalt, også midt i et overlap.
+              //
+              // Sammen giver det det "sving": en tildelings egen kant følger
+              // uden brud, når dens bredde skifter midt i sit eget forløb
+              // (ingen vandret streg der, first/last er false), mens en
+              // tildeling, der reelt begynder eller slutter — selv midt i en
+              // andens forløb — altid får sin egen fulde kant, så den ikke
+              // fremstår løsrevet.
               const afrunding = `${seg.topRand ? "rounded-t-md" : ""} ${seg.bundRand ? "rounded-b-md" : ""}`.trim();
+              const kanter = `border-x-2 ${seg.first ? "border-t-2" : "border-t-0"} ${
+                seg.last ? "border-b-2" : "border-b-0"
+              }`;
               return (
                 <div
                   key={`${seg.id}-${seg.segStart}`}
-                  className={`absolute flex flex-col items-center justify-center overflow-hidden border-2 px-1.5 py-1 text-center shadow-sm ${afrunding} ${categoryClass(
+                  className={`absolute flex flex-col items-center justify-center overflow-hidden px-1.5 py-1 text-center shadow-sm ${afrunding} ${kanter} ${categoryClass(
                     seg.category
                   )}`}
                   style={{
