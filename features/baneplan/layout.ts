@@ -553,6 +553,13 @@ export type SegmentKant = {
   // Rækker segmentet KANT_PX op i hhv. ned i sin nabo? Se segmentKant.
   udvidTop: boolean;
   udvidBund: boolean;
+  // Indvendige hjørner: sider, hvor naboen rager ud forbi dette (smalle)
+  // segment, så de to mødes i et hjørne, der vender indad. Tegnes af
+  // IndvendigeHjoerner.
+  indadTopVenstre: boolean;
+  indadTopHoejre: boolean;
+  indadBundVenstre: boolean;
+  indadBundHoejre: boolean;
 };
 
 // Hvilke vandrette kanter og hjørner et segment skal have, så tildelingen står
@@ -574,8 +581,10 @@ export type SegmentKant = {
 // ubrudt videre op/ned og møder det brede segments kant i hjørnet. Tilbage
 // står kanten kun på det stykke, hvor det brede segment rager ud.
 //
-// Runde hjørner sættes kun, hvor segmentet rager ud over naboen — det er et
-// udvendigt hjørne. Hvor de to flugter, skal kanten fortsætte lige.
+// Runde hjørner sættes, hvor segmentet rager ud over naboen — det er et
+// udvendigt hjørne. Hvor naboen rager ud over det smalle segment, er hjørnet
+// indvendigt og rundes af IndvendigeHjoerner (indad*). Hvor de to flugter, skal
+// kanten fortsætte lige.
 //
 // Rager de to hver til sin side (kun muligt med tre eller flere samtidige
 // tildelinger på banen), er ingen af dem den smalle. Så får begge kant, og der
@@ -599,15 +608,32 @@ export function segmentKant(seg: {
     rundBundHoejre: bund.rundHoejre,
     udvidTop: top.udvid,
     udvidBund: bund.udvid,
+    indadTopVenstre: top.indadVenstre,
+    indadTopHoejre: top.indadHoejre,
+    indadBundVenstre: bund.indadVenstre,
+    indadBundHoejre: bund.indadHoejre,
   };
 }
 
 function sidenMod(seg: SegmentPlads, nabo: SegmentPlads | null) {
-  if (!nabo) return { kant: true, rundVenstre: true, rundHoejre: true, udvid: false };
+  if (!nabo) return { kant: true, rundVenstre: true, rundHoejre: true, udvid: false, indadVenstre: false, indadHoejre: false };
   // Kolonnernes kanter sammenlignes som brøker (col/cols) ved krydsmultiplikation,
   // så afrunding i kommatal ikke kan få to flugtende kanter til at se skæve ud.
   const ragerVenstre = seg.col * nabo.cols < nabo.col * seg.cols;
   const ragerHoejre = (seg.col + seg.span) * nabo.cols > (nabo.col + nabo.span) * seg.cols;
-  if (!ragerVenstre && !ragerHoejre) return { kant: false, rundVenstre: false, rundHoejre: false, udvid: true };
-  return { kant: true, rundVenstre: ragerVenstre, rundHoejre: ragerHoejre, udvid: false };
+  if (!ragerVenstre && !ragerHoejre) {
+    // Det smalle segment. Hvor naboen rager ud forbi det, danner de to et
+    // indvendigt hjørne.
+    const naboRagerVenstre = nabo.col * seg.cols < seg.col * nabo.cols;
+    const naboRagerHoejre = (nabo.col + nabo.span) * seg.cols > (seg.col + seg.span) * nabo.cols;
+    return {
+      kant: false,
+      rundVenstre: false,
+      rundHoejre: false,
+      udvid: true,
+      indadVenstre: naboRagerVenstre,
+      indadHoejre: naboRagerHoejre,
+    };
+  }
+  return { kant: true, rundVenstre: ragerVenstre, rundHoejre: ragerHoejre, udvid: false, indadVenstre: false, indadHoejre: false };
 }
