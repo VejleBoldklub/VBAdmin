@@ -4,6 +4,7 @@ import type { KeyboardEvent, PointerEvent } from "react";
 import { minutesToLabel, type ScheduleEvent } from "@/features/baneplan/types";
 import type { SegmentKant } from "@/features/baneplan/layout";
 import { categoryClass, categorySwatch, segmentKantKlasser, segmentZ } from "./event-styles";
+import { IndvendigeHjoerner } from "./indvendige-hjoerner";
 
 export type DragKind = "move" | "resize-top" | "resize-bottom";
 
@@ -160,13 +161,9 @@ export default function EventBox({
         e.preventDefault();
         onOpenMenu(e.clientX, e.clientY);
       }}
-      className={`absolute flex flex-col overflow-hidden px-1.5 py-1 text-center ${segmentKantKlasser(
-        kant
-      )} ${categoryClass(ev.category)} ${
+      className={`absolute ${segmentKantKlasser(kant)} ${categoryClass(ev.category)} ${
         selected ? "ring-2 ring-red-700 ring-offset-1" : "hover:ring-1 hover:ring-slate-400"
-      } ${dragging ? "opacity-90 shadow-lg" : ""} ${
-        toLinjer ? "justify-center" : "justify-start"
-      }`}
+      } ${dragging ? "opacity-90 shadow-lg" : ""}`}
       style={{
         top,
         height,
@@ -204,45 +201,55 @@ export default function EventBox({
         </div>
       )}
 
-      {visLabel && (
-        <>
-          {/* Kategori-chip. Nødvendig på touch, hvor der ikke findes højreklik. */}
-          <button
-            type="button"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              onOpenMenu(r.left, r.bottom + 4);
-            }}
-            title="Skift kategori"
-            aria-label="Skift kategori"
-            className={`absolute right-1 top-1 z-10 h-3 w-3 rounded-full ring-1 ring-white/70 ${categorySwatch(
-              ev.category
-            )} hover:scale-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700`}
-          />
+      <IndvendigeHjoerner kant={kant} category={ev.category} />
 
-          {visTid && (
-            <div className="pointer-events-none pr-4 text-[10px] font-semibold leading-none opacity-70">
-              {minutesToLabel(ev.start)}–{minutesToLabel(ev.end)}
-            </div>
-          )}
+      {/* Indholdet klippes her og ikke på selve boksen, så de indvendige
+          hjørner kan ligge uden for den. */}
+      <div
+        className={`absolute inset-0 flex flex-col overflow-hidden px-1.5 py-1 text-center ${
+          toLinjer ? "justify-center" : "justify-start"
+        }`}
+      >
+        {visLabel && (
+          <>
+            {/* Kategori-chip. Nødvendig på touch, hvor der ikke findes højreklik. */}
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                onOpenMenu(r.left, r.bottom + 4);
+              }}
+              title="Skift kategori"
+              aria-label="Skift kategori"
+              className={`absolute right-1 top-1 z-10 h-3 w-3 rounded-full ring-1 ring-white/70 ${categorySwatch(
+                ev.category
+              )} hover:scale-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700`}
+            />
 
-          {toLinjer ? (
-            <>
-              {holdFelt("pr-3 text-xs font-semibold")}
-              <div className="mt-0.5 flex items-center justify-center gap-1 text-[11px] leading-tight opacity-90">
-                <span className="pointer-events-none">Omkl.</span>
-                {rumFelt("w-8")}
+            {visTid && (
+              <div className="pointer-events-none pr-4 text-[10px] font-semibold leading-none opacity-70">
+                {minutesToLabel(ev.start)}–{minutesToLabel(ev.end)}
               </div>
-            </>
-          ) : (
-            <div className="flex min-w-0 items-center gap-1">
-              {holdFelt("flex-1 pr-3 text-[11px] font-semibold")}
-              {rumFelt("w-6 text-[10px]")}
-            </div>
-          )}
-        </>
-      )}
+            )}
+
+            {toLinjer ? (
+              <>
+                {holdFelt("pr-3 text-xs font-semibold")}
+                <div className="mt-0.5 flex items-center justify-center gap-1 text-[11px] leading-tight opacity-90">
+                  <span className="pointer-events-none">Omkl.</span>
+                  {rumFelt("w-8")}
+                </div>
+              </>
+            ) : (
+              <div className="flex min-w-0 items-center gap-1">
+                {holdFelt("flex-1 pr-3 text-[11px] font-semibold")}
+                {rumFelt("w-6 text-[10px]")}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

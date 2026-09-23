@@ -48,8 +48,8 @@ export function categorySwatch(category: Category): string {
 // mellemrum giver de luft mellem to side-om-side tildelinger — også midt i et
 // overlap.
 //
-// Skyggen udelades på et segment, der rækker ned i segmentet nedenunder: den
-// ville ellers falde som en svag streg hen over den samme tildelings baggrund.
+// Skyggen udelades på et segment, der rækker ind i sin nabo: dens slør
+// ville ellers stå som en svag streg hen over den samme tildelings baggrund.
 export function segmentKantKlasser(kant: SegmentKant): string {
   return [
     "border-x-2",
@@ -59,7 +59,7 @@ export function segmentKantKlasser(kant: SegmentKant): string {
     kant.rundTopHoejre ? "rounded-tr-md" : "",
     kant.rundBundVenstre ? "rounded-bl-md" : "",
     kant.rundBundHoejre ? "rounded-br-md" : "",
-    kant.udvidBund ? "" : "shadow-sm",
+    kant.udvidTop || kant.udvidBund ? "" : "shadow-sm",
   ]
     .filter(Boolean)
     .join(" ");
