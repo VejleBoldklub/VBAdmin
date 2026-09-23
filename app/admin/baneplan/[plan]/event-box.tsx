@@ -2,7 +2,8 @@
 
 import type { KeyboardEvent, PointerEvent } from "react";
 import { minutesToLabel, type ScheduleEvent } from "@/features/baneplan/types";
-import { categoryClass, categorySwatch } from "./event-styles";
+import type { SegmentKant } from "@/features/baneplan/layout";
+import { categoryClass, categorySwatch, segmentKantKlasser, segmentZ } from "./event-styles";
 
 export type DragKind = "move" | "resize-top" | "resize-bottom";
 
@@ -35,6 +36,8 @@ type EventBoxProps = {
   // ind i den bid, mens det lange, rummelige segment stod helt tomt — præcis
   // det, der skete i den læsende visning, før DagGitter fik samme rettelse.
   visLabel: boolean;
+  // Kanter og hjørner for netop dette segment — se segmentKant.
+  kant: SegmentKant;
   onPointerDownBody: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerDownResize: (e: PointerEvent<HTMLDivElement>, kant: "top" | "bottom") => void;
   onPatch: (patch: Partial<ScheduleEvent>) => void;
@@ -59,6 +62,7 @@ export default function EventBox({
   first,
   last,
   visLabel,
+  kant,
   onPointerDownBody,
   onPointerDownResize,
   onPatch,
@@ -129,27 +133,14 @@ export default function EventBox({
     />
   );
 
-  // Runding og kant følger begge tildelingens egen first/last: siger DETTE
-  // er tildelingens egen reelle start hhv. slutning, uafhængigt af hvad andre
-  // samtidige tildelinger gør. Bruges i stedet topRand/bundRand (som kun
-  // styrer GULVET for minimumshøjden i segmentGeometri, se dér, og bevidst er
-  // ens for alle samtidigt aktive tildelinger), forsvinder kant OG runding,
-  // blot fordi en ANDEN tildeling fortsætter uændret hen over grænsen, selvom
-  // DENNE tildeling reelt starter eller slutter der — det gav først en
-  // løsrevet, svævende stribe uden kant, og siden, med kanten rettet men
-  // rundingen ikke, en skarpkantet streg midt i svinget, der lignede en fejl.
+  // Kant og runding følger tildelingens egen form — se segmentKant — så den
+  // står med én sammenhængende kant hele vejen rundt, også hvor dens bredde
+  // skifter midt i forløbet. Samme klasser som DagGitter bruger.
   //
-  // De lodrette kanter (venstre/højre) er altid med — sammen med det
-  // vandrette mellemrum (se style.left/width) giver de den luft mellem to
-  // side-om-side tildelinger, som skal være der overalt, også midt i et
-  // overlap. Resultatet er det "sving": en tildelings egen kant følger uden
-  // brud, når dens bredde skifter midt i dens eget forløb (first/last er
-  // false der), mens en tildeling, der reelt begynder eller slutter — selv
-  // midt i en andens forløb — altid får sin egen fulde, runde kant.
-  const afrunding = `${first ? "rounded-t-md" : ""} ${last ? "rounded-b-md" : ""}`.trim();
-  const kanter = `border-x-2 ${first ? "border-t-2" : "border-t-0"} ${
-    last ? "border-b-2" : "border-b-0"
-  }`;
+  // z-index sættes i style frem for med klasser, fordi segmentZ skal lægges
+  // oven i: et segment, der rækker ind over sin nabos kant, skal også ligge
+  // over naboen, når tildelingen er valgt eller trækkes.
+  const zIndex = (dragging ? 30 : selected ? 20 : 0) + segmentZ(kant);
 
   return (
     <div
@@ -169,16 +160,17 @@ export default function EventBox({
         e.preventDefault();
         onOpenMenu(e.clientX, e.clientY);
       }}
-      className={`absolute flex flex-col overflow-hidden px-1.5 py-1 text-center shadow-sm ${afrunding} ${kanter} ${categoryClass(
-        ev.category
-      )} ${
-        selected ? "z-20 ring-2 ring-red-700 ring-offset-1" : "hover:ring-1 hover:ring-slate-400"
-      } ${dragging ? "z-30 opacity-90 shadow-lg" : ""} ${
+      className={`absolute flex flex-col overflow-hidden px-1.5 py-1 text-center ${segmentKantKlasser(
+        kant
+      )} ${categoryClass(ev.category)} ${
+        selected ? "ring-2 ring-red-700 ring-offset-1" : "hover:ring-1 hover:ring-slate-400"
+      } ${dragging ? "opacity-90 shadow-lg" : ""} ${
         toLinjer ? "justify-center" : "justify-start"
       }`}
       style={{
         top,
         height,
+        zIndex: zIndex || undefined,
         left: `calc(${leftPct}% + 3px)`,
         width: `calc(${widthPct}% - 6px)`,
         transform: offsetX ? `translateX(${offsetX}px)` : undefined,

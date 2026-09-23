@@ -8,10 +8,11 @@ import {
   rangeForDay,
   ROW_H,
   segmentGeometri,
+  segmentKant,
   tildelingerPaaDag,
   TIME_W,
 } from "@/features/baneplan/layout";
-import { categoryClass } from "./event-styles";
+import { categoryClass, segmentKantKlasser, segmentZ } from "./event-styles";
 
 export type DagGitterTooltip = {
   // Kaldes både når markøren kommer ind på en boks og når den flytter sig på
@@ -121,48 +122,26 @@ export default function DagGitter({
           >
             {laneEvents.map((seg) => {
               const { top, height } = segmentGeometri(seg, range, ppm);
-              const width = 100 / seg.cols;
-              const left = seg.col * width;
+              const width = (100 * seg.span) / seg.cols;
+              const left = (100 * seg.col) / seg.cols;
               const hasRoom = seg.room && seg.room !== "-";
-              // Runding og kant følger begge tildelingens EGEN first/last —
-              // er DETTE segment tildelingens egen reelle start hhv.
-              // slutning? — ikke topRand/bundRand (som kun styrer GULVET for
-              // minimumshøjden i segmentGeometri og bevidst er ens for alle
-              // samtidigt aktive tildelinger, se dér). Bruger man
-              // topRand/bundRand her i stedet, forsvinder kant OG runding,
-              // blot fordi EN ANDEN tildeling fortsætter uændret hen over
-              // grænsen, selvom DENNE tildeling reelt starter eller slutter
-              // der. Det var sådan U14 kom til at se ud som en løsrevet,
-              // svævende stribe uden kant foroven, da den startede midt i
-              // U11's forløb — og siden, med kanten rettet men rundingen
-              // ikke, som en skarpkantet streg midt i svinget, der så ud som
-              // en fejl frem for en boks med luft omkring.
-              //
-              // De lodrette kanter (venstre/højre) er altid med — det er dem,
-              // der sammen med det vandrette mellemrum (se left/width
-              // nedenfor) giver den luft mellem to side-om-side tildelinger,
-              // som skal være der overalt, også midt i et overlap.
-              //
-              // Sammen giver det det "sving": en tildelings egen kant følger
-              // uden brud, når dens bredde skifter midt i sit eget forløb
-              // (ingen vandret streg eller runding der, first/last er false),
-              // mens en tildeling, der reelt begynder eller slutter — selv
-              // midt i en andens forløb — altid får sin egen fulde, runde
-              // kant, så den fremstår som en rigtig boks med luft omkring,
-              // ikke en løsrevet streg.
-              const afrunding = `${seg.first ? "rounded-t-md" : ""} ${seg.last ? "rounded-b-md" : ""}`.trim();
-              const kanter = `border-x-2 ${seg.first ? "border-t-2" : "border-t-0"} ${
-                seg.last ? "border-b-2" : "border-b-0"
-              }`;
+              // Kant og runding følger tildelingens EGEN form — se
+              // segmentKant — ikke topRand/bundRand, som kun styrer luften og
+              // gulvet i segmentGeometri. Så står hver tildeling med én
+              // sammenhængende kant hele vejen rundt, også hvor dens bredde
+              // skifter, fordi en anden tildeling kommer eller går ved siden
+              // af den.
+              const kant = segmentKant(seg);
               return (
                 <div
                   key={`${seg.id}-${seg.segStart}`}
-                  className={`absolute flex flex-col items-center justify-center overflow-hidden px-1.5 py-1 text-center shadow-sm ${afrunding} ${kanter} ${categoryClass(
-                    seg.category
-                  )}`}
+                  className={`absolute flex flex-col items-center justify-center overflow-hidden px-1.5 py-1 text-center ${segmentKantKlasser(
+                    kant
+                  )} ${categoryClass(seg.category)}`}
                   style={{
                     top,
                     height,
+                    zIndex: segmentZ(kant) || undefined,
                     left: `calc(${left}% + 3px)`,
                     width: `calc(${width}% - 6px)`,
                   }}

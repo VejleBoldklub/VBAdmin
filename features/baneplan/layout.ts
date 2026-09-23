@@ -210,7 +210,7 @@ function afstandTilLinje(rects: TagRect[], linje: number[], y: number): number {
 
 // Et tidssegment af én tildeling. En tildeling, der kun overlapper en anden i
 // en del af sit forløb, får ét segment pr. tidsrum, hvor det aktive antal
-// side-om-side tildelinger på banen (cols) er konstant — se layoutEvents.
+// side-om-side tildelinger på banen er konstant — se layoutEvents.
 //
 // start/end (arvet fra ScheduleEvent) er fortsat tildelingens EGNE, fulde
 // tider. segStart/segEnd er dette ene segments udsnit af dem og bruges kun til
@@ -220,7 +220,11 @@ function afstandTilLinje(rects: TagRect[], linje: number[], y: number): number {
 export type LaidOutSegment = ScheduleEvent & {
   segStart: number;
   segEnd: number;
+  // Segmentet dækker kolonnerne col .. col + span - 1 af banens cols
+  // kolonner. Hver tildeling har én fast kolonne, men breder sig ud i ledige
+  // kolonner ved siden af — se layoutEvents.
   col: number;
+  span: number;
   cols: number;
   // Øverste hhv. nederste segment af DENNE tildeling — det er her, kanterne
   // til at ændre varighed, tekstfelterne og tastaturfokus skal sidde. Uafhængigt
@@ -239,7 +243,15 @@ export type LaidOutSegment = ScheduleEvent & {
   // gentaget i hvert segment, også i en kort bid, der kun findes, fordi
   // tildelingen en overgang deler bredde med en anden.
   visLabel: boolean;
+  // Placeringen af DENNE tildelings segment umiddelbart ovenover hhv.
+  // nedenunder, eller null ved tildelingens egen start/slutning. Bruges af
+  // segmentKant til at tegne kanten hele vejen rundt om tildelingen — også
+  // ved et sving, hvor dens bredde skifter midt i forløbet.
+  over: SegmentPlads | null;
+  under: SegmentPlads | null;
 };
+
+export type SegmentPlads = { col: number; span: number; cols: number };
 
 // Fordeler tildelinger på en bane i tidssegmenter, så to tildelinger kun deler
 // bredden i det tidsrum, de faktisk overlapper. Uden for overlap fylder hver
@@ -252,10 +264,12 @@ export type LaidOutSegment = ScheduleEvent & {
 // afgøres hvilke tildelinger der er aktive, og hvor mange de skal deles
 // imellem.
 //
-// Kolonnenummeret inden for et tidsrum kommer fra en fast rangordning pr.
-// tildeling (samme grådige sweep som tidligere var det endelige layout), så
-// rækkefølgen fra venstre mod højre ikke hopper rundt, blot fordi en nabo
-// kommer og går — kun selve antallet af kolonner (cols) varierer med tiden.
+// Hver tildeling har en fast kolonne (samme grådige sweep som tidligere var
+// det endelige layout), og antallet af kolonner er fast for hele klyngen af
+// tildelinger, der overlapper hinanden. I hvert tidsrum breder en tildeling
+// sig ud i de ledige kolonner ved siden af sin egen — alene på banen fylder
+// den derfor hele bredden. Da den altid beholder sin egen kolonne, skifter den
+// aldrig side undervejs; den bliver kun bredere eller smallere.
 //
 // Luft/runding (topRand/bundRand) er en egenskab ved GRÆNSEN, ikke ved den
 // enkelte tildeling: en grænse viser kun luft, hvis INGEN tildeling fortsætter
@@ -280,6 +294,31 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
       (kolonner[col] ||= []).push(ev);
       colRank.set(ev.id, col);
     }
+  }
+
+  // Antallet af kolonner er fast for en hel klynge af tildelinger, der hænger
+  // sammen gennem overlap — det største antal, der på noget tidspunkt står side
+  // om side i klyngen. Det er det, der holder hver tildeling i sin egen kolonne
+  // hele vejen: talte man kolonner pr. tidsrum, ville en tildeling hoppe fra
+  // højre halvdel til midterste tredjedel og videre til venstre halvdel, blot
+  // fordi naboerne kommer og går — og så kan dens kant ikke følge den.
+  const klyngeCols = new Map<string, number>();
+  {
+    let klynge: ScheduleEvent[] = [];
+    let klyngeSlut = -Infinity;
+    const afslut = () => {
+      const n = Math.max(...klynge.map((e) => (colRank.get(e.id) ?? 0) + 1));
+      for (const e of klynge) klyngeCols.set(e.id, n);
+    };
+    for (const ev of sorted) {
+      if (klynge.length > 0 && ev.start >= klyngeSlut) {
+        afslut();
+        klynge = [];
+      }
+      klynge.push(ev);
+      klyngeSlut = Math.max(klyngeSlut, ev.end);
+    }
+    afslut();
   }
 
   // Tidspunkter, hvor mindst én tildeling starter eller slutter — grænserne
@@ -315,13 +354,23 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
     const bundRand = !naeste || !nogenFortsaetter(r.aktive, naeste.aktive);
 
     const rangeret = [...r.aktive].sort((a, b) => (colRank.get(a.id) ?? 0) - (colRank.get(b.id) ?? 0));
+    const cols = klyngeCols.get(rangeret[0].id) ?? rangeret.length;
     rangeret.forEach((ev, idx) => {
+      // Tildelingen står i sin egen faste kolonne og breder sig ud i de
+      // ledige kolonner ved siden af. Ligger der ledige kolonner mellem to
+      // tildelinger, deles de, med den ulige kolonne til den venstre.
+      const rank = colRank.get(ev.id) ?? 0;
+      const venstreNabo = idx > 0 ? colRank.get(rangeret[idx - 1].id) ?? 0 : null;
+      const hoejreNabo = idx < rangeret.length - 1 ? colRank.get(rangeret[idx + 1].id) ?? 0 : null;
+      const fra = venstreNabo === null ? 0 : rank - Math.floor((rank - venstreNabo - 1) / 2);
+      const til = hoejreNabo === null ? cols : rank + 1 + Math.ceil((hoejreNabo - rank - 1) / 2);
       segments.push({
         ...ev,
         segStart: r.start,
         segEnd: r.end,
-        col: idx,
-        cols: rangeret.length,
+        col: fra,
+        span: til - fra,
+        cols,
         first: r.start === ev.start,
         last: r.end === ev.end,
         topRand,
@@ -329,6 +378,8 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
         // Sættes rigtigt nedenfor, når tildelingens segmenter er lagt sammen —
         // her er det stadig ukendt, hvilket af dem der bliver det største.
         visLabel: false,
+        over: null,
+        under: null,
       });
     });
   });
@@ -347,23 +398,36 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
 
   const out: LaidOutSegment[] = [];
   for (const segs of perTildeling.values()) {
+    const samlet: LaidOutSegment[] = [];
     let current = segs[0];
     for (let i = 1; i < segs.length; i++) {
       const next = segs[i];
-      if (current.col === next.col && current.cols === next.cols && current.segEnd === next.segStart) {
+      if (current.col === next.col && current.span === next.span && current.cols === next.cols && current.segEnd === next.segStart) {
         current = { ...current, segEnd: next.segEnd, last: next.last, bundRand: next.bundRand };
       } else {
-        out.push(current);
+        samlet.push(current);
         current = next;
       }
     }
-    out.push(current);
+    samlet.push(current);
+    // Naboerne kendes først nu, hvor segmenterne er lagt sammen. En tildeling
+    // er sammenhængende i tid, så de sammenlagte segmenter støder altid op til
+    // hinanden i rækkefølge.
+    samlet.forEach((seg, i) => {
+      const over = samlet[i - 1];
+      const under = samlet[i + 1];
+      out.push({
+        ...seg,
+        over: over ? { col: over.col, span: over.span, cols: over.cols } : null,
+        under: under ? { col: under.col, span: under.span, cols: under.cols } : null,
+      });
+    });
   }
 
   // Hvilket af hver tildelings (nu sammenlagte) segmenter skal vise
   // holdnavnet? Foretræk det LÆNGSTE af tildelingens egne segmenter — det er
   // det, der giver mest lodret plads til teksten (holdnavn + evt.
-  // omklædningsrum på egen linje). Fuld bredde (cols === 1) bruges kun som
+  // omklædningsrum på egen linje). Fuld bredde (span === cols) bruges kun som
   // tiebreaker, når to segmenter har nøjagtig samme varighed.
   //
   // Tidligere blev fuld bredde foretrukket FØR varighed. Det gik galt, når en
@@ -387,8 +451,8 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
     for (const s of segs.slice(1)) {
       const bedstVarighed = bedst.segEnd - bedst.segStart;
       const sVarighed = s.segEnd - s.segStart;
-      const bedstFuldBredde = bedst.cols === 1;
-      const sFuldBredde = s.cols === 1;
+      const bedstFuldBredde = bedst.span === bedst.cols;
+      const sFuldBredde = s.span === s.cols;
       if (
         sVarighed > bedstVarighed ||
         (sVarighed === bedstVarighed && sFuldBredde && !bedstFuldBredde)
@@ -441,8 +505,23 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
 // til 8-9 px — at lukke den sidste pixel helt kræver at kende NÆSTE segments
 // egen rand, hvilket ikke er det værd for en forskel, ingen kan se.
 
+//
+// Derudover rækker et segment KANT_PX ind i sin nabo ovenover/nedenunder, når
+// segmentKant siger udvidTop/udvidBund — se dér.
 export function segmentGeometri(
-  seg: { segStart: number; segEnd: number; topRand: boolean; bundRand: boolean; first: boolean; last: boolean },
+  seg: {
+    segStart: number;
+    segEnd: number;
+    topRand: boolean;
+    bundRand: boolean;
+    first: boolean;
+    last: boolean;
+    col: number;
+    span: number;
+    cols: number;
+    over: SegmentPlads | null;
+    under: SegmentPlads | null;
+  },
   range: { min: number; max: number },
   ppm: number
 ): { top: number; height: number } {
@@ -452,8 +531,83 @@ export function segmentGeometri(
   const bund = seg.bundRand || seg.last ? 3 : 0;
   const gulvTop = seg.topRand ? 3 : 0;
   const gulvBund = seg.bundRand ? 3 : 0;
+  const kant = segmentKant(seg);
+  const udvidTop = kant.udvidTop ? KANT_PX : 0;
+  const udvidBund = kant.udvidBund ? KANT_PX : 0;
   return {
-    top: (fra - range.min) * ppm + top,
-    height: Math.max((til - fra) * ppm - top - bund, 18 + gulvTop + gulvBund),
+    top: (fra - range.min) * ppm + top - udvidTop,
+    height: Math.max((til - fra) * ppm - top - bund, 18 + gulvTop + gulvBund) + udvidTop + udvidBund,
   };
+}
+
+// Kantens tykkelse på en tildeling (Tailwinds border-2).
+export const KANT_PX = 2;
+
+export type SegmentKant = {
+  kantTop: boolean;
+  kantBund: boolean;
+  rundTopVenstre: boolean;
+  rundTopHoejre: boolean;
+  rundBundVenstre: boolean;
+  rundBundHoejre: boolean;
+  // Rækker segmentet KANT_PX op i hhv. ned i sin nabo? Se segmentKant.
+  udvidTop: boolean;
+  udvidBund: boolean;
+};
+
+// Hvilke vandrette kanter og hjørner et segment skal have, så tildelingen står
+// med én sammenhængende kant HELE vejen rundt — også ved et sving, hvor dens
+// bredde skifter midt i forløbet, fordi en anden tildeling kommer eller går ved
+// siden af den.
+//
+// Ved tildelingens egen start/slutning (ingen nabo) er det enkelt: fuld kant og
+// runde hjørner. Ved et sving mødes to af tildelingens egne segmenter, og de
+// vandrette kanter skal da kun tegnes på det stykke, hvor det ene segment
+// rager ud over det andet — det er dér, tildelingen reelt slutter, og hvor den
+// støder op til den anden tildeling. På det stykke, de har fælles, skal der
+// ingen streg være, ellers deles tildelingen visuelt i flere bokse.
+//
+// CSS kan ikke tegne en kant på kun en del af en side. I stedet får det BREDE
+// segment fuld kant på den side, og det SMALLE segment rækker KANT_PX ind over
+// den (udvidTop/udvidBund) og ligger øverst (se segmentZ i event-styles). Dets baggrund dækker
+// så kanten på det fælles stykke, og dets egne lodrette kanter løber
+// ubrudt videre op/ned og møder det brede segments kant i hjørnet. Tilbage
+// står kanten kun på det stykke, hvor det brede segment rager ud.
+//
+// Runde hjørner sættes kun, hvor segmentet rager ud over naboen — det er et
+// udvendigt hjørne. Hvor de to flugter, skal kanten fortsætte lige.
+//
+// Rager de to hver til sin side (kun muligt med tre eller flere samtidige
+// tildelinger på banen), er ingen af dem den smalle. Så får begge kant, og der
+// står en streg på det fælles stykke. Det er et sjældent tilfælde, hvor det er
+// acceptabelt, at svinget ikke er helt rent.
+export function segmentKant(seg: {
+  col: number;
+  span: number;
+  cols: number;
+  over: SegmentPlads | null;
+  under: SegmentPlads | null;
+}): SegmentKant {
+  const top = sidenMod(seg, seg.over);
+  const bund = sidenMod(seg, seg.under);
+  return {
+    kantTop: top.kant,
+    kantBund: bund.kant,
+    rundTopVenstre: top.rundVenstre,
+    rundTopHoejre: top.rundHoejre,
+    rundBundVenstre: bund.rundVenstre,
+    rundBundHoejre: bund.rundHoejre,
+    udvidTop: top.udvid,
+    udvidBund: bund.udvid,
+  };
+}
+
+function sidenMod(seg: SegmentPlads, nabo: SegmentPlads | null) {
+  if (!nabo) return { kant: true, rundVenstre: true, rundHoejre: true, udvid: false };
+  // Kolonnernes kanter sammenlignes som brøker (col/cols) ved krydsmultiplikation,
+  // så afrunding i kommatal ikke kan få to flugtende kanter til at se skæve ud.
+  const ragerVenstre = seg.col * nabo.cols < nabo.col * seg.cols;
+  const ragerHoejre = (seg.col + seg.span) * nabo.cols > (nabo.col + nabo.span) * seg.cols;
+  if (!ragerVenstre && !ragerHoejre) return { kant: false, rundVenstre: false, rundHoejre: false, udvid: true };
+  return { kant: true, rundVenstre: ragerVenstre, rundHoejre: ragerHoejre, udvid: false };
 }
