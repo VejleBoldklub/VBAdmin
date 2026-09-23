@@ -20,6 +20,7 @@ import {
   rangeForDay,
   ROW_H,
   segmentGeometri,
+  segmentKant,
   SNAP,
   tildelingerPaaDag,
   tilpasTilDag,
@@ -455,14 +456,7 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
                   const trukket = preview?.id === seg.id ? preview : null;
                   const delta = trukket ? trukket.start - seg.start : 0;
                   const { top, height } = segmentGeometri(
-                    {
-                      segStart: seg.segStart + delta,
-                      segEnd: seg.segEnd + delta,
-                      topRand: seg.topRand,
-                      bundRand: seg.bundRand,
-                      first: seg.first,
-                      last: seg.last,
-                    },
+                    { ...seg, segStart: seg.segStart + delta, segEnd: seg.segEnd + delta },
                     range,
                     ppm
                   );
@@ -473,11 +467,12 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
                     offsetX={trukket?.dx ?? 0}
                     top={top}
                     height={height}
-                    leftPct={seg.col * (100 / seg.cols)}
-                    widthPct={100 / seg.cols}
+                    leftPct={(100 * seg.col) / seg.cols}
+                    widthPct={(100 * seg.span) / seg.cols}
                     first={seg.first}
                     last={seg.last}
                     visLabel={seg.visLabel}
+                    kant={segmentKant(seg)}
                     selected={valgt === seg.id}
                     dragging={traekkerId === seg.id}
                     onPointerDownBody={(e) => startTraek(e, seg, "move")}

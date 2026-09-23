@@ -1,3 +1,4 @@
+import type { SegmentKant } from "@/features/baneplan/layout";
 import type { Category } from "@/features/baneplan/types";
 
 // Farvekoder for tildelingernes kategorier. Delt mellem den læsende
@@ -37,4 +38,36 @@ export function categorySwatch(category: Category): string {
     default:
       return "bg-slate-300";
   }
+}
+
+// Kant, runding og skygge for ét segment af en tildeling — delt mellem
+// DagGitter og EventBox, så svinget ser ens ud i live-planen og i kladden.
+// Hvilke kanter der skal med, afgøres af segmentKant; se dér for hvorfor.
+//
+// De lodrette kanter (venstre/højre) er altid med. Sammen med det vandrette
+// mellemrum giver de luft mellem to side-om-side tildelinger — også midt i et
+// overlap.
+//
+// Skyggen udelades på et segment, der rækker ned i segmentet nedenunder: den
+// ville ellers falde som en svag streg hen over den samme tildelings baggrund.
+export function segmentKantKlasser(kant: SegmentKant): string {
+  return [
+    "border-x-2",
+    kant.kantTop ? "border-t-2" : "border-t-0",
+    kant.kantBund ? "border-b-2" : "border-b-0",
+    kant.rundTopVenstre ? "rounded-tl-md" : "",
+    kant.rundTopHoejre ? "rounded-tr-md" : "",
+    kant.rundBundVenstre ? "rounded-bl-md" : "",
+    kant.rundBundHoejre ? "rounded-br-md" : "",
+    kant.udvidBund ? "" : "shadow-sm",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+// Et segment, der rækker ind over sin nabos kant, skal ligge over naboen, ellers
+// dækker det ikke kanten. DOM-rækkefølgen kan ikke bruges til det: det smalle
+// segment kan lige så vel ligge før som efter det brede.
+export function segmentZ(kant: SegmentKant): number {
+  return kant.udvidTop || kant.udvidBund ? 1 : 0;
 }
