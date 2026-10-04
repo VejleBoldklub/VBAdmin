@@ -9,6 +9,7 @@ import {
 } from "@/features/lokalebooking/gitter";
 import { findLokale, lokaler } from "@/features/lokalebooking/lokaler";
 import { hentOptagethed } from "@/features/lokalebooking/optagethed";
+import { annullerEgenBooking } from "@/features/lokalebooking/egen-aflysning";
 import { opretBooking } from "@/features/lokalebooking/opret";
 import {
   danskTid,
@@ -96,7 +97,7 @@ export default async function LokalebookingPage({
     danskTidTilInstant(datoer[6], GITTER_TIL)
   );
 
-  const dagBookinger = optagethed.ok ? tilDagBookinger(optagethed.bookinger) : [];
+  const dagBookinger = optagethed.ok ? tilDagBookinger(optagethed.bookinger, nu) : [];
   const slots = datoer.map((dato) => dagensSlots(dato, isoDagFor(dato), dagBookinger, nu));
 
   const seksMaanederFrem = new Date(nu.getTime());
@@ -107,6 +108,9 @@ export default async function LokalebookingPage({
   // godkendelsesflow, og det skal ikke kunne ændres af den, der sender
   // formularen.
   const handling = opretBooking.bind(null, lokale.slug);
+  // Af samme grund bundet her: lokalet afgør, om en begrundelse er påkrævet, og
+  // om cafeteriet skal have besked.
+  const aflysHandling = annullerEgenBooking.bind(null, lokale.slug);
 
   // Tilstanden skal med i hvert ugelink. Uden det ville et klik på "Næste" føre
   // ud af indlejret tilstand, og fanerne ville dukke op midt i klubbens side.
@@ -219,6 +223,8 @@ export default async function LokalebookingPage({
             indlejret={indlejret}
             kunneIkkeLaese={!optagethed.ok}
             handling={handling}
+            aflysKraeverGrund={lokale.aflysningKraeverGrund}
+            aflysHandling={aflysHandling}
           />
         </div>
       </div>

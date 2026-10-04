@@ -127,13 +127,18 @@ export function bekraeftelseTilBooker(
     ? "Tidsrummet er reserveret, indtil bookingen er behandlet. Du får en mail, så snart den er godkendt eller afvist."
     : "Tidsrummet er reserveret. Du behøver ikke gøre mere.";
 
+  // Vejen til at aflyse står i kvitteringen, så den kan findes, når der er brug
+  // for den — ikke kun i husreglerne over kalenderen.
+  const aflysning =
+    "Skal bookingen aflyses, så klik på den i kalenderen og annullér den med denne e-mailadresse.";
+
   return {
     emne: kraeverGodkendelse
       ? `Modtaget: din booking af ${b.lokaleNavn}`
       : `Bekræftet: din booking af ${b.lokaleNavn}`,
     html: layout(
       overskrift,
-      afsnit(`Hej ${b.navn}`) + tabel(raekker) + afsnit(forklaring),
+      afsnit(`Hej ${b.navn}`) + tabel(raekker) + afsnit(forklaring) + afsnit(aflysning),
       kanSvares
     ),
     tekst: [
@@ -144,6 +149,7 @@ export function bekraeftelseTilBooker(
       tekstRaekker(raekker),
       "",
       forklaring,
+      aflysning,
       "",
       "Vejle Boldklub — VB Parkens lokalebooking",
     ].join("\n"),
@@ -228,6 +234,87 @@ export function aflysningTilBooker(b: MailBooking, kanSvares: boolean): MailIndh
   };
 }
 
+// Begrundelsen i en fremhævet boks. Delt af afslaget og bookerens egen aflysning.
+function grundBoks(grund: string): string {
+  return `<p style="margin:0 0 12px;padding:12px 16px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;font-size:14px;line-height:1.6;color:#7f1d1d;"><strong>Begrundelse:</strong> ${esc(grund)}</p>`;
+}
+
+// 7) Kvittering til bookeren, når vedkommende selv har annulleret fra kalenderen.
+//
+// Egen mail frem for aflysningTilBooker. Den siger "klubben har annulleret", og
+// det er ikke sandt her — bookeren skal kunne genkende sin egen handling, og en
+// mail om en annullering, man ikke selv har lavet, er det, der afslører, at en
+// anden har gjort det.
+export function egenAflysningTilBooker(
+  b: MailBooking,
+  grund: string | null,
+  kanSvares: boolean
+): MailIndhold {
+  const raekker = raekkerFor(b);
+
+  const overskrift = "Din booking er annulleret";
+  const forklaring =
+    "Du har selv annulleret bookingen i kalenderen, og tidsrummet er givet fri igen. Du behøver ikke gøre mere.";
+  const advarsel =
+    "Har du ikke selv annulleret bookingen, så kontakt klubben hurtigst muligt.";
+
+  return {
+    emne: `Annulleret: din booking af ${b.lokaleNavn}`,
+    html: layout(
+      overskrift,
+      afsnit(`Hej ${b.navn}`) +
+        tabel(raekker) +
+        (grund ? grundBoks(grund) : "") +
+        afsnit(forklaring) +
+        afsnit(advarsel),
+      kanSvares
+    ),
+    tekst: [
+      `Hej ${b.navn}`,
+      "",
+      overskrift,
+      "",
+      tekstRaekker(raekker),
+      ...(grund ? ["", `Begrundelse: ${grund}`] : []),
+      "",
+      forklaring,
+      advarsel,
+      "",
+      "Vejle Boldklub — VB Parkens lokalebooking",
+    ].join("\n"),
+  };
+}
+
+// 8) Besked til den lokaleansvarlige, når bookeren selv har annulleret.
+//
+// Kun for lokaler med en ansvarlig — i praksis cafeteriet, hvor begrundelsen er
+// påkrævet netop for at kunne stå her.
+export function egenAflysningTilAnsvarlig(b: MailBooking, grund: string | null): MailIndhold {
+  const raekker = [
+    ...raekkerFor(b),
+    { navn: "Booket af", vaerdi: b.navn },
+    { navn: "E-mail", vaerdi: b.email },
+    { navn: "Mobil", vaerdi: b.mobil },
+  ];
+
+  const forklaring = "Bookeren har selv annulleret bookingen i kalenderen. Tidsrummet er givet fri igen.";
+
+  return {
+    emne: `Annulleret af bookeren: ${b.lokaleNavn} — ${b.naar}`,
+    html: layoutMed(
+      `En booking af ${b.lokaleNavn} er annulleret`,
+      afsnit(forklaring) + tabel(raekker) + (grund ? grundBoks(grund) : ""),
+      "Denne mail er sendt automatisk fra VB Parkens lokalebooking. Svarer du på den, går svaret til den, der havde booket."
+    ),
+    tekst: [
+      forklaring,
+      "",
+      tekstRaekker(raekker),
+      ...(grund ? ["", `Begrundelse: ${grund}`] : []),
+    ].join("\n"),
+  };
+}
+
 // 3) Svar til bookeren, når nogen har taget stilling.
 export function beslutningTilBooker(
   b: MailBooking,
@@ -247,9 +334,7 @@ export function beslutningTilBooker(
   const html =
     afsnit(`Hej ${b.navn}`) +
     tabel(raekker) +
-    (!godkendt && grund
-      ? `<p style="margin:0 0 12px;padding:12px 16px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;font-size:14px;line-height:1.6;color:#7f1d1d;"><strong>Begrundelse:</strong> ${esc(grund)}</p>`
-      : "") +
+    (!godkendt && grund ? grundBoks(grund) : "") +
     afsnit(forklaring) +
     (!godkendt && kanSvares ? afsnit("Har du spørgsmål, kan du svare på denne mail.") : "");
 
@@ -305,7 +390,7 @@ export function serieBekraeftelseTilBooker(
     tidspunkter.length === 1 ? "Din booking er bekræftet" : "Dine bookinger er bekræftet";
 
   const forklaring =
-    "Tidsrummene er reserveret, og du behøver ikke gøre mere. Skal en af dagene aflyses, så kontakt klubben — hver dato kan aflyses for sig, uden at resten af rækken bliver rørt.";
+    "Tidsrummene er reserveret, og du behøver ikke gøre mere. Skal en af dagene aflyses, så klik på den i kalenderen og annullér den med denne e-mailadresse — hver dato aflyses for sig, uden at resten af rækken bliver rørt.";
 
   return {
     emne: `Bekræftet: ${tidspunkter.length} ${

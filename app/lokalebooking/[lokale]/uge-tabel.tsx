@@ -4,6 +4,7 @@ import {
   ANTAL_SLOTS,
   GITTER_FRA,
   tilSegmenter,
+  type DagBooking,
   type Slot,
   type SlotStatus,
 } from "@/features/lokalebooking/gitter";
@@ -23,6 +24,9 @@ type UgeTabelProps = {
   iDag: string;
   valgt: { dato: string; start: number; slut: number } | null;
   vaelg: (dato: string, start: number) => void;
+  // Åbner annulleringen af en kommende booking. Den, der har booket, bekræfter
+  // med sin mail i dialogen — se aflys-dialog.tsx.
+  aabnBooking: (booking: DagBooking) => void;
 };
 
 const BLOK: Record<Exclude<SlotStatus, "ledig">, { klasse: string; tekst: string }> = {
@@ -46,7 +50,14 @@ const BLOK: Record<Exclude<SlotStatus, "ledig">, { klasse: string; tekst: string
   },
 };
 
-export default function UgeTabel({ datoer, slots, iDag, valgt, vaelg }: UgeTabelProps) {
+export default function UgeTabel({
+  datoer,
+  slots,
+  iDag,
+  valgt,
+  vaelg,
+  aabnBooking,
+}: UgeTabelProps) {
   const timer = Array.from({ length: ANTAL_SLOTS }, (_, i) => GITTER_FRA + i * SNAP);
 
   return (
@@ -146,14 +157,7 @@ export default function UgeTabel({ datoer, slots, iDag, valgt, vaelg }: UgeTabel
                 // kvarterer er nogenlunde antallet af linjer, der er plads til.
                 const plads = Math.max(0, segment.antal - 1);
 
-                return (
-                  <div
-                    key={segment.fra}
-                    title={oplaest || undefined}
-                    style={{ height: segment.antal * SLOT_H }}
-                    className={`overflow-hidden px-1 py-0.5 text-[10px] font-semibold leading-tight ${stil.klasse}`}
-                  >
-                    {b ? (
+                const indhold = b ? (
                       <>
                         {linjer.slice(0, plads).map((linje, i) => (
                           <span
@@ -168,7 +172,36 @@ export default function UgeTabel({ datoer, slots, iDag, valgt, vaelg }: UgeTabel
                             title. */}
                         <span className="sr-only">{oplaest}</span>
                       </>
-                    ) : null}
+                    ) : null;
+
+                const blokKlasse = `overflow-hidden px-1 py-0.5 text-[10px] font-semibold leading-tight ${stil.klasse}`;
+
+                // En kommende booking er en knap, så den, der har booket, kan
+                // annullere den. Afholdte bookinger er almindelig tekst.
+                if (b?.kanAflyses) {
+                  return (
+                    <button
+                      key={segment.fra}
+                      type="button"
+                      onClick={() => aabnBooking(b)}
+                      title={`${oplaest}\nKlik for at annullere`}
+                      style={{ height: segment.antal * SLOT_H }}
+                      className={`block w-full cursor-pointer border-0 text-left hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-700 ${blokKlasse}`}
+                    >
+                      {indhold}
+                      <span className="sr-only">. Klik for at annullere bookingen.</span>
+                    </button>
+                  );
+                }
+
+                return (
+                  <div
+                    key={segment.fra}
+                    title={oplaest || undefined}
+                    style={{ height: segment.antal * SLOT_H }}
+                    className={blokKlasse}
+                  >
+                    {indhold}
                   </div>
                 );
               }

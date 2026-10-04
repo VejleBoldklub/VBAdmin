@@ -18,9 +18,13 @@ export type Booking = {
   email: string;
   mobil: string;
   besked: string | null;
-  besluttet_af: "mail" | "admin" | null;
+  // "booker" er bookerens egen annullering fra kalenderen.
+  besluttet_af: "mail" | "admin" | "booker" | null;
   besluttet_tid: string | null;
   afvisningsgrund: string | null;
+  // Bookerens begrundelse, når bookingen er aflyst fra kalenderen. Kun
+  // påkrævet for cafeteriet; null på alt andet.
+  aflysningsgrund: string | null;
   // Sat, hvis bookingen er én forekomst i en gentagen serie. Alle bookinger i
   // samme serie deler værdien; null på alt andet. Se features/lokalebooking/serie.ts.
   serie_id: string | null;
@@ -47,6 +51,10 @@ export type Booking = {
 // tilbage at læse viewet frem for tabellen i optagethed.ts — resten kan blive
 // stående.
 export type Optagethed = {
+  // Med, så en blok i kalenderen kan annulleres af den, der har booket. Id'et
+  // giver ikke i sig selv adgang til noget: annulleringen kræver også bookingens
+  // mailadresse, og forsøgene tælles pr. IP — se egen-aflysning.ts.
+  id: string;
   lokale: LokaleSlug;
   start_tid: string;
   slut_tid: string;

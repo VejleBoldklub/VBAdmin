@@ -1,14 +1,16 @@
 "use client";
 
 import { useActionState, useRef, useState } from "react";
-import { foreslaaSlut, type Slot } from "@/features/lokalebooking/gitter";
+import { foreslaaSlut, type DagBooking, type Slot } from "@/features/lokalebooking/gitter";
 import {
   TOM_INDTASTNING,
+  type AflysResultat,
   type Indtastning,
   type OpretResultat,
 } from "@/features/lokalebooking/formular";
 import { kvartererPaaDag, LUKKER, slutKvarterer } from "@/features/lokalebooking/regler";
 import { isoDagFor } from "@/features/lokalebooking/uge";
+import AflysDialog from "./aflys-dialog";
 import BookingForm from "./booking-form";
 import UgeTabel from "./uge-tabel";
 
@@ -44,6 +46,8 @@ type BookingPanelProps = {
   indlejret: boolean;
   kunneIkkeLaese: boolean;
   handling: (forrige: OpretResultat, fd: FormData) => Promise<OpretResultat>;
+  aflysKraeverGrund: boolean;
+  aflysHandling: (forrige: AflysResultat, fd: FormData) => Promise<AflysResultat>;
 };
 
 export default function BookingPanel({
@@ -57,6 +61,8 @@ export default function BookingPanel({
   indlejret,
   kunneIkkeLaese,
   handling,
+  aflysKraeverGrund,
+  aflysHandling,
 }: BookingPanelProps) {
   const [resultat, formAction, venter] = useActionState<OpretResultat, FormData>(handling, {
     tilstand: "uroert",
@@ -77,6 +83,12 @@ export default function BookingPanel({
   const [lukketSvar, setLukketSvar] = useState<OpretResultat | null>(null);
 
   const dialog = useRef<HTMLDialogElement>(null);
+
+  // Bookingen, der er klikket på for at annullere. Tælleren bliver key på
+  // dialogen, så den monteres på ny og starter tom ved hver åbning.
+  const [aflys, setAflys] = useState<{ booking: DagBooking; n: number } | null>(null);
+  const aabnAflys = (booking: DagBooking) =>
+    setAflys((forrige) => ({ booking, n: (forrige?.n ?? 0) + 1 }));
 
   const indtastning: Indtastning =
     redigeret ?? (resultat.tilstand === "fejl" ? resultat.vaerdier : TOM_INDTASTNING);
@@ -185,11 +197,30 @@ export default function BookingPanel({
           rigtig knap, så et klik og et tastetryk gør det samme. */}
       {indlejret && (
         <p className="text-sm leading-6 text-slate-600">
-          Klik på en ledig tid i kalenderen for at booke.
+          Klik på en ledig tid i kalenderen for at booke. Klik på din egen booking for at
+          annullere den.
         </p>
       )}
 
-      <UgeTabel datoer={datoer} slots={slots} iDag={iDag} valgt={valgt} vaelg={vaelgIGitter} />
+      <UgeTabel
+        datoer={datoer}
+        slots={slots}
+        iDag={iDag}
+        valgt={valgt}
+        vaelg={vaelgIGitter}
+        aabnBooking={aabnAflys}
+      />
+
+      {aflys && (
+        <AflysDialog
+          key={aflys.n}
+          booking={aflys.booking}
+          lokaleNavn={lokaleNavn}
+          kraeverGrund={aflysKraeverGrund}
+          handling={aflysHandling}
+          luk={() => setAflys(null)}
+        />
+      )}
 
       {/* Uden JavaScript kan en modal ikke åbnes. Så ville siden ikke kunne
           bruges til det, den er til, og server action'en virker ellers fint uden

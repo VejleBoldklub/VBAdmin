@@ -174,11 +174,12 @@ Nye kolonner, som brugeren skal kunne udfylde, skal både oprettes i skemaet og 
 
 ### Mails
 
-Mails sendes med Resend fra et domæne, der er verificeret der. Tre mails:
+Mails sendes med Resend fra et domæne, der er verificeret der. De vigtigste mails:
 
 1. **Kvittering til bookeren** ved oprettelse — bekræftet med det samme for mødelokalet, "afventer godkendelse" for cafeteriet
 2. **Notifikation til den lokaleansvarlige** ved en cafeteria-booking, med et godkend- og et afvis-link
 3. **Svar til bookeren**, når nogen har taget stilling — ved et afslag med begrundelsen, hvis der blev skrevet en. Afvisning kræver ikke en begrundelse, men den kan gives
+4. **Annullering**: til bookeren, når klubben eller bookeren selv annullerer, og til den lokaleansvarlige, når bookeren selv annullerer en cafeteria-booking — med bookerens begrundelse
 
 Reply-To er den lokaleansvarlige, hvor der findes en. For cafeteriet er det `cafeteria@vejleboldklub.dk`, og det betyder mest på svarmailen: det er der, en træner kan få et afslag og have brug for at spørge hvorfor. Mødelokalet har ingen ansvarlig og bliver aldrig afvist; dets mails har ingen Reply-To, og de lover derfor heller ikke, at man kan svare. Notifikationen til den ansvarlige har bookeren som Reply-To, så et spørgsmål kan stilles direkte, før der tages stilling.
 
@@ -196,7 +197,19 @@ Et token kan kun føre til én beslutning. Det er betingelsen `status = 'afvente
 
 `slet_token_hash` bruges til afvisningslinket. Kolonnen var oprindeligt tænkt til bookerens eget slettelink, og de to kan ikke dele kolonne: afvisningslinket sendes til den cafeteriaansvarlige, slettelinket ville gå til bookeren. Skal bookeren en dag kunne slette selv, kræver det en ny kolonne.
 
-Endnu ikke bygget: bookerens egen sletning gennem et mail-link (databasefunktionen `slet_egen_booking` findes, men har hverken brugerflade eller en token-kolonne, den kan bruge), og svarheaderne der tillader indlejring fra klubbens domæne.
+### Bookerens egen annullering fra kalenderen
+
+Den, der har booket, kan selv annullere en kommende booking ved at klikke på den i den offentlige kalender. Der er intet login, så beviset er den **e-mailadresse, bookingen blev lavet med** — den står ikke i kalenderen og forlader aldrig serveren. Booking-id'et står derimod i sidens data, og hvert forsøg tælles derfor pr. IP i samme spand som oprettelser, så adressen ikke kan gættes. En forkert mail, et forkert lokale og et ukendt id giver samme svar.
+
+- **Mødelokalet** annulleres uden begrundelse.
+- **Cafeteriet** kræver en begrundelse. Den gemmes i `aflysningsgrund` og sendes til `cafeteria@vejleboldklub.dk` med bookeren som Reply-To.
+- **Bookeren** får i begge tilfælde en kvittering på mail. Teksten siger, at bookeren selv har annulleret — ikke klubben — og hvad man skal gøre, hvis det ikke passer.
+
+Annulleringen skrives med service_role fra `features/lokalebooking/egen-aflysning.ts`. Status bliver `aflyst` som ved klubbens annullering, men med `besluttet_af = 'booker'`, så adminlisten kan vise forskellen og begrundelsen. Kun bookinger, der ikke er begyndt, kan annulleres.
+
+Databasefunktionen `slet_egen_booking` bruges ikke. Fordi id'et nu står i kalenderen, ville anons ret til at kalde den være et orakel uden forsøgstælling, og retten er derfor taget fra anon. Ændringerne i databasen ligger i `supabase/lokalebooking-egen-aflysning.sql`.
+
+Endnu ikke bygget: svarheaderne der tillader indlejring fra klubbens domæne.
 
 ## 8. Airtable
 

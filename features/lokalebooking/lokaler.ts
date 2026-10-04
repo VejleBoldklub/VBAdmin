@@ -18,6 +18,10 @@ export type Lokale = {
   //
   // null betyder, at der ikke er en særskilt ansvarlig; så bruges afsenderen.
   ansvarligEmail: string | null;
+  // Om bookeren skal skrive en begrundelse for at annullere sin booking fra
+  // kalenderen. Begrundelsen sendes til den lokaleansvarlige, så det giver kun
+  // mening for et lokale, der har en.
+  aflysningKraeverGrund: boolean;
   // Klubbens spilleregler for lokalet, vist øverst på bookingsiden.
   //
   // Teksten er klubbens, ikke vores, og er overtaget ordret fra de gamle
@@ -30,11 +34,8 @@ export type Lokale = {
 const FAELLES_REGLER = [
   "Book kun den tid du har brug for, eller forventer at bruge.",
   'Book ikke "måske"-aftaler, som så ikke bliver til noget.',
-  // Der findes endnu ingen selvbetjent sletning: slet_egen_booking ligger i
-  // databasen, men hverken brugerflade eller mail-link er bygget. Teksten peger
-  // derfor på en person frem for på en knap, der ikke findes. Bygges sletningen,
-  // skal denne linje rettes tilbage.
-  "Bliver din booking aflyst, så kontakt kim.schwartz@vejleboldklub.dk for at få den slettet.",
+  // Bookeren kan selv annullere fra kalenderen — se egen-aflysning.ts.
+  "Bliver din booking aflyst, så annullér den: klik på den i kalenderen, og bekræft med din e-mail.",
 ] as const;
 
 // De to ressourcer er faste og ligger i koden, ikke i en tabel — samme valg som
@@ -45,22 +46,24 @@ export const lokaler: readonly Lokale[] = [
     slug: "moedelokale",
     navn: "Mødelokale (1. sal)",
     beskrivelse:
-      "Klik på en ledig tid i kalenderen for at booke. Mødelokalet er bekræftet med det samme.",
+      "Klik på en ledig tid i kalenderen for at booke. Mødelokalet er bekræftet med det samme. Klik på din egen booking for at annullere den.",
     publicPath: "/lokalebooking/moedelokale",
     adminPath: "/admin/lokalebooking?lokale=moedelokale",
     kraeverGodkendelse: false,
     ansvarligEmail: null,
+    aflysningKraeverGrund: false,
     regler: FAELLES_REGLER,
   },
   {
     slug: "cafeteria",
     navn: "Cafeteria",
     beskrivelse:
-      "Klik på en ledig tid i kalenderen for at booke. Cafeteriet skal godkendes af klubben, før bookingen er endelig — du får besked, når den er behandlet.",
+      "Klik på en ledig tid i kalenderen for at booke. Cafeteriet skal godkendes af klubben, før bookingen er endelig — du får besked, når den er behandlet. Klik på din egen booking for at annullere den — det kræver en begrundelse.",
     publicPath: "/lokalebooking/cafeteria",
     adminPath: "/admin/lokalebooking?lokale=cafeteria",
     kraeverGodkendelse: true,
     ansvarligEmail: "cafeteria@vejleboldklub.dk",
+    aflysningKraeverGrund: true,
     regler: [
       ...FAELLES_REGLER,
       "OBS! Reservationer af cafeteriet er først godkendt når cafeteriet har accepteret reservationen. Cafeteriet modtager en mail når der laves en ny reservation.",

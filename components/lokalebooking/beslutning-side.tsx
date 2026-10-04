@@ -108,11 +108,20 @@ export function BeslutningSide({ art, booking, handling }: BeslutningSideProps) 
           <StatusMaerke status={booking.status} />
         </div>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          Der er taget stilling til den{" "}
-          {booking.besluttet_af === "mail" ? "fra et link i en mail" : "i adminfladen"}, og bookeren
-          har fået besked. Du behøver ikke gøre mere.
+          {booking.besluttet_af === "booker"
+            ? "Bookeren har selv annulleret den i kalenderen."
+            : `Der er taget stilling til den ${
+                booking.besluttet_af === "mail" ? "fra et link i en mail" : "i adminfladen"
+              }, og bookeren har fået besked.`}{" "}
+          Du behøver ikke gøre mere.
         </p>
         {oversigt}
+        {booking.aflysningsgrund && (
+          <p className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+            <span className="font-semibold">Bookerens begrundelse:</span>{" "}
+            {booking.aflysningsgrund}
+          </p>
+        )}
         {booking.afvisningsgrund && (
           <p className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
             <span className="font-semibold">Begrundelse:</span> {booking.afvisningsgrund}
