@@ -29,6 +29,10 @@ export type Mail = {
   // Sættes til den lokaleansvarlige, hvor der findes en. Uden den ville et svar
   // fra bookeren lande i afsenderpostkassen, som ingen læser.
   svarTil?: string | null;
+  // Et andet visningsnavn end lokalebookingens, fx til invitationer fra
+  // Administration. Adressen er den samme: hos One.com skal den høre til den
+  // postkasse, der logges ind på.
+  fraNavn?: string;
 };
 
 // Afsenderen er den samme, uanset hvem der transporterer mailen. MAIL_FROM er
@@ -38,8 +42,14 @@ function afsender(): string {
   return process.env.MAIL_FROM || process.env.RESEND_FROM_EMAIL || STANDARD_AFSENDER;
 }
 
+// Bytter visningsnavnet i "Navn <adresse>" ud og beholder adressen.
+function medNavn(fra: string, navn: string): string {
+  const adresse = fra.match(/<([^>]+)>/)?.[1] ?? fra.trim();
+  return `${navn.replace(/[<>"]/g, "")} <${adresse}>`;
+}
+
 export async function sendMail(mail: Mail): Promise<MailResultat> {
-  const fra = afsender();
+  const fra = mail.fraNavn ? medNavn(afsender(), mail.fraNavn) : afsender();
 
   // SMTP er standarden. "resend" er vejen tilbage, og den skal kunne tages uden
   // en kodeændring: virker One.com ikke som forventet i produktion, er det én
