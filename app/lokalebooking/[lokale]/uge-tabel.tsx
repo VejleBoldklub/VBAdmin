@@ -188,8 +188,13 @@ export default function UgeTabel({
                       style={{ height: segment.antal * SLOT_H }}
                       className={`block w-full cursor-pointer border-0 text-left hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-red-700 ${blokKlasse}`}
                     >
-                      {indhold}
-                      <span className="sr-only">. Klik for at annullere bookingen.</span>
+                      {/* Skriftstørrelsen sættes på et indre element. globals.css
+                          giver button "font: inherit" uden for Tailwinds lag, og
+                          den regel vinder over text-[10px] på selve knappen. */}
+                      <span className="block text-[10px] font-semibold leading-tight">
+                        {indhold}
+                        <span className="sr-only">. Klik for at annullere bookingen.</span>
+                      </span>
                     </button>
                   );
                 }
