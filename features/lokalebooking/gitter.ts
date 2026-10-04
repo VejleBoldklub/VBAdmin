@@ -43,6 +43,7 @@ export type Segment = {
 };
 
 export type DagBooking = {
+  id: string;
   dato: string;
   fra: number;
   til: number;
@@ -51,6 +52,9 @@ export type DagBooking = {
   hold: string | null;
   navn: string;
   mobil: string;
+  // Om den, der har booket, stadig kan annullere den fra kalenderen. Kun
+  // bookinger, der ikke er begyndt — en afholdt booking er der intet at aflyse på.
+  kanAflyses: boolean;
 };
 
 // Oversætter tidsstemplerne til dansk kalenderdag og minutter.
@@ -59,12 +63,13 @@ export type DagBooking = {
 // senest kl. 22 på startdagen. Skulle en booking oprettet med service_role alligevel
 // gøre det, klippes den ved gitterets slutning frem for at give et negativt
 // interval, der ville tegne sig som ingenting.
-export function tilDagBookinger(bookinger: Optagethed[]): DagBooking[] {
+export function tilDagBookinger(bookinger: Optagethed[], nu: Date): DagBooking[] {
   return bookinger.map((b) => {
     const start = danskTid(new Date(b.start_tid));
     const slut = danskTid(new Date(b.slut_tid));
 
     return {
+      id: b.id,
       dato: start.dato,
       fra: start.minutter,
       til: slut.dato === start.dato ? slut.minutter : GITTER_TIL,
@@ -73,6 +78,7 @@ export function tilDagBookinger(bookinger: Optagethed[]): DagBooking[] {
       hold: b.hold,
       navn: b.navn,
       mobil: b.mobil,
+      kanAflyses: new Date(b.start_tid).getTime() > nu.getTime(),
     };
   });
 }

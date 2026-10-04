@@ -40,7 +40,7 @@ export type TokenArt = keyof typeof TOKEN_KOLONNE;
 
 const KOLONNER =
   "id,lokale,start_tid,slut_tid,status,formaal,hold,navn,email,mobil,besked," +
-  "besluttet_af,besluttet_tid,afvisningsgrund,serie_id,created_at,updated_at";
+  "besluttet_af,besluttet_tid,afvisningsgrund,aflysningsgrund,serie_id,created_at,updated_at";
 
 // Bookingen bag et token, uden at ændre noget. Bruges af siden, mail-linket
 // åbner: den skal kunne vise, hvad der skal tages stilling til, før der trykkes.

@@ -46,3 +46,17 @@ export const TOM_INDTASTNING: Indtastning = {
   mobil: "",
   besked: "",
 };
+
+// Svaret fra bookerens egen annullering i kalenderen. Ligger her af samme grund
+// som OpretResultat: egen-aflysning.ts er en "use server"-fil.
+//
+// Indtastningen sendes ikke tilbage ved en fejl: dialogen holder selv styr på
+// felterne, og mailadressen — beviset på, at man er bookeren — skal ikke stå i
+// et svar fra serveren.
+export type AflysResultat =
+  | { tilstand: "uroert" }
+  | { tilstand: "ok"; naar: string; lokaleNavn: string }
+  | { tilstand: "fejl"; fejl: string };
+
+// Samme loft som afvisningsgrund og check-reglen på aflysningsgrund i databasen.
+export const AFLYSNINGSGRUND_MAKS = 500;

@@ -66,6 +66,14 @@ export default function BookingTabel({ bookinger, serier }: BookingTabelProps) {
               booking.afvisningsgrund
                 ? { navn: "Afvist fordi", tekst: booking.afvisningsgrund }
                 : null,
+              // Bookerens egen annullering fra kalenderen. Uden linjen ville den
+              // se ud, som om klubben havde aflyst.
+              booking.status === "aflyst" && booking.besluttet_af === "booker"
+                ? {
+                    navn: "Aflyst af bookeren",
+                    tekst: booking.aflysningsgrund ?? "uden begrundelse",
+                  }
+                : null,
             ].filter((b): b is { navn: string; tekst: string } => b !== null);
 
             return (

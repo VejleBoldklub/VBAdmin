@@ -71,9 +71,14 @@ create table if not exists lokale_bookinger (
   godkend_token_hash  text,
   slet_token_hash     text,
 
-  besluttet_af        text check (besluttet_af in ('mail','admin')),
+  -- 'booker' er bookerens egen annullering fra kalenderen.
+  besluttet_af        text check (besluttet_af in ('mail','admin','booker')),
   besluttet_tid       timestamptz,
   afvisningsgrund     text check (afvisningsgrund is null or length(afvisningsgrund) <= 500),
+
+  -- Bookerens egen begrundelse, når bookingen aflyses fra kalenderen. Påkrævet
+  -- for cafeteriet i serverkoden. Adskilt fra afvisningsgrund, som er klubbens.
+  aflysningsgrund     text check (aflysningsgrund is null or length(aflysningsgrund) <= 500),
 
   -- Gentagne bookinger. Hver forekomst i en serie er en helt almindelig,
   -- selvstændig række — samme datamodel som en enkeltbooking, samme regler,
@@ -129,6 +134,22 @@ alter table lokale_bookinger
 
 alter table lokale_bookinger
   add column if not exists serie_id uuid;
+
+-- Bookerens egen annullering. Se lokalebooking-egen-aflysning.sql.
+alter table lokale_bookinger
+  add column if not exists aflysningsgrund text;
+
+alter table lokale_bookinger
+  drop constraint if exists lokale_bookinger_aflysningsgrund_check;
+alter table lokale_bookinger
+  add constraint lokale_bookinger_aflysningsgrund_check
+  check (aflysningsgrund is null or length(aflysningsgrund) <= 500);
+
+alter table lokale_bookinger
+  drop constraint if exists lokale_bookinger_besluttet_af_check;
+alter table lokale_bookinger
+  add constraint lokale_bookinger_besluttet_af_check
+  check (besluttet_af in ('mail','admin','booker'));
 
 -- Navnet er ikke tilfældigt: det er præcis det navn, Postgres selv giver check-
 -- reglen på kolonnen i create table ovenfor. På en ny database findes reglen
@@ -292,7 +313,7 @@ create policy "offentlig oprettelse af bookinger"
   );
 
 -- Ingen select-, update- eller delete-policy for anon. Læsning sker gennem
--- lokale_optagethed, og sletning gennem funktionen slet_egen_booking nedenfor.
+-- lokale_optagethed, og bookerens annullering gennem serverkoden.
 -- service_role omgår rækkesikkerhed og bruges kun af adminfladen bag login.
 
 grant select on lokale_optagethed to anon;
@@ -368,8 +389,14 @@ begin
   return fandtes;
 end $$;
 
+--
+-- Funktionen bruges IKKE af appen. Bookerens annullering sker fra kalenderen
+-- gennem serverkoden (features/lokalebooking/egen-aflysning.ts), som tæller
+-- forsøg pr. IP og sætter status 'aflyst' frem for at slette. Fordi kalenderen nu
+-- viser booking-id'et, ville anons ret til at kalde funktionen være netop det
+-- orakel, der er beskrevet ovenfor — derfor har anon ikke længere retten.
 revoke all on function slet_egen_booking(uuid, text) from public;
-grant execute on function slet_egen_booking(uuid, text) to anon;
+revoke execute on function slet_egen_booking(uuid, text) from anon;
 
 
 -- 7) Forsøgstælling pr. IP

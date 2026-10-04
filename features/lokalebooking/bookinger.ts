@@ -19,7 +19,7 @@ import type { Booking, BookingFilter, SerieOverblik } from "./types";
 // aldrig forlader databasen, kan ikke lækkes ved et uheld.
 const KOLONNER =
   "id,lokale,start_tid,slut_tid,status,formaal,hold,navn,email,mobil,besked," +
-  "besluttet_af,besluttet_tid,afvisningsgrund,serie_id,created_at,updated_at";
+  "besluttet_af,besluttet_tid,afvisningsgrund,aflysningsgrund,serie_id,created_at,updated_at";
 
 // Loftet findes for at en side aldrig kan hente et ubegrænset antal rækker.
 // Rammes det, siger listen det højt frem for tavst at vise et udsnit.
