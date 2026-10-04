@@ -118,7 +118,7 @@ export default function InviterForm() {
       </div>
 
       {fejl && (
-        <p role="alert" className="mt-3 text-sm font-semibold text-red-700">
+        <p role="alert" className="mt-3 break-words text-sm font-semibold text-red-700">
           {fejl}
         </p>
       )}

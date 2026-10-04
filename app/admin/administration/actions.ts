@@ -7,6 +7,8 @@ import { antalAdministratorer } from "@/lib/administration";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { beskrivSupabaseFejl } from "@/lib/infoskaerm/data";
 import type { GemResultat } from "@/lib/infoskaerm/types";
+import { sendMail } from "@/features/lokalebooking/mail";
+import { invitationsmail } from "@/lib/invitationsmail";
 
 // Brugerstyring: invitér, ret og fjern.
 //
@@ -88,25 +90,46 @@ export async function inviterBruger(
   }
 
   // Invitationen sendes af Supabase Auth. Der bygges bevidst ikke et eget
-  // token- og mailflow: det findes allerede her, og et hjemmelavet ville skulle
-  // løse udløb, engangsbrug og genafsendelse forfra.
+  // tokenflow: det findes allerede her, og et hjemmelavet ville skulle løse
+  // udløb, engangsbrug og genafsendelse forfra. Kun selve mailen har en
+  // reservevej — se inviterSelv nedenfor.
   const base = await appBaseUrl();
 
+  const redirectTo = `${base}/auth/bekraeft?next=/opret-adgangskode`;
+
   const { data, error } = await supabaseAdmin.auth.admin.inviteUserByEmail(adresse, {
-    redirectTo: `${base}/auth/bekraeft?next=/opret-adgangskode`,
+    redirectTo,
   });
 
-  if (error || !data.user) {
-    console.error("Kunne ikke invitere", adresse, "-", error?.message);
+  let bruger: { id: string } | null = data?.user ?? null;
+  let advarsel: string | null = null;
 
-    // Den hyppigste årsag er, at adressen allerede findes i Supabase Auth.
-    // Beskeden derfra er brugbar og vises som den er — siden er bag login.
-    return { ok: false, fejl: error?.message ?? "Invitationen kunne ikke sendes." };
+  if (error || !bruger) {
+    console.error("Kunne ikke invitere", adresse, "-", error?.code, error?.message);
+
+    // Findes adressen allerede, er beskeden fra Supabase brugbar og vises,
+    // som den er — siden er bag login.
+    if (error?.code === "email_exists" || /already been registered/i.test(error?.message ?? "")) {
+      return { ok: false, fejl: error?.message ?? "Adressen findes allerede." };
+    }
+
+    // Ellers er det typisk Supabase' egen mailafsendelse, der fejler ("Error
+    // sending invite email") — dens SMTP-opsætning, eller dens grænse for
+    // antal mails. Så sendes invitationen af os selv i stedet: Supabase laver
+    // stadig brugeren og engangslinket, men mailen går gennem samme
+    // SMTP-forbindelse som lokalebookingen.
+    const reserve = await inviterSelv(adresse, rentNavn, redirectTo, base);
+    if (!reserve.ok) return reserve;
+
+    bruger = reserve.bruger;
+    advarsel = reserve.advarsel;
   }
+
+  if (!bruger) return { ok: false, fejl: "Invitationen kunne ikke sendes." };
 
   const { error: raekkefejl } = await supabaseAdmin.from("admin_users").upsert(
     {
-      auth_user_id: data.user.id,
+      auth_user_id: bruger.id,
       email: adresse,
       navn: rentNavn,
       rolle: renRolle,
@@ -126,7 +149,66 @@ export async function inviterBruger(
   }
 
   revalidatePath(STI);
+
+  // Brugeren er oprettet og har adgang, men mailen kom ikke af sted. Linket
+  // vises til administratoren, så det kan sendes på anden vis.
+  if (advarsel) return { ok: false, fejl: advarsel };
+
   return { ok: true };
+}
+
+// Invitationen uden Supabase' mailafsendelse.
+//
+// generateLink opretter brugeren og engangstokenet præcis som en almindelig
+// invitation, men sender ingenting. Linket bygges, så det lander på
+// /auth/bekraeft med token_hash, ligesom Supabase' egen skabelon er sat op til.
+async function inviterSelv(
+  adresse: string,
+  navn: string | null,
+  redirectTo: string,
+  base: string
+): Promise<
+  | { ok: true; bruger: { id: string }; advarsel: string | null }
+  | { ok: false; fejl: string }
+> {
+  const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+    type: "invite",
+    email: adresse,
+    options: { redirectTo },
+  });
+
+  const hash = data?.properties?.hashed_token;
+
+  if (error || !data?.user || !hash) {
+    console.error("Kunne ikke lave invitationslink til", adresse, "-", error?.message);
+    return { ok: false, fejl: error?.message ?? "Invitationen kunne ikke oprettes." };
+  }
+
+  const link =
+    `${base}/auth/bekraeft?token_hash=${encodeURIComponent(hash)}` +
+    `&type=invite&next=${encodeURIComponent("/opret-adgangskode")}`;
+
+  const indhold = invitationsmail(navn, link);
+  const sendt = await sendMail({
+    til: adresse,
+    emne: indhold.emne,
+    html: indhold.html,
+    tekst: indhold.tekst,
+    fraNavn: "Vejle Boldklub Admin",
+  });
+
+  if (!sendt.ok) {
+    console.error("Invitationsmail kunne ikke sendes til", adresse, "-", sendt.grund);
+    return {
+      ok: true,
+      bruger: data.user,
+      advarsel:
+        `Brugeren er oprettet med adgang, men mailen kunne ikke sendes (${sendt.grund}). ` +
+        `Send dette link til brugeren selv — det virker kun én gang: ${link}`,
+    };
+  }
+
+  return { ok: true, bruger: data.user, advarsel: null };
 }
 
 export async function opdaterBruger(

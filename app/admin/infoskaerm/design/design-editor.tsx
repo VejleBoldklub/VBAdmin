@@ -572,7 +572,19 @@ export default function DesignEditor({
             erstat(designFraKostplan(indhold), "Start forfra fra kostplanen? Det nuværende design bliver erstattet (du kan fortryde).")
           }
         >
-          Start forfra
+          Start fra kostplanen
+        </button>
+        <button
+          type="button"
+          className={KNAP}
+          onClick={() =>
+            erstat(
+              { baggrund: "#FFFFFF", elementer: [] },
+              "Start på en tom side? Det nuværende design bliver erstattet (du kan fortryde)."
+            )
+          }
+        >
+          Tom side
         </button>
         {andre.map((a) => (
           <button
@@ -688,7 +700,9 @@ export default function DesignEditor({
                 onChange={(baggrund) => aendre((d) => ({ ...d, baggrund }), "baggrund")}
               />
               <p className="text-sm text-slate-600">
-                Klik på et element på skærmen for at ændre det, eller vælg det i listen herunder.
+                {design.elementer.length === 0
+                  ? "Siden er tom. Tilføj tekst, billeder, felter og logo med knapperne over skærmen."
+                  : "Klik på et element på skærmen for at ændre det, eller vælg det i listen herunder."}
               </p>
             </div>
           )}
