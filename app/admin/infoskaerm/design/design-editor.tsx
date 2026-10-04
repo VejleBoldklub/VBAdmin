@@ -18,6 +18,7 @@ import { billedUrl, DesignLaerred, useSkala } from "@/components/infoskaerm/desi
 import { gemDesign, lagDesignBilledeOp } from "./actions";
 import { ElementPanel } from "./egenskaber";
 import { FarveFelt, KNAP } from "./felter";
+import FuldSkaerm from "./fuld-skaerm";
 
 // Editoren til ét farvedesign.
 //
@@ -94,6 +95,7 @@ export default function DesignEditor({
   const [linjer, setLinjer] = useState<Hjaelpelinjer>({ lodret: [], vandret: [] });
   const [isPending, startTransition] = useTransition();
   const [lagerOp, setLagerOp] = useState(false);
+  const [fuldSkaerm, setFuldSkaerm] = useState(false);
 
   const [ramme, setRamme] = useState<HTMLDivElement | null>(null);
   const tekstRef = useRef<HTMLTextAreaElement>(null);
@@ -222,6 +224,9 @@ export default function DesignEditor({
       const maal = ev.target as HTMLElement | null;
       if (maal && (maal.closest("input, textarea, select") || maal.isContentEditable)) return;
 
+      // Forhåndsvisningen har sine egne taster.
+      if (fuldSkaerm) return;
+
       const mod = ev.metaKey || ev.ctrlKey;
 
       if (mod && ev.key.toLowerCase() === "z") {
@@ -270,7 +275,7 @@ export default function DesignEditor({
 
     window.addEventListener("keydown", tast);
     return () => window.removeEventListener("keydown", tast);
-  }, [valgt, design, fortryd, gentag, dupliker, slet, opdaterElement]);
+  }, [valgt, design, fortryd, gentag, dupliker, slet, opdaterElement, fuldSkaerm]);
 
   // Advar, hvis siden forlades med ændringer, der ikke er gemt.
   useEffect(() => {
@@ -586,6 +591,19 @@ export default function DesignEditor({
         >
           Tom side
         </button>
+
+        <span className="mx-1 h-6 w-px bg-slate-300" aria-hidden />
+
+        <button
+          type="button"
+          className={`${KNAP} border-slate-900 bg-slate-900 text-white hover:bg-slate-800`}
+          onClick={() => {
+            setValgt(null);
+            setFuldSkaerm(true);
+          }}
+        >
+          ⛶ Vis i fuld skærm
+        </button>
         {andre.map((a) => (
           <button
             key={a.farve}
@@ -768,6 +786,15 @@ export default function DesignEditor({
           </p>
         )}
       </div>
+
+      {fuldSkaerm && (
+        <FuldSkaerm
+          design={design}
+          billedBase={billedBase}
+          besked={EKSEMPEL_BESKED}
+          onLuk={() => setFuldSkaerm(false)}
+        />
+      )}
     </div>
   );
 }
