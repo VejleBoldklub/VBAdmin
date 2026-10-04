@@ -3,6 +3,14 @@
 import Image from 'next/image';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { DAY_CONTENT, type DagFarve, type DagIndhold } from '@/lib/infoskaerm/content';
+import {
+  erOpsaetning,
+  erSkaermBillede,
+  type Opsaetning,
+  type SkaermBillede,
+} from '@/lib/infoskaerm/billeder';
+import { LAERRED_B, LAERRED_H, rensDesign, type Design } from '@/lib/infoskaerm/design';
+import { DesignLaerred, useSkala } from '@/components/infoskaerm/design-laerred';
 
 // Enten er der en plan for dagen, eller også er der ikke.
 //
@@ -10,15 +18,27 @@ import { DAY_CONTENT, type DagFarve, type DagIndhold } from '@/lib/infoskaerm/co
 // navn eller indhold, og en type, der lod dem stå tomme, ville invitere til at
 // tegne et halvt kort. Rækken i databasen kræver en farve, så en dag uden
 // farve har heller ingen besked.
-export type ScreenData =
+//
+// Billederne og opsætningen ligger uden for unionen: de findes, hvad enten der
+// er valgt en farve for dagen eller ej.
+export type ScreenData = (
   | {
       harPlan: true;
       farve: DagFarve;
       navn: string;
       ekstraBesked: string;
       content: DagIndhold;
+      // Dagens farves design fra editoren, hvis et er slået til. Ellers
+      // tegnes kostkortene.
+      design: Design | null;
     }
-  | { harPlan: false };
+  | { harPlan: false }
+) & {
+  billeder: SkaermBillede[];
+  opsaetning: Opsaetning;
+  // Begyndelsen af adressen på billeder i Storage. Se billedBase().
+  billedBase: string;
+};
 
 const POLL_INTERVAL_MS = 120_000; // 2 min, samme som den gamle Apps Script-løsning
 
@@ -44,6 +64,10 @@ function erSkaermData(vaerdi: unknown): vaerdi is ScreenData & { ok: true } {
 
   if (v.ok !== true) return false;
 
+  if (!erOpsaetning(v.opsaetning)) return false;
+  if (typeof v.billedBase !== 'string') return false;
+  if (!Array.isArray(v.billeder) || !v.billeder.every(erSkaermBillede)) return false;
+
   // Ingen plan er et gyldigt svar, ikke en fejl. Det er netop det, skærmen skal
   // kunne vise frem for at gætte på en farve.
   if (v.harPlan === false) return true;
@@ -55,7 +79,8 @@ function erSkaermData(vaerdi: unknown): vaerdi is ScreenData & { ok: true } {
     typeof v.navn === 'string' &&
     typeof v.ekstraBesked === 'string' &&
     typeof v.content === 'object' &&
-    v.content !== null
+    v.content !== null &&
+    (v.design === null || rensDesign(v.design) !== null)
   );
 }
 
@@ -66,6 +91,22 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
   // Tælleren findes kun for at få tilpasningen til at køre igen. Værdien
   // bruges ikke — det er ændringen, der er signalet.
   const [maaling, setMaaling] = useState(0);
+
+  // Tæller op hver gang, der skal skiftes billede. Hvilket billede, der vises,
+  // regnes ud med modulo, så en liste, der bliver kortere ved næste opdatering,
+  // ikke kan pege ud over enden.
+  const [trin, setTrin] = useState(0);
+  const sekunder = data.opsaetning.sekunder;
+
+  // Rammen om et design og den skala, lærredet på 1920 × 1080 skal tegnes i
+  // for at fylde den.
+  const [designRamme, setDesignRamme] = useState<HTMLDivElement | null>(null);
+  const designSkala = useSkala(designRamme);
+
+  useEffect(() => {
+    const id = setInterval(() => setTrin((n) => n + 1), sekunder * 1000);
+    return () => clearInterval(id);
+  }, [sekunder]);
 
   useEffect(() => {
     let cancelled = false;
@@ -148,6 +189,48 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
     '--skala': 1,
   } as React.CSSProperties;
 
+  const { billeder } = data;
+  const harBilleder = billeder.length > 0;
+
+  // Hvilken opsætning, der rent faktisk bruges.
+  //
+  // Uden billeder er der intet at vise ved siden af eller skifte til, og
+  // skærmen ser ud som før. Uden en kostplan for dagen er der ingen kort at
+  // stille billederne ved siden af — så skifter skærmen i stedet mellem
+  // beskeden om den manglende plan og billederne, frem for at skjule dem.
+  //
+  // Det samme gælder et design fra editoren: det er hele skærmen, og der er
+  // ingen kolonne at stille billederne i. Vil man have billeder ved siden af et
+  // design, lægger man dem ind i designet.
+  const design = data.harPlan ? data.design : null;
+  const layout = !harBilleder
+    ? 'kost'
+    : (!data.harPlan || design) && data.opsaetning.layout === 'side'
+      ? 'skift'
+      : data.opsaetning.layout;
+
+  // I skift er kostplanen trin 0 og billederne de følgende.
+  const skiftTrin = trin % (billeder.length + 1);
+  const sideBillede = harBilleder ? trin % billeder.length : 0;
+
+  // Billederne i fuld skærm lægges oven på kostplanen frem for at erstatte den.
+  // Kostplanen bliver dermed stående i siden, og tilpasningen af skriften
+  // ovenfor måler den, som den altid har gjort — også mens et billede vises.
+  // Alle billeder er tegnet hele tiden og skiftes med opacity, så kiosken har
+  // hentet dem i forvejen og ikke viser et halvt indlæst billede.
+  const fuldSkaerm =
+    layout === 'skift' ? (
+      <div
+        aria-hidden={skiftTrin === 0}
+        className="fixed inset-0 bg-black transition-opacity duration-700"
+        style={{ opacity: skiftTrin === 0 ? 0 : 1 }}
+      >
+        {billeder.map((b, i) => (
+          <BilledLag key={b.id} billede={b} synlig={skiftTrin === i + 1} fuldSkaerm />
+        ))}
+      </div>
+    ) : null;
+
   // Ingen farve sat for dagen.
   //
   // Skærmen viser bevidst IKKE et af de tre kostkort. Et kort ville se ud som
@@ -188,6 +271,41 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
             No meal plan selected for today
           </p>
         </div>
+
+        {fuldSkaerm}
+      </div>
+    );
+  }
+
+  // Et design fra editoren.
+  //
+  // Roden er præcis skærmens højde, så tilpasningen af skriften ovenfor ikke
+  // finder noget at skrue ned for. Lærredet skaleres som helhed i stedet.
+  if (design) {
+    return (
+      <div
+        ref={(el) => {
+          rodRef.current = el;
+          setDesignRamme(el);
+        }}
+        className="flex h-screen w-full items-center justify-center overflow-hidden"
+        style={{ background: design.baggrund }}
+      >
+        {designSkala > 0 && (
+          <div
+            className="overflow-hidden"
+            style={{ width: LAERRED_B * designSkala, height: LAERRED_H * designSkala }}
+          >
+            <DesignLaerred
+              design={design}
+              billedBase={data.billedBase}
+              besked={data.ekstraBesked}
+              skala={designSkala}
+            />
+          </div>
+        )}
+
+        {fuldSkaerm}
       </div>
     );
   }
@@ -260,7 +378,12 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
         <section
           className="grid flex-1 gap-[1.4vw]"
           style={{
-            gridTemplateColumns: `repeat(${c.blocks.length + (data.ekstraBesked ? 1 : 0)}, 1fr)`,
+            // Billedkolonnen er lidt bredere end et kostkort. Et foto af maden
+            // skal kunne ses på afstand, og det har ingen tekst, der kan skrues
+            // ned for at få plads.
+            gridTemplateColumns:
+              `repeat(${c.blocks.length + (data.ekstraBesked ? 1 : 0)}, 1fr)` +
+              (layout === 'side' ? ' 1.4fr' : ''),
           }}
         >
           {c.blocks.map((block, i) => (
@@ -316,8 +439,62 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
               </div>
             </div>
           )}
+
+          {layout === 'side' && (
+            <div
+              className="relative overflow-hidden rounded-[32px] border border-gray-200 bg-white"
+              style={{ boxShadow: '0 14px 32px rgba(15,23,42,.09)' }}
+            >
+              {billeder.map((b, i) => (
+                <BilledLag key={b.id} billede={b} synlig={sideBillede === i} />
+              ))}
+            </div>
+          )}
         </section>
       </main>
+
+      {fuldSkaerm}
     </div>
+  );
+}
+
+// Ét billede med sin tekst. Ligger oven på de andre og tones ind og ud.
+//
+// Et almindeligt img-element frem for next/image: filen er skaleret ned ved
+// upload, og kiosken skal ikke afhænge af en ekstra omvej gennem Next'
+// billedoptimering for at vise den.
+function BilledLag({
+  billede,
+  synlig,
+  fuldSkaerm = false,
+}: {
+  billede: SkaermBillede;
+  synlig: boolean;
+  fuldSkaerm?: boolean;
+}) {
+  return (
+    <figure
+      className="absolute inset-0 m-0 transition-opacity duration-700"
+      style={{ opacity: synlig ? 1 : 0 }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={billede.url}
+        alt={billede.tekst}
+        // Fuld skærm: hele billedet, uden at noget skæres fra. I kolonnen ved
+        // siden af kostplanen fylder det derimod rammen ud.
+        className={`h-full w-full ${fuldSkaerm ? 'object-contain' : 'object-cover'}`}
+      />
+      {billede.tekst && (
+        <figcaption
+          className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-[3vw] pt-[6vh] pb-[3vh] text-center font-black leading-[1.15] text-white"
+          style={{
+            fontSize: fuldSkaerm ? 'clamp(48px, 3.6vw, 140px)' : 'clamp(32px, 2vw, 72px)',
+          }}
+        >
+          {billede.tekst}
+        </figcaption>
+      )}
+    </figure>
   );
 }

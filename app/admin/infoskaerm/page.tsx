@@ -62,6 +62,20 @@ export default async function InfoskaermAdminPage() {
         Redigér kostindhold →
       </Link>
 
+      <Link
+        href="/admin/infoskaerm/design"
+        className="mt-4 ml-3 inline-block rounded-lg border border-red-700 bg-red-700 px-3 py-2 text-sm font-semibold text-white hover:bg-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
+      >
+        Design skærmen →
+      </Link>
+
+      <Link
+        href="/admin/infoskaerm/skaerm"
+        className="mt-4 ml-3 inline-block rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:border-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+      >
+        Skærm og billeder →
+      </Link>
+
       {/* Kan planen ikke læses, siger siden det. Ellers ligner en fejl bare en
           uge, hvor ingen har sat farver på endnu. */}
       {fejl && (
