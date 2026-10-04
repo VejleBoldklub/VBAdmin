@@ -1,6 +1,7 @@
 import { supabasePublic } from "@/lib/supabase-public";
 import { getIndhold, getTodayPlan } from "@/lib/infoskaerm/data";
-import { getDagensBilleder, getOpsaetning } from "@/lib/infoskaerm/billeder";
+import { billedBase, getDagensBilleder, getOpsaetning } from "@/lib/infoskaerm/billeder";
+import { getAktivtDesign } from "@/lib/infoskaerm/design-data";
 import type { DagFarve } from "@/lib/infoskaerm/content";
 import ScreenView from "./screen-view";
 
@@ -33,12 +34,13 @@ export default async function CafeteriaInfoskaermPage() {
     getDagensBilleder(client),
     getOpsaetning(client),
   ]);
+  const base = billedBase(client);
 
   // Ingen farve sat for dagen: skærmen siger det frem for at vise et kostkort,
   // ingen har valgt. En reserve her ville skjule en glemt indtastning — det så
   // ud som en plan, og så opdagede ingen, at der ikke var nogen.
   if (!row) {
-    return <ScreenView initial={{ harPlan: false, billeder, opsaetning }} />;
+    return <ScreenView initial={{ harPlan: false, billeder, opsaetning, billedBase: base }} />;
   }
 
   const farve: DagFarve = row.farve;
@@ -46,7 +48,10 @@ export default async function CafeteriaInfoskaermPage() {
   // Kostindholdet redigeres fra adminfladen og hentes derfor med. Kan det ikke
   // hentes, falder getIndhold tilbage til de hardcodede værdier. Den reserve
   // bliver: teksterne er indholdet i et valgt kort, ikke selve valget.
-  const content = await getIndhold(client, farve);
+  const [content, design] = await Promise.all([
+    getIndhold(client, farve),
+    getAktivtDesign(client, farve),
+  ]);
 
   return (
     <ScreenView
@@ -56,8 +61,10 @@ export default async function CafeteriaInfoskaermPage() {
         navn: content.shortName,
         ekstraBesked: row.ekstra_besked,
         content,
+        design,
         billeder,
         opsaetning,
+        billedBase: base,
       }}
     />
   );

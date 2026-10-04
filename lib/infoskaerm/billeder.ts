@@ -172,3 +172,10 @@ export async function getOpsaetningTilAdmin(
 
   return { opsaetning: erOpsaetning(data) ? data : STANDARD_OPSAETNING, fejl: null };
 }
+
+// Begyndelsen af en offentlig adresse i bucketen. Designets billeder gemmes
+// som stier, og adressen sættes sammen i browseren — miljøvariablen med
+// Supabase-adressen findes kun på serveren.
+export function billedBase(client: SupabaseClient): string {
+  return client.storage.from(BUCKET).getPublicUrl("").data.publicUrl.replace(/\/?$/, "/");
+}

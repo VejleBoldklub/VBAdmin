@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabasePublic } from "@/lib/supabase-public";
 import { getIndhold, getTodayPlan } from "@/lib/infoskaerm/data";
-import { getDagensBilleder, getOpsaetning } from "@/lib/infoskaerm/billeder";
+import { billedBase, getDagensBilleder, getOpsaetning } from "@/lib/infoskaerm/billeder";
+import { getAktivtDesign } from "@/lib/infoskaerm/design-data";
 
 // Skærmens opdateringskald. Kiosken henter denne rute hvert andet minut, så en
 // ændring i adminfladen slår igennem uden at siden genindlæses.
@@ -21,12 +22,16 @@ export async function GET() {
     getDagensBilleder(client),
     getOpsaetning(client),
   ]);
+  const base = billedBase(client);
 
   if (!row) {
-    return NextResponse.json({ ok: true, harPlan: false, billeder, opsaetning });
+    return NextResponse.json({ ok: true, harPlan: false, billeder, opsaetning, billedBase: base });
   }
 
-  const content = await getIndhold(client, row.farve);
+  const [content, design] = await Promise.all([
+    getIndhold(client, row.farve),
+    getAktivtDesign(client, row.farve),
+  ]);
 
   return NextResponse.json({
     ok: true,
@@ -35,7 +40,9 @@ export async function GET() {
     navn: content.shortName,
     ekstraBesked: row.ekstra_besked,
     content,
+    design,
     billeder,
     opsaetning,
+    billedBase: base,
   });
 }

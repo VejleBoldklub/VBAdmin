@@ -1,51 +1,13 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { skalerNed } from "@/lib/infoskaerm/skaler-billede";
 import { lagBilledOp } from "./actions";
 
 const FELT =
   "w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700";
 
 const ETIKET = "block text-xs font-bold uppercase tracking-[0.12em] text-slate-500";
-
-// Skærmen er en almindelig fladskærm. Større end dette ses ikke, og et billede
-// direkte fra en telefon er ofte 4–8 MB.
-const MAKS_SIDE = 1920;
-
-// Skalér billedet ned i browseren, før det sendes.
-//
-// Et foto fra en telefon er større, end en server action og Vercel tager imod,
-// og meget større end skærmen kan vise. createImageBitmap med
-// imageOrientation: "from-image" vender billedet efter telefonens EXIF-data, så
-// et portrætfoto ikke ender på siden.
-async function skalerNed(fil: File): Promise<Blob> {
-  const bitmap = await createImageBitmap(fil, { imageOrientation: "from-image" });
-
-  const faktor = Math.min(1, MAKS_SIDE / Math.max(bitmap.width, bitmap.height));
-  const bredde = Math.round(bitmap.width * faktor);
-  const hoejde = Math.round(bitmap.height * faktor);
-
-  const laerred = document.createElement("canvas");
-  laerred.width = bredde;
-  laerred.height = hoejde;
-
-  const ctx = laerred.getContext("2d");
-  if (!ctx) throw new Error("Browseren kan ikke behandle billedet.");
-
-  // Hvid bund, så et PNG med gennemsigtighed ikke bliver sort som JPEG.
-  ctx.fillStyle = "#FFFFFF";
-  ctx.fillRect(0, 0, bredde, hoejde);
-  ctx.drawImage(bitmap, 0, 0, bredde, hoejde);
-  bitmap.close();
-
-  return new Promise((resolve, reject) => {
-    laerred.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("Billedet kunne ikke konverteres."))),
-      "image/jpeg",
-      0.85
-    );
-  });
-}
 
 export default function BilledUpload() {
   const filRef = useRef<HTMLInputElement>(null);

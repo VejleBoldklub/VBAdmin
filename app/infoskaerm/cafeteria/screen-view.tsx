@@ -9,6 +9,8 @@ import {
   type Opsaetning,
   type SkaermBillede,
 } from '@/lib/infoskaerm/billeder';
+import { LAERRED_B, LAERRED_H, rensDesign, type Design } from '@/lib/infoskaerm/design';
+import { DesignLaerred, useSkala } from '@/components/infoskaerm/design-laerred';
 
 // Enten er der en plan for dagen, eller også er der ikke.
 //
@@ -26,11 +28,16 @@ export type ScreenData = (
       navn: string;
       ekstraBesked: string;
       content: DagIndhold;
+      // Dagens farves design fra editoren, hvis et er slået til. Ellers
+      // tegnes kostkortene.
+      design: Design | null;
     }
   | { harPlan: false }
 ) & {
   billeder: SkaermBillede[];
   opsaetning: Opsaetning;
+  // Begyndelsen af adressen på billeder i Storage. Se billedBase().
+  billedBase: string;
 };
 
 const POLL_INTERVAL_MS = 120_000; // 2 min, samme som den gamle Apps Script-løsning
@@ -58,6 +65,7 @@ function erSkaermData(vaerdi: unknown): vaerdi is ScreenData & { ok: true } {
   if (v.ok !== true) return false;
 
   if (!erOpsaetning(v.opsaetning)) return false;
+  if (typeof v.billedBase !== 'string') return false;
   if (!Array.isArray(v.billeder) || !v.billeder.every(erSkaermBillede)) return false;
 
   // Ingen plan er et gyldigt svar, ikke en fejl. Det er netop det, skærmen skal
@@ -71,7 +79,8 @@ function erSkaermData(vaerdi: unknown): vaerdi is ScreenData & { ok: true } {
     typeof v.navn === 'string' &&
     typeof v.ekstraBesked === 'string' &&
     typeof v.content === 'object' &&
-    v.content !== null
+    v.content !== null &&
+    (v.design === null || rensDesign(v.design) !== null)
   );
 }
 
@@ -88,6 +97,11 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
   // ikke kan pege ud over enden.
   const [trin, setTrin] = useState(0);
   const sekunder = data.opsaetning.sekunder;
+
+  // Rammen om et design og den skala, lærredet på 1920 × 1080 skal tegnes i
+  // for at fylde den.
+  const [designRamme, setDesignRamme] = useState<HTMLDivElement | null>(null);
+  const designSkala = useSkala(designRamme);
 
   useEffect(() => {
     const id = setInterval(() => setTrin((n) => n + 1), sekunder * 1000);
@@ -184,9 +198,14 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
   // skærmen ser ud som før. Uden en kostplan for dagen er der ingen kort at
   // stille billederne ved siden af — så skifter skærmen i stedet mellem
   // beskeden om den manglende plan og billederne, frem for at skjule dem.
+  //
+  // Det samme gælder et design fra editoren: det er hele skærmen, og der er
+  // ingen kolonne at stille billederne i. Vil man have billeder ved siden af et
+  // design, lægger man dem ind i designet.
+  const design = data.harPlan ? data.design : null;
   const layout = !harBilleder
     ? 'kost'
-    : !data.harPlan && data.opsaetning.layout === 'side'
+    : (!data.harPlan || design) && data.opsaetning.layout === 'side'
       ? 'skift'
       : data.opsaetning.layout;
 
@@ -252,6 +271,39 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
             No meal plan selected for today
           </p>
         </div>
+
+        {fuldSkaerm}
+      </div>
+    );
+  }
+
+  // Et design fra editoren.
+  //
+  // Roden er præcis skærmens højde, så tilpasningen af skriften ovenfor ikke
+  // finder noget at skrue ned for. Lærredet skaleres som helhed i stedet.
+  if (design) {
+    return (
+      <div
+        ref={(el) => {
+          rodRef.current = el;
+          setDesignRamme(el);
+        }}
+        className="flex h-screen w-full items-center justify-center overflow-hidden"
+        style={{ background: design.baggrund }}
+      >
+        {designSkala > 0 && (
+          <div
+            className="overflow-hidden"
+            style={{ width: LAERRED_B * designSkala, height: LAERRED_H * designSkala }}
+          >
+            <DesignLaerred
+              design={design}
+              billedBase={data.billedBase}
+              besked={data.ekstraBesked}
+              skala={designSkala}
+            />
+          </div>
+        )}
 
         {fuldSkaerm}
       </div>
