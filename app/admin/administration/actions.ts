@@ -184,9 +184,33 @@ async function inviterSelv(
     return { ok: false, fejl: error?.message ?? "Invitationen kunne ikke oprettes." };
   }
 
+  const sendt = await sendLink(adresse, navn, base, hash, "invite", "/opret-adgangskode");
+
+  if (!sendt.ok) {
+    return {
+      ok: true,
+      bruger: data.user,
+      advarsel:
+        `Brugeren er oprettet med adgang, men mailen kunne ikke sendes (${sendt.grund}). ` +
+        `Send dette link til brugeren selv — det virker kun én gang: ${sendt.link}`,
+    };
+  }
+
+  return { ok: true, bruger: data.user, advarsel: null };
+}
+
+// Bygger linket til /auth/bekraeft og sender det med vores egen SMTP.
+async function sendLink(
+  adresse: string,
+  navn: string | null,
+  base: string,
+  hash: string,
+  type: "invite" | "recovery",
+  videre: string
+): Promise<{ ok: true } | { ok: false; grund: string; link: string }> {
   const link =
     `${base}/auth/bekraeft?token_hash=${encodeURIComponent(hash)}` +
-    `&type=invite&next=${encodeURIComponent("/opret-adgangskode")}`;
+    `&type=${type}&next=${encodeURIComponent(videre)}`;
 
   const indhold = invitationsmail(navn, link);
   const sendt = await sendMail({
@@ -199,16 +223,95 @@ async function inviterSelv(
 
   if (!sendt.ok) {
     console.error("Invitationsmail kunne ikke sendes til", adresse, "-", sendt.grund);
-    return {
-      ok: true,
-      bruger: data.user,
-      advarsel:
-        `Brugeren er oprettet med adgang, men mailen kunne ikke sendes (${sendt.grund}). ` +
-        `Send dette link til brugeren selv — det virker kun én gang: ${link}`,
-    };
+    return { ok: false, grund: sendt.grund, link };
   }
 
-  return { ok: true, bruger: data.user, advarsel: null };
+  return { ok: true };
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// En ny invitation til en bruger, der ikke nåede at bruge den første.
+//
+// Linket i en invitation virker kun én gang og kun i begrænset tid. Er det
+// udløbet, laves et nyt engangslink til samme bruger — adgangen i admin_users
+// røres ikke. Har brugeren aldrig bekræftet sin adresse, er det en ny
+// invitation; ellers et nulstillingslink, der fører til samme side, hvor der
+// vælges adgangskode.
+export async function sendNyInvitation(authUserId: string): Promise<GemResultat> {
+  const kalder = await kraevAdministrator();
+  if (!kalder) {
+    console.error("Afvist forsøg på at sende en ny invitation uden administratoradgang.");
+    return { ok: false, fejl: IKKE_ADMIN };
+  }
+
+  if (!UUID.test(authUserId)) return { ok: false, fejl: "Ukendt bruger." };
+
+  const { data: raekke, error: raekkefejl } = await supabaseAdmin
+    .from("admin_users")
+    .select("email, navn")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle();
+
+  if (raekkefejl) {
+    console.error("Kunne ikke læse bruger til ny invitation:", raekkefejl);
+    return { ok: false, fejl: `Kunne ikke hente brugeren: ${beskrivSupabaseFejl(raekkefejl)}` };
+  }
+
+  if (!raekke || typeof raekke.email !== "string") {
+    return { ok: false, fejl: "Brugeren findes ikke længere. Genindlæs siden." };
+  }
+
+  const adresse = raekke.email;
+  const navn = typeof raekke.navn === "string" ? raekke.navn : null;
+
+  const { data: auth } = await supabaseAdmin.auth.admin.getUserById(authUserId);
+  const bekraeftet = Boolean(auth?.user?.email_confirmed_at);
+
+  const base = await appBaseUrl();
+
+  // Først en invitation, hvis adressen ikke er bekræftet. Afviser Supabase den,
+  // bruges et nulstillingslink — det virker for enhver eksisterende bruger.
+  const forsoeg: { type: "invite" | "recovery"; videre: string }[] = bekraeftet
+    ? [{ type: "recovery", videre: "/opret-adgangskode?nulstil=1" }]
+    : [
+        { type: "invite", videre: "/opret-adgangskode" },
+        { type: "recovery", videre: "/opret-adgangskode?nulstil=1" },
+      ];
+
+  let sidsteFejl = "Linket kunne ikke laves.";
+
+  for (const { type, videre } of forsoeg) {
+    const redirectTo = `${base}/auth/bekraeft?next=${encodeURIComponent(videre)}`;
+    const { data, error } = await supabaseAdmin.auth.admin.generateLink({
+      type,
+      email: adresse,
+      options: { redirectTo },
+    });
+
+    const hash = data?.properties?.hashed_token;
+
+    if (error || !hash) {
+      console.error("Kunne ikke lave", type, "-link til", adresse, "-", error?.message);
+      sidsteFejl = error?.message ?? sidsteFejl;
+      continue;
+    }
+
+    const sendt = await sendLink(adresse, navn, base, hash, type, videre);
+
+    if (!sendt.ok) {
+      return {
+        ok: false,
+        fejl:
+          `Mailen kunne ikke sendes (${sendt.grund}). ` +
+          `Send dette link til brugeren selv — det virker kun én gang: ${sendt.link}`,
+      };
+    }
+
+    return { ok: true };
+  }
+
+  return { ok: false, fejl: `Invitationen kunne ikke sendes: ${sidsteFejl}` };
 }
 
 export async function opdaterBruger(
