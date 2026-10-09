@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import type { Modul } from "@/lib/moduler";
 import type { AdminBrugerRaekke, SidsteLogin } from "@/lib/administration";
-import { fjernBruger, opdaterBruger } from "./actions";
+import { fjernBruger, opdaterBruger, sendNyInvitation } from "./actions";
 import { ModulVaelger } from "./modul-vaelger";
 
 // Datoerne formateres med eksplicit tidszone.
@@ -50,26 +50,29 @@ export default function BrugerRaekke({
   const [rolle, setRolle] = useState<"admin" | "user">(bruger.rolle);
   const [moduler, setModuler] = useState<Modul[]>(bruger.moduler);
   const [fejl, setFejl] = useState<string | null>(null);
-  const [gemt, setGemt] = useState(false);
+  const [gemt, setGemt] = useState<string | null>(null);
   const [bekraeftFjern, setBekraeftFjern] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  function kald(handling: () => Promise<{ ok: true } | { ok: false; fejl: string }>) {
+  function kald(
+    handling: () => Promise<{ ok: true } | { ok: false; fejl: string }>,
+    besked = "Gemt ✓"
+  ) {
     startTransition(async () => {
       try {
         const svar = await handling();
 
         if (svar.ok) {
           setFejl(null);
-          setGemt(true);
+          setGemt(besked);
         } else {
           setFejl(svar.fejl);
-          setGemt(false);
+          setGemt(null);
         }
       } catch (err) {
         console.error("Kald til brugerhandling fejlede:", err);
         setFejl(err instanceof Error ? err.message : "Serveren svarede ikke. Prøv igen.");
-        setGemt(false);
+        setGemt(null);
       }
     });
   }
@@ -107,7 +110,7 @@ export default function BrugerRaekke({
               autoComplete="name"
               onChange={(e) => {
                 setNavn(e.target.value);
-                setGemt(false);
+                setGemt(null);
               }}
               className="w-44 rounded-lg border border-slate-300 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
             />
@@ -120,7 +123,7 @@ export default function BrugerRaekke({
               value={rolle}
               onChange={(e) => {
                 setRolle(e.target.value === "admin" ? "admin" : "user");
-                setGemt(false);
+                setGemt(null);
               }}
             >
               <option value="user">Bruger</option>
@@ -145,7 +148,7 @@ export default function BrugerRaekke({
           erAdministrator={rolle === "admin"}
           onSkift={(m) => {
             setModuler(m);
-            setGemt(false);
+            setGemt(null);
           }}
           navnePraefiks={bruger.authUserId}
         />
@@ -184,13 +187,31 @@ export default function BrugerRaekke({
             </button>
           ))}
 
+        {/* Linket i en invitation udløber. Har brugeren aldrig logget ind, kan
+            en ny sendes herfra uden at fjerne og invitere brugeren forfra. */}
+        {!erMigSelv && bruger.sidsteLogin.slags === "aldrig" && (
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() =>
+              kald(
+                () => sendNyInvitation(bruger.authUserId),
+                `Ny invitation sendt til ${bruger.email} ✓`
+              )
+            }
+            className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:border-slate-400 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+          >
+            Send ny invitation
+          </button>
+        )}
+
         <span aria-live="polite" className="text-sm text-slate-600">
-          {gemt ? "Gemt ✓" : ""}
+          {gemt ?? ""}
         </span>
       </div>
 
       {fejl && (
-        <p role="alert" className="mt-2 text-sm font-semibold text-red-700">
+        <p role="alert" className="mt-2 break-words text-sm font-semibold text-red-700">
           {fejl}
         </p>
       )}
