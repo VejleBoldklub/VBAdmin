@@ -34,7 +34,19 @@ export type ScheduleEvent = {
   field: string; // matcher ScheduleField.name
   room?: string; // omklædningsrum, "-" hvis ingen
   category: Category;
+  // Bruger tildelingen kun den ene halvdel af banen? Udeladt betyder hele
+  // banen — det er alle eksisterende planers tildelinger, så feltet må ikke
+  // gøres påkrævet. Se layoutEvents for hvordan det placeres.
+  halv?: Halvdel;
 };
+
+export type Halvdel = "venstre" | "hoejre";
+
+export const HALVDELE: { value: Halvdel | null; label: string }[] = [
+  { value: null, label: "Hele banen" },
+  { value: "venstre", label: "Venstre halvdel" },
+  { value: "hoejre", label: "Højre halvdel" },
+];
 
 // Måloversigten nederst på den offentlige baneplan: hvilke måltyper der står på
 // hvilke baner. Det er stamdata om parken, ikke en del af sæsonens tildelinger,
