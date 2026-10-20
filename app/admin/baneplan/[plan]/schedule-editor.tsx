@@ -60,6 +60,11 @@ function nytId() {
 // boksens kanter.
 const NY_VARIGHED = 60;
 
+// Hvor langt en boks' side skal trækkes, før den skifter mellem hel og halv
+// bane. Nok til at et utilsigtet ryk ikke skifter, men kort nok til at et
+// almindeligt træk gør det.
+const SIDE_TRAEK_PX = 20;
+
 export default function ScheduleEditor({ fields, events, onChange }: ScheduleEditorProps) {
   const [activeDay, setActiveDay] = useState<string>(() => pickInitialDay(DAGE));
   const [valgt, setValgt] = useState<string | null>(null);
@@ -245,19 +250,25 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
   // Træk i en boks' side for at sætte den til en halv bane eller tilbage til hele.
   //
   // Venstre kant trukket mod midten giver højre halvdel, højre kant trukket mod
-  // midten giver venstre halvdel. Den bliver kun ved med at være halv, så længe
-  // markøren er mindst en fjerdedel inde på banen; føres kanten tilbage ud,
-  // fylder tildelingen igen hele banen. Bredden kan ikke sættes trinløst —
-  // en baneplan bruger hele eller halve baner.
+  // midten giver venstre halvdel; kanten trukket ud igen giver hele banen.
+  // Bredden kan ikke sættes trinløst — en baneplan bruger hele eller halve
+  // baner — så et kort træk på SIDE_TRAEK_PX i den rigtige retning er nok til
+  // at skifte. Tidligere skulle markøren en fjerdedel ind på banen, hvilket på
+  // en bred skærm var over 150 px, og et almindeligt træk gjorde så intet.
   function startSidetraek(e: PointerEvent<HTMLDivElement>, ev: ScheduleEvent, side: Halvdel) {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     e.stopPropagation();
+    // Ellers markerer browseren tekst i boksene, mens der trækkes.
+    e.preventDefault();
     setValgt(ev.id);
     setMenu(null);
     setTraekkerId(ev.id);
 
-    const bane = laneRefs.current.get(ev.field)?.getBoundingClientRect();
-    let sidste: Halvdel | null = ev.halv ?? null;
+    const startX = e.clientX;
+    const fra: Halvdel | null = ev.halv ?? null;
+    // Den halvdel, tildelingen ender i, når denne kant trækkes ind.
+    const maal: Halvdel = side === "venstre" ? "hoejre" : "venstre";
+    let sidste: Halvdel | null = fra;
     const fanget = e.currentTarget;
     try {
       fanget.setPointerCapture(e.pointerId);
@@ -266,10 +277,10 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
     }
 
     function flyt(pe: globalThis.PointerEvent) {
-      if (!bane || bane.width === 0) return;
-      const andel = (pe.clientX - bane.left) / bane.width;
-      if (side === "venstre") sidste = andel >= 0.25 ? "hoejre" : null;
-      else sidste = andel <= 0.75 ? "venstre" : null;
+      // Hvor langt kanten er trukket ind mod banens midte (negativ: udad).
+      const ind = side === "venstre" ? pe.clientX - startX : startX - pe.clientX;
+      if (fra === maal) sidste = ind <= -SIDE_TRAEK_PX ? null : maal;
+      else sidste = ind >= SIDE_TRAEK_PX ? maal : fra;
       setBreddePreview({ id: ev.id, halv: sidste });
     }
 
