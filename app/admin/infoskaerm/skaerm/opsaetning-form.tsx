@@ -16,6 +16,12 @@ const VALG: { value: Layout; titel: string; tekst: string }[] = [
     tekst: "Skærmen viser dagens kostplan, som den altid har gjort. Billederne vises ikke.",
   },
   {
+    value: "billeder",
+    titel: "Kun billeder",
+    tekst:
+      "Skærmen viser kun billederne, i fuld skærm, ét ad gangen. Når det sidste har været vist, starter den forfra.",
+  },
+  {
     value: "side",
     titel: "Kostplan med billeder",
     tekst: "Kostplanen fylder det meste, og billederne skifter i en kolonne ved siden af.",
@@ -23,11 +29,19 @@ const VALG: { value: Layout; titel: string; tekst: string }[] = [
   {
     value: "skift",
     titel: "Skift mellem kostplan og billeder",
-    tekst: "Skærmen skifter mellem kostplanen og billederne, som hver vises i fuld skærm.",
+    tekst:
+      "Først kostplanen, så hvert billede i fuld skærm efter tur, og så kostplanen igen.",
   },
 ];
 
-export default function OpsaetningForm({ start }: { start: Opsaetning }) {
+export default function OpsaetningForm({
+  start,
+  antalIDag,
+}: {
+  start: Opsaetning;
+  // Billeder, der er slået til og vises i dag: uden dato eller med dagens dato.
+  antalIDag: number;
+}) {
   const [layout, setLayout] = useState<Layout>(start.layout);
   const [sekunder, setSekunder] = useState(String(start.sekunder));
   const [fejl, setFejl] = useState<string | null>(null);
@@ -58,7 +72,7 @@ export default function OpsaetningForm({ start }: { start: Opsaetning }) {
     <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
       <h2 className="text-lg font-bold text-slate-950">Opsætning</h2>
 
-      <fieldset className="mt-4 grid gap-3 sm:grid-cols-3">
+      <fieldset className="mt-4 grid gap-3 sm:grid-cols-2">
         <legend className="sr-only">Hvordan skærmen er sat op</legend>
         {VALG.map((v) => {
           const valgt = layout === v.value;
@@ -106,9 +120,19 @@ export default function OpsaetningForm({ start }: { start: Opsaetning }) {
           className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
         />
         <span className="mt-1 block text-xs text-slate-500">
-          Ved skift står kostplanen også så længe, før næste billede kommer.
+          Hvert billede står så længe, før det næste kommer. Ved skift står kostplanen også så
+          længe.
         </span>
       </label>
+
+      {layout !== "kost" && (
+        <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          {antalIDag === 0
+            ? "Der er ingen billeder at vise i dag, så skærmen viser kostplanen. Læg billeder op nedenfor."
+            : `I dag skifter skærmen mellem ${antalIDag} ${antalIDag === 1 ? "billede" : "billeder"}. ` +
+              `Alle billeder, der er slået til og ikke har en anden dato, kommer med.`}
+        </p>
+      )}
 
       <div className="mt-6 flex flex-wrap items-center gap-4 border-t border-slate-200 pt-5">
         <button

@@ -103,7 +103,9 @@ export default function DesignEditor({
   const traekRef = useRef<Traek | null>(null);
   const samleRef = useRef<{ noegle: string; tid: number } | null>(null);
   // Om det næste billede, der vælges, skal udskifte det valgte eller tilføjes.
-  const udskiftRef = useRef(false);
+  // Hvad det næste valgte billede skal bruges til: tilføjes, udskifte det
+  // valgte, eller blive hele skærmen.
+  const udskiftRef = useRef<"tilfoej" | "udskift" | "hel">("tilfoej");
 
   const skala = useSkala(ramme, true);
   const valgtElement = design.elementer.find((e) => e.id === valgt) ?? null;
@@ -421,8 +423,11 @@ export default function DesignEditor({
     });
   }
 
-  function vaelgBillede(udskift: boolean) {
-    udskiftRef.current = udskift;
+  function vaelgBillede(udskift: boolean | "hel") {
+    if (udskift === "hel" && !window.confirm("Brug ét billede som hele skærmen? Det nuværende design bliver erstattet (du kan fortryde).")) {
+      return;
+    }
+    udskiftRef.current = udskift === "hel" ? "hel" : udskift ? "udskift" : "tilfoej";
     filRef.current?.click();
   }
 
@@ -444,7 +449,21 @@ export default function DesignEditor({
       const maal = await naturligStoerrelse(billedUrl(billedBase, svar.sti));
       const forhold = maal ? maal.b / maal.h : 4 / 3;
 
-      const udskift = udskiftRef.current ? valgtElement : null;
+      // Et færdigt opslag, fx en plakat for dagens farve, fylder hele skærmen.
+      // Hele billedet vises; passer det ikke til 16:9, bliver kanterne sorte.
+      if (udskiftRef.current === "hel") {
+        aendre(() => ({
+          baggrund: "#000000",
+          elementer: [
+            { id: nytId(), type: "billede", x: 0, y: 0, b: LAERRED_B, h: LAERRED_H, sti: svar.sti, tilpasning: "hele", radius: 0 },
+          ],
+        }));
+        setValgt(null);
+        setAktiv(true);
+        return;
+      }
+
+      const udskift = udskiftRef.current === "udskift" ? valgtElement : null;
       if (udskift && udskift.type === "billede") {
         // Rammen bliver, hvor den er; højden følger det nye billede.
         opdaterElement(udskift.id, { sti: svar.sti, h: udskift.b / forhold });
@@ -590,6 +609,15 @@ export default function DesignEditor({
           }
         >
           Tom side
+        </button>
+        <button
+          type="button"
+          className={KNAP}
+          disabled={lagerOp}
+          onClick={() => vaelgBillede("hel")}
+          title="Et færdigt billede, fx en plakat, som hele skærmen på denne farves dage"
+        >
+          Ét billede som hele skærmen
         </button>
 
         <span className="mx-1 h-6 w-px bg-slate-300" aria-hidden />

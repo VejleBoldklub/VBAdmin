@@ -82,8 +82,10 @@ create table if not exists infoskaerm_opsaetning (
 
   --   kost   kun kostplanen, som skærmen hidtil har set ud
   --   side   kostplanen med billederne i en kolonne ved siden af
-  --   skift  skærmen skifter mellem kostplanen og billederne i fuld skærm
-  layout text not null default 'kost' check (layout in ('kost', 'side', 'skift')),
+  --   skift     skærmen skifter mellem kostplanen og billederne i fuld skærm
+  --   billeder  kun billederne, i fuld skærm efter tur
+  -- ('billeder' kom til senere — se supabase/infoskaerm-kun-billeder.sql.)
+  layout text not null default 'kost' check (layout in ('kost', 'side', 'skift', 'billeder')),
 
   -- Hvor længe hvert billede (og kostplanen, i layoutet 'skift') står, før der
   -- skiftes. Under 5 sekunder kan ingen nå at læse noget; over 5 minutter er der

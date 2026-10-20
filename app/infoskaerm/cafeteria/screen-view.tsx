@@ -209,6 +209,20 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
       ? 'skift'
       : data.opsaetning.layout;
 
+  // Kun billeder: de skifter i fuld skærm efter tur, og kostplanen vises ikke.
+  // Det gælder også dage uden kostplan og dage med et design fra editoren.
+  if (layout === 'billeder') {
+    const aktivt = trin % billeder.length;
+
+    return (
+      <div className="fixed inset-0 bg-black" style={skaermStil}>
+        {billeder.map((b, i) => (
+          <BilledLag key={b.id} billede={b} synlig={aktivt === i} fuldSkaerm />
+        ))}
+      </div>
+    );
+  }
+
   // I skift er kostplanen trin 0 og billederne de følgende.
   const skiftTrin = trin % (billeder.length + 1);
   const sideBillede = harBilleder ? trin % billeder.length : 0;

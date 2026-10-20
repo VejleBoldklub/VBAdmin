@@ -53,6 +53,14 @@ export async function gemOpsaetning(layout: string, sekunder: number): Promise<G
 
   if (error) {
     console.error("Kunne ikke gemme infoskærmens opsætning:", error);
+
+    // Databasen kender ikke "Kun billeder", før migrationen er kørt.
+    if (error.code === "23514") {
+      return nej(
+        "Databasen kender ikke denne opsætning endnu. Kør supabase/infoskaerm-kun-billeder.sql i Supabase."
+      );
+    }
+
     return nej(`Kunne ikke gemme: ${beskrivSupabaseFejl(error)}`);
   }
 

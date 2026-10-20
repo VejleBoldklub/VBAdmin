@@ -9,7 +9,7 @@ import { beskrivSupabaseFejl, todayKey } from "./data";
 
 export const BUCKET = "infoskaerm";
 
-export const LAYOUTS = ["kost", "side", "skift"] as const;
+export const LAYOUTS = ["kost", "side", "skift", "billeder"] as const;
 export type Layout = (typeof LAYOUTS)[number];
 
 export const SEKUNDER_MIN = 5;

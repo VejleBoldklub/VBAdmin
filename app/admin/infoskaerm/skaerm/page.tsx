@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AdminPageShell } from "@/components/admin-page-shell";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getAlleBilleder, getOpsaetningTilAdmin } from "@/lib/infoskaerm/billeder";
+import { todayKey } from "@/lib/infoskaerm/data";
 import OpsaetningForm from "./opsaetning-form";
 import BilledUpload from "./billed-upload";
 import BilledListe from "./billed-liste";
@@ -18,6 +19,11 @@ export default async function InfoskaermSkaermPage() {
     await Promise.all([getOpsaetningTilAdmin(supabaseAdmin), getAlleBilleder(supabaseAdmin)]);
 
   const fejl = opsaetningFejl ?? billedFejl;
+
+  const iDag = todayKey();
+  const antalIDag = billeder.filter(
+    (b) => b.aktiv && (b.visDato === null || b.visDato === iDag)
+  ).length;
 
   return (
     <AdminPageShell eyebrow="Infoskærm Cafeteria" title="Skærm og billeder">
@@ -56,11 +62,12 @@ export default async function InfoskaermSkaermPage() {
         </div>
       )}
 
-      <OpsaetningForm start={opsaetning} />
+      <OpsaetningForm start={opsaetning} antalIDag={antalIDag} />
 
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
         <h2 className="text-lg font-bold text-slate-950">Billeder</h2>
         <p className="mt-1 text-sm text-slate-600">
+          Læg så mange billeder op, du vil — skærmen viser dem efter tur i rækkefølgen nedenfor.
           Billeder uden dato vises hver dag. Får et billede en dato, vises det kun den dag. Et
           skjult billede bliver liggende her og kan slås til igen.
         </p>
