@@ -17,24 +17,39 @@ export default function BilledUpload() {
   const [gemt, setGemt] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  // Flere billeder kan vælges på én gang. De lægges op ét ad gangen i den
+  // rækkefølge, de er valgt, og får samme tekst og dato. Stopper ét, er de
+  // foregående allerede lagt op og bliver liggende.
   function lagOp() {
-    const fil = filRef.current?.files?.[0];
+    const filer = Array.from(filRef.current?.files ?? []);
 
-    if (!fil) {
+    if (filer.length === 0) {
       setFejl("Vælg et billede.");
       return;
     }
 
     startTransition(async () => {
       try {
-        const blob = await skalerNed(fil);
+        let svar: Awaited<ReturnType<typeof lagBilledOp>> = { ok: true };
 
-        const formular = new FormData();
-        formular.set("fil", new File([blob], "billede.jpg", { type: "image/jpeg" }));
-        formular.set("tekst", tekst);
-        formular.set("visDato", visDato);
+        for (const [i, fil] of filer.entries()) {
+          const blob = await skalerNed(fil);
 
-        const svar = await lagBilledOp(formular);
+          const formular = new FormData();
+          formular.set("fil", new File([blob], "billede.jpg", { type: "image/jpeg" }));
+          formular.set("tekst", tekst);
+          formular.set("visDato", visDato);
+
+          svar = await lagBilledOp(formular);
+
+          if (!svar.ok) {
+            svar = {
+              ok: false,
+              fejl: filer.length > 1 ? `Billede ${i + 1} af ${filer.length} (${fil.name}): ${svar.fejl}` : svar.fejl,
+            };
+            break;
+          }
+        }
 
         if (svar.ok) {
           setFejl(null);
@@ -56,15 +71,17 @@ export default function BilledUpload() {
 
   return (
     <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
-      <p className="text-sm font-bold text-slate-950">Læg et billede op</p>
+      <p className="text-sm font-bold text-slate-950">Læg billeder op</p>
+      <p className="mt-1 text-xs text-slate-600">Du kan vælge flere billeder på én gang.</p>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         <label className="block sm:col-span-3">
-          <span className={ETIKET}>Billede</span>
+          <span className={ETIKET}>Billeder</span>
           <input
             ref={filRef}
             type="file"
             accept="image/jpeg,image/png,image/webp"
+            multiple
             onChange={() => setGemt(false)}
             className="mt-1.5 block w-full text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-red-700 file:px-3 file:py-2 file:text-sm file:font-bold file:text-white hover:file:bg-red-800"
           />
