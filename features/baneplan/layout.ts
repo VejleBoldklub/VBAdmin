@@ -271,6 +271,9 @@ export type SegmentPlads = { col: number; span: number; cols: number };
 // den derfor hele bredden. Da den altid beholder sin egen kolonne, skifter den
 // aldrig side undervejs; den bliver kun bredere eller smallere.
 //
+// En tildeling sat til en halv bane (halv) står altid i præcis sin halvdel, og
+// de øvrige deler den anden — se placerITidsrum.
+//
 // Luft/runding (topRand/bundRand) er en egenskab ved GRÆNSEN, ikke ved den
 // enkelte tildeling: en grænse viser kun luft, hvis INGEN tildeling fortsætter
 // hen over den (mængden af aktive tildelinger skifter fuldstændigt). Fortsætter
@@ -285,10 +288,13 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
   if (events.length === 0) return [];
   const sorted = [...events].sort((a, b) => a.start - b.start || a.end - b.end);
 
+  // Kun tildelinger på hele banen får en fast kolonne. En tildeling på en halv
+  // bane har sin halvdel i stedet — se placerITidsrum — og må ikke optage en
+  // kolonne, der ellers ville gøre de andre smallere, når den ikke er der.
   const colRank = new Map<string, number>();
   {
     const kolonner: ScheduleEvent[][] = [];
-    for (const ev of sorted) {
+    for (const ev of sorted.filter((e) => !e.halv)) {
       let col = 0;
       while (kolonner[col] && kolonner[col].some((x) => overlaps(x, ev))) col++;
       (kolonner[col] ||= []).push(ev);
@@ -307,7 +313,7 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
     let klynge: ScheduleEvent[] = [];
     let klyngeSlut = -Infinity;
     const afslut = () => {
-      const n = Math.max(...klynge.map((e) => (colRank.get(e.id) ?? 0) + 1));
+      const n = Math.max(1, ...klynge.filter((e) => !e.halv).map((e) => (colRank.get(e.id) ?? 0) + 1));
       for (const e of klynge) klyngeCols.set(e.id, n);
     };
     for (const ev of sorted) {
@@ -353,17 +359,8 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
     const topRand = !forrige || !nogenFortsaetter(forrige.aktive, r.aktive);
     const bundRand = !naeste || !nogenFortsaetter(r.aktive, naeste.aktive);
 
-    const rangeret = [...r.aktive].sort((a, b) => (colRank.get(a.id) ?? 0) - (colRank.get(b.id) ?? 0));
-    const cols = klyngeCols.get(rangeret[0].id) ?? rangeret.length;
-    rangeret.forEach((ev, idx) => {
-      // Tildelingen står i sin egen faste kolonne og breder sig ud i de
-      // ledige kolonner ved siden af. Ligger der ledige kolonner mellem to
-      // tildelinger, deles de, med den ulige kolonne til den venstre.
-      const rank = colRank.get(ev.id) ?? 0;
-      const venstreNabo = idx > 0 ? colRank.get(rangeret[idx - 1].id) ?? 0 : null;
-      const hoejreNabo = idx < rangeret.length - 1 ? colRank.get(rangeret[idx + 1].id) ?? 0 : null;
-      const fra = venstreNabo === null ? 0 : rank - Math.floor((rank - venstreNabo - 1) / 2);
-      const til = hoejreNabo === null ? cols : rank + 1 + Math.ceil((hoejreNabo - rank - 1) / 2);
+    const cols = klyngeCols.get(r.aktive[0].id) ?? r.aktive.length;
+    for (const { ev, fra, til } of placerITidsrum(r.aktive, cols, colRank)) {
       segments.push({
         ...ev,
         segStart: r.start,
@@ -381,7 +378,7 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
         over: null,
         under: null,
       });
-    });
+    }
   });
 
   // To fortløbende segmenter for samme tildeling har pr. definition altid
@@ -464,6 +461,53 @@ export function layoutEvents(events: ScheduleEvent[]): LaidOutSegment[] {
   }
 
   return out.map((seg) => ({ ...seg, visLabel: labelSegmenter.has(seg) }));
+}
+
+// Vandret placering af de aktive tildelinger i ét tidsrum, som kolonner fra og
+// med `fra` til (ikke med) `til` af banens `cols`.
+//
+// Uden tildelinger på en halv bane står hver tildeling i sin faste kolonne og
+// breder sig ud i de ledige kolonner ved siden af. Ligger der ledige kolonner
+// mellem to tildelinger, deles de, med den ulige kolonne til den venstre.
+//
+// Er en tildeling sat til en halv bane, får den præcis sin halvdel, og de
+// øvrige deler den anden. Står der tildelinger på begge halvdele, går de øvrige
+// til den halvdel med færrest. Inden for en halvdel deles bredden ligeligt, med
+// halv-bane-tildelingerne ude ved kanten og de øvrige ind mod midten i deres
+// faste rækkefølge. Resultatet kan være brøker af en kolonne — det er kun
+// forholdet til cols, der bruges.
+function placerITidsrum(
+  aktive: ScheduleEvent[],
+  cols: number,
+  colRank: Map<string, number>
+): { ev: ScheduleEvent; fra: number; til: number }[] {
+  const efterRang = (a: ScheduleEvent, b: ScheduleEvent) => (colRank.get(a.id) ?? 0) - (colRank.get(b.id) ?? 0);
+  const hele = aktive.filter((e) => !e.halv).sort(efterRang);
+  const venstre = aktive.filter((e) => e.halv === "venstre");
+  const hoejre = aktive.filter((e) => e.halv === "hoejre");
+
+  if (venstre.length === 0 && hoejre.length === 0) {
+    return hele.map((ev, idx) => {
+      const rank = colRank.get(ev.id) ?? 0;
+      const venstreNabo = idx > 0 ? colRank.get(hele[idx - 1].id) ?? 0 : null;
+      const hoejreNabo = idx < hele.length - 1 ? colRank.get(hele[idx + 1].id) ?? 0 : null;
+      const fra = venstreNabo === null ? 0 : rank - Math.floor((rank - venstreNabo - 1) / 2);
+      const til = hoejreNabo === null ? cols : rank + 1 + Math.ceil((hoejreNabo - rank - 1) / 2);
+      return { ev, fra, til };
+    });
+  }
+
+  const tilVenstre = hoejre.length > 0 && (venstre.length === 0 || venstre.length <= hoejre.length);
+  const venstreSide = tilVenstre ? [...venstre, ...hele] : venstre;
+  const hoejreSide = tilVenstre ? hoejre : [...hele, ...hoejre];
+  const midt = cols / 2;
+  const del = (side: ScheduleEvent[], fra: number, til: number) =>
+    side.map((ev, i) => ({
+      ev,
+      fra: fra + ((til - fra) * i) / side.length,
+      til: fra + ((til - fra) * (i + 1)) / side.length,
+    }));
+  return [...del(venstreSide, 0, midt), ...del(hoejreSide, midt, cols)];
 }
 
 // Lodret placering af ét tidssegment i pixels. De 3 px's mellemrum til
@@ -617,15 +661,21 @@ export function segmentKant(seg: {
 
 function sidenMod(seg: SegmentPlads, nabo: SegmentPlads | null) {
   if (!nabo) return { kant: true, rundVenstre: true, rundHoejre: true, udvid: false, indadVenstre: false, indadHoejre: false };
-  // Kolonnernes kanter sammenlignes som brøker (col/cols) ved krydsmultiplikation,
-  // så afrunding i kommatal ikke kan få to flugtende kanter til at se skæve ud.
-  const ragerVenstre = seg.col * nabo.cols < nabo.col * seg.cols;
-  const ragerHoejre = (seg.col + seg.span) * nabo.cols > (nabo.col + nabo.span) * seg.cols;
+  // Kanterne sammenlignes som andele af banens bredde. Ved en halv bane kan
+  // placeringen være brøker af en kolonne, så to kanter, der skal flugte, kan
+  // være regnet ad hver sin vej og afvige i sidste decimal — deraf tolerancen.
+  const sVenstre = seg.col / seg.cols;
+  const sHoejre = (seg.col + seg.span) / seg.cols;
+  const nVenstre = nabo.col / nabo.cols;
+  const nHoejre = (nabo.col + nabo.span) / nabo.cols;
+  const EPS = 1e-9;
+  const ragerVenstre = sVenstre < nVenstre - EPS;
+  const ragerHoejre = sHoejre > nHoejre + EPS;
   if (!ragerVenstre && !ragerHoejre) {
     // Det smalle segment. Hvor naboen rager ud forbi det, danner de to et
     // indvendigt hjørne.
-    const naboRagerVenstre = nabo.col * seg.cols < seg.col * nabo.cols;
-    const naboRagerHoejre = (nabo.col + nabo.span) * seg.cols > (seg.col + seg.span) * nabo.cols;
+    const naboRagerVenstre = nVenstre < sVenstre - EPS;
+    const naboRagerHoejre = nHoejre > sHoejre + EPS;
     return {
       kant: false,
       rundVenstre: false,

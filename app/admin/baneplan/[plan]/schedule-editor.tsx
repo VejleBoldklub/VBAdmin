@@ -5,6 +5,7 @@ import {
   DAGE,
   minutesToLabel,
   type Category,
+  type Halvdel,
   type ScheduleEvent,
   type ScheduleField,
 } from "@/features/baneplan/types";
@@ -63,6 +64,10 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
   const [activeDay, setActiveDay] = useState<string>(() => pickInitialDay(DAGE));
   const [valgt, setValgt] = useState<string | null>(null);
   const [traekkerId, setTraekkerId] = useState<string | null>(null);
+  // Foreløbig bredde, mens der trækkes i en boks' side. I modsætning til et
+  // flyt fodres den ind i layoutet, så man ser resultatet — herunder at naboen
+  // får den anden halvdel — før man slipper. null er hele banen.
+  const [breddePreview, setBreddePreview] = useState<{ id: string; halv: Halvdel | null } | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [maalDag, setMaalDag] = useState<string | null>(null);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
@@ -227,6 +232,61 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
       } else {
         patch(ev.id, { start: sidste.start, end: sidste.end, field: sidste.field });
       }
+    }
+
+    const slip = () => afslut(true);
+    const annuller = () => afslut(false);
+
+    window.addEventListener("pointermove", flyt);
+    window.addEventListener("pointerup", slip);
+    window.addEventListener("pointercancel", annuller);
+  }
+
+  // Træk i en boks' side for at sætte den til en halv bane eller tilbage til hele.
+  //
+  // Venstre kant trukket mod midten giver højre halvdel, højre kant trukket mod
+  // midten giver venstre halvdel. Den bliver kun ved med at være halv, så længe
+  // markøren er mindst en fjerdedel inde på banen; føres kanten tilbage ud,
+  // fylder tildelingen igen hele banen. Bredden kan ikke sættes trinløst —
+  // en baneplan bruger hele eller halve baner.
+  function startSidetraek(e: PointerEvent<HTMLDivElement>, ev: ScheduleEvent, side: Halvdel) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    e.stopPropagation();
+    setValgt(ev.id);
+    setMenu(null);
+    setTraekkerId(ev.id);
+
+    const bane = laneRefs.current.get(ev.field)?.getBoundingClientRect();
+    let sidste: Halvdel | null = ev.halv ?? null;
+    const fanget = e.currentTarget;
+    try {
+      fanget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ældre browsere uden pointer capture klarer sig med window-lytterne.
+    }
+
+    function flyt(pe: globalThis.PointerEvent) {
+      if (!bane || bane.width === 0) return;
+      const andel = (pe.clientX - bane.left) / bane.width;
+      if (side === "venstre") sidste = andel >= 0.25 ? "hoejre" : null;
+      else sidste = andel <= 0.75 ? "venstre" : null;
+      setBreddePreview({ id: ev.id, halv: sidste });
+    }
+
+    function afslut(gem: boolean) {
+      window.removeEventListener("pointermove", flyt);
+      window.removeEventListener("pointerup", slip);
+      window.removeEventListener("pointercancel", annuller);
+      try {
+        fanget.releasePointerCapture(e.pointerId);
+      } catch {
+        // Boksen kan være tegnet om undervejs, så capture allerede er sluppet.
+      }
+      setBreddePreview(null);
+      setTraekkerId(null);
+      // undefined frem for null, så "hele banen" ikke efterlader et felt i de
+      // gemte data — det er udeladelsen, der betyder hele banen.
+      if (gem && sidste !== (ev.halv ?? null)) patch(ev.id, { halv: sidste ?? undefined });
     }
 
     const slip = () => afslut(true);
@@ -432,7 +492,11 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
           </div>
 
           {fields.map((f, i) => {
-            const laneEvents = layoutEvents(dagensEvents.filter((e) => e.field === f.name));
+            const laneEvents = layoutEvents(
+              dagensEvents
+                .filter((e) => e.field === f.name)
+                .map((e) => (breddePreview?.id === e.id ? { ...e, halv: breddePreview.halv ?? undefined } : e))
+            );
             return (
               <div
                 key={f.name}
@@ -476,6 +540,7 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
                     selected={valgt === seg.id}
                     dragging={traekkerId === seg.id}
                     onPointerDownBody={(e) => startTraek(e, seg, "move")}
+                    onPointerDownSide={(e, side) => startSidetraek(e, seg, side)}
                     onPointerDownResize={(e, kant) =>
                       startTraek(e, seg, kant === "top" ? "resize-top" : "resize-bottom")
                     }
@@ -505,6 +570,11 @@ export default function ScheduleEditor({ fields, events, onChange }: ScheduleEdi
           current={menuEvent.category}
           onPick={(kategori: Category) => {
             patch(menu.id, { category: kategori });
+            setMenu(null);
+          }}
+          halv={menuEvent.halv ?? null}
+          onPickHalv={(halv) => {
+            patch(menu.id, { halv: halv ?? undefined });
             setMenu(null);
           }}
           onDuplicate={() => dupliker(menu.id)}

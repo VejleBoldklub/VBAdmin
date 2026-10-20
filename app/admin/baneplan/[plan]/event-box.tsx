@@ -1,7 +1,7 @@
 "use client";
 
 import type { KeyboardEvent, PointerEvent } from "react";
-import { minutesToLabel, type ScheduleEvent } from "@/features/baneplan/types";
+import { minutesToLabel, type Halvdel, type ScheduleEvent } from "@/features/baneplan/types";
 import type { SegmentKant } from "@/features/baneplan/layout";
 import { categoryClass, categorySwatch, segmentKantKlasser, segmentZ } from "./event-styles";
 import { IndvendigeHjoerner } from "./indvendige-hjoerner";
@@ -41,6 +41,8 @@ type EventBoxProps = {
   kant: SegmentKant;
   onPointerDownBody: (e: PointerEvent<HTMLDivElement>) => void;
   onPointerDownResize: (e: PointerEvent<HTMLDivElement>, kant: "top" | "bottom") => void;
+  // Træk i venstre/højre side for at sætte tildelingen til en halv bane.
+  onPointerDownSide: (e: PointerEvent<HTMLDivElement>, side: Halvdel) => void;
   onPatch: (patch: Partial<ScheduleEvent>) => void;
   onOpenMenu: (x: number, y: number) => void;
   onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => void;
@@ -66,6 +68,7 @@ export default function EventBox({
   kant,
   onPointerDownBody,
   onPointerDownResize,
+  onPointerDownSide,
   onPatch,
   onOpenMenu,
   onKeyDown,
@@ -198,6 +201,32 @@ export default function EventBox({
           aria-hidden
         >
           {selected && <div className="mx-auto mt-1 h-0.5 w-6 rounded-full bg-red-700/70" />}
+        </div>
+      )}
+
+      {/* Håndtag i siderne til at gøre tildelingen til en halv bane — kun på det
+          segment, der har tekstfelterne, så der er ét sæt pr. tildeling.
+          Venstre side skjules, når tildelingen allerede står i venstre halvdel,
+          og omvendt: dér er kanten ved banens yderkant, og trukket ind ville
+          den gøre tildelingen smallere end en halv bane. */}
+      {visLabel && ev.halv !== "venstre" && (
+        <div
+          onPointerDown={(e) => onPointerDownSide(e, "venstre")}
+          className="absolute inset-y-2 left-0 z-10 w-2 cursor-ew-resize"
+          style={{ touchAction: "none" }}
+          aria-hidden
+        >
+          {selected && <div className="absolute left-0.5 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-full bg-red-700/70" />}
+        </div>
+      )}
+      {visLabel && ev.halv !== "hoejre" && (
+        <div
+          onPointerDown={(e) => onPointerDownSide(e, "hoejre")}
+          className="absolute inset-y-2 right-0 z-10 w-2 cursor-ew-resize"
+          style={{ touchAction: "none" }}
+          aria-hidden
+        >
+          {selected && <div className="absolute right-0.5 top-1/2 h-6 w-0.5 -translate-y-1/2 rounded-full bg-red-700/70" />}
         </div>
       )}
 
