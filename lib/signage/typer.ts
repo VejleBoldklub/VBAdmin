@@ -98,8 +98,7 @@ export type PlayerElement = Element & { medieUrl: string | null; medieType: "bil
 
 export type PlayerData = { skaerm: Skaerm; elementer: PlayerElement[]; midlertidig: PlayerElement | null };
 
-// Varigheden er fri: et tal og en enhed, eller et sluttidspunkt. Genvejene
-// er kun hurtigknapper til at udfylde tal og enhed.
+// Varigheden er fri: et tal og en enhed, eller et sluttidspunkt.
 export const MIDLERTIDIG_ENHEDER = [
   { kode: "min", navn: "minutter", minutter: 1 },
   { kode: "t", navn: "timer", minutter: 60 },
@@ -108,14 +107,6 @@ export const MIDLERTIDIG_ENHEDER = [
 ] as const;
 export type MidlertidigEnhed = (typeof MIDLERTIDIG_ENHEDER)[number]["kode"];
 
-export const MIDLERTIDIG_GENVEJE: { navn: string; antal: number; enhed: MidlertidigEnhed }[] = [
-  { navn: "10 min", antal: 10, enhed: "min" },
-  { navn: "1 time", antal: 1, enhed: "t" },
-  { navn: "2 timer", antal: 2, enhed: "t" },
-  { navn: "1 dag", antal: 1, enhed: "d" },
-  { navn: "3 dage", antal: 3, enhed: "d" },
-  { navn: "1 uge", antal: 1, enhed: "u" },
-];
 
 // Det, cafeteriets infoskærm skal bruge for at vise en midlertidig visning.
 export type Midlertidig = {

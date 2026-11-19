@@ -6,7 +6,6 @@ import {
   CAFETERIA_SLUG,
   ELEMENT_NAVNE,
   MIDLERTIDIG_ENHEDER,
-  MIDLERTIDIG_GENVEJE,
   type MidlertidigEnhed,
   type Element,
   type Skaerm,
@@ -41,7 +40,7 @@ export default function Midlertidig({ skaerm, elementer }: { skaerm: Skaerm; ele
   const valgbare = elementer.filter((e) => !(skaerm.slug === CAFETERIA_SLUG && e.type === "infoskaerm"));
   const [elementId, setElementId] = useState(valgbare[0]?.id ?? "");
   const [maade, setMaade] = useState<"varighed" | "indtil">("varighed");
-  const [antal, setAntal] = useState("10");
+  const [antal, setAntal] = useState("");
   const [enhed, setEnhed] = useState<MidlertidigEnhed>("min");
   const [indtil, setIndtil] = useState("");
   const [fejl, setFejl] = useState<string | null>(null);
@@ -159,6 +158,7 @@ export default function Midlertidig({ skaerm, elementer }: { skaerm: Skaerm; ele
                     value={antal}
                     onChange={(e) => setAntal(e.target.value)}
                     aria-label="Antal"
+                    placeholder="Antal"
                     className={`${FELT} w-28`}
                   />
                   <select
@@ -173,21 +173,6 @@ export default function Midlertidig({ skaerm, elementer }: { skaerm: Skaerm; ele
                       </option>
                     ))}
                   </select>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {MIDLERTIDIG_GENVEJE.map((g) => (
-                    <button
-                      key={g.navn}
-                      type="button"
-                      className="rounded-lg border border-[#2a3a5c] px-2.5 py-1 text-xs font-semibold text-slate-200 hover:border-slate-400"
-                      onClick={() => {
-                        setAntal(String(g.antal));
-                        setEnhed(g.enhed);
-                      }}
-                    >
-                      {g.navn}
-                    </button>
-                  ))}
                 </div>
               </>
             ) : (
