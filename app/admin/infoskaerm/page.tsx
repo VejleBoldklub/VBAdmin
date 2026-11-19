@@ -5,6 +5,7 @@ import KioskLink from "./kiosk-link";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getUpcomingPlan, todayKey } from "@/lib/infoskaerm/data";
 import DayRow from "./day-row";
+import { harAdgangTil, hentBruger } from "@/lib/adgang";
 
 // Ugeplanen bag cafeteriets infoskærm. Ruten ligger under /admin og er dermed
 // dækket af Basic Auth i proxy.ts. Handlingerne kontrollerer derudover deres
@@ -45,6 +46,11 @@ export default async function InfoskaermAdminPage() {
   const efterDato = new Map(raekker.map((r) => [r.dato, r]));
   const dage = dageFra(todayKey(), ANTAL_DAGE);
 
+  // Linket til Skærme Alliancen vises kun for dem, der kan åbne den. Andre
+  // ville blot lande på "ingen adgang".
+  const bruger = await hentBruger();
+  const visSignage = !!bruger && harAdgangTil(bruger, "signage");
+
   return (
     <AdminPageShell eyebrow="Infoskærm Cafeteria" title="Ugeplan">
       <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
@@ -68,6 +74,13 @@ export default async function InfoskaermAdminPage() {
       >
         Design skærmen →
       </Link>
+
+      {visSignage && <Link
+        href="/admin/signage"
+        className="mt-4 ml-3 inline-block rounded-lg border border-slate-900 bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"
+      >
+        Skærme Alliancen →
+      </Link>}
 
       <Link
         href="/admin/infoskaerm/skaerm"

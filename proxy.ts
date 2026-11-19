@@ -17,6 +17,7 @@ import { NextResponse, type NextRequest } from "next/server";
 //   "/baneplan/*"           de offentlige baneplaner, vist i klubbens CMS
 //   "/lokalebooking/*"      den offentlige booking
 //   "/infoskaerm/cafeteria" kioskskærmen, som ingen kan logge ind på
+//   "/signage/*"            Skærme Alliancens skærme (playeren)
 //   "/godkend/*", "/afvis/*" mail-linkene til den lokaleansvarlige
 //   "/login", "/auth/*"     ellers kunne ingen komme ind
 //
@@ -35,6 +36,7 @@ const MODUL_FOR_STI: { praefiks: string; modul: string }[] = [
   { praefiks: "/admin/baneplan", modul: "baneplan" },
   { praefiks: "/admin/lokalebooking", modul: "lokalebooking" },
   { praefiks: "/admin/infoskaerm", modul: "infoskaerm" },
+  { praefiks: "/admin/signage", modul: "signage" },
 ];
 
 function tilLogin(req: NextRequest) {
@@ -69,6 +71,14 @@ export async function proxy(req: NextRequest) {
       "Adminfladen er ikke konfigureret. Supabase-miljøvariablerne mangler.",
       { status: 503 }
     );
+  }
+
+  // signage.vejleboldklub.dk kan pege på denne app. Forsiden dér er Skærme
+  // Alliancen, ikke modulmenuen. Login og adgang gælder som alle andre steder.
+  if (req.nextUrl.pathname === "/" && (req.headers.get("host") ?? "").startsWith("signage.")) {
+    const maal = req.nextUrl.clone();
+    maal.pathname = "/admin/signage";
+    return NextResponse.redirect(maal);
   }
 
   let svar = NextResponse.next({ request: req });

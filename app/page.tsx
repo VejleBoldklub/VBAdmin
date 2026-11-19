@@ -46,11 +46,19 @@ const modules: Modulkort[] = [
     modul: "infoskaerm",
   },
   {
+    title: "Skærme Alliancen",
+    description: "Styr klubbens skærme: playlister, billeder, videoer og planlægning.",
+    status: "Aktiv",
+    href: "/admin/signage",
+    index: 4,
+    modul: "signage",
+  },
+  {
     title: "Administration",
     description: "Administrér brugere, roller og systemindstillinger.",
     status: "Aktiv",
     href: "/admin/administration",
-    index: 4,
+    index: 5,
     kunAdministrator: true,
   },
 ];

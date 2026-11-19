@@ -1,0 +1,262 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { danskTid, elementVisesNu, skaermTaendt } from "@/lib/signage/plan";
+import type { PlayerData, PlayerElement } from "@/lib/signage/typer";
+
+// Playeren kører alene på skærmen i timevis. Den skal derfor kunne tåle, at
+// nettet forsvinder (den bliver ved med det, den har), at en video ikke kan
+// afspilles (den springer videre), og at playlisten ændres undervejs (det
+// element, der vises, får lov at blive færdigt).
+
+const GENINDLAES_MS = 12 * 60 * 60 * 1000;
+
+export default function Player({
+  slug,
+  initial,
+  forhaand,
+}: {
+  slug: string;
+  initial: PlayerData | null;
+  forhaand: boolean;
+}) {
+  const [data, setData] = useState<PlayerData | null>(initial);
+  const [tid, setTid] = useState(() => danskTid());
+  const [aktuelId, setAktuelId] = useState<string | null>(null);
+  const [trin, setTrin] = useState(0);
+  const [ur, setUr] = useState("");
+
+  const opdaterSek = data?.skaerm.opdaterSekunder ?? 60;
+
+  // Hent playlisten igen med skærmens interval.
+  useEffect(() => {
+    let aktiv = true;
+    async function hent() {
+      try {
+        const res = await fetch(`/api/signage/${slug}${forhaand ? "?forhaand=1" : ""}`, { cache: "no-store" });
+        const json = await res.json();
+        if (aktiv && json.ok) setData({ skaerm: json.skaerm, elementer: json.elementer });
+      } catch (err) {
+        console.error("Signage: kunne ikke hente playlisten, beholder den nuværende:", err);
+      }
+    }
+    if (!initial) hent();
+    const id = window.setInterval(hent, opdaterSek * 1000);
+    return () => {
+      aktiv = false;
+      window.clearInterval(id);
+    };
+  }, [slug, forhaand, opdaterSek, initial]);
+
+  // Planlægningen regnes igen hvert halve minut, uret hvert sekund.
+  useEffect(() => {
+    const id = window.setInterval(() => setTid(danskTid()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!data?.skaerm.visUr) return;
+    const fmt = () =>
+      setUr(
+        new Date().toLocaleString("da-DK", {
+          timeZone: "Europe/Copenhagen",
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      );
+    fmt();
+    const id = window.setInterval(fmt, 1000);
+    return () => window.clearInterval(id);
+  }, [data?.skaerm.visUr]);
+
+  // En kiosk-browser, der har kørt i dagevis, kan begynde at hakke. Siden
+  // genindlæses derfor af sig selv to gange i døgnet.
+  useEffect(() => {
+    if (forhaand) return;
+    const id = window.setTimeout(() => window.location.reload(), GENINDLAES_MS);
+    return () => window.clearTimeout(id);
+  }, [forhaand]);
+
+  const synlige = useMemo(
+    () => (data ? data.elementer.filter((e) => elementVisesNu(e, tid)) : []),
+    [data, tid]
+  );
+
+  const aktuel: PlayerElement | null = useMemo(() => {
+    if (synlige.length === 0) return null;
+    return synlige.find((e) => e.id === aktuelId) ?? synlige[0];
+  }, [synlige, aktuelId]);
+
+  const naeste = useCallback(() => {
+    setTrin((t) => t + 1);
+    setAktuelId((nu) => {
+      if (synlige.length === 0) return null;
+      const i = synlige.findIndex((e) => e.id === nu);
+      return synlige[(i + 1) % synlige.length].id;
+    });
+  }, [synlige]);
+
+  // Varigheden for alt andet end videoer, der spilles til ende.
+  const skaerm = data?.skaerm;
+  const helVideo = aktuel?.type === "video" && (aktuel.sekunder === null || aktuel.sekunder === 0);
+  const sekunder = aktuel ? (aktuel.sekunder && aktuel.sekunder > 0 ? aktuel.sekunder : skaerm?.standardSekunder ?? 10) : 0;
+
+  useEffect(() => {
+    if (!aktuel || helVideo) return;
+    // Ét element alene skal ikke "skifte" til sig selv og blinke.
+    if (synlige.length === 1 && aktuel.type !== "video") return;
+    const id = window.setTimeout(naeste, sekunder * 1000);
+    return () => window.clearTimeout(id);
+  }, [aktuel, helVideo, sekunder, naeste, synlige.length, trin]);
+
+  // Næste billede hentes i forvejen, så skiftet ikke viser en halv indlæsning.
+  useEffect(() => {
+    if (!aktuel || synlige.length < 2) return;
+    const i = synlige.findIndex((e) => e.id === aktuel.id);
+    const n = synlige[(i + 1) % synlige.length];
+    if (n.medieUrl && n.medieType === "billede") {
+      const img = new window.Image();
+      img.src = n.medieUrl;
+    }
+  }, [aktuel, synlige]);
+
+  const taendt = skaerm ? skaermTaendt(skaerm, tid) : false;
+
+  const animation =
+    skaerm && skaerm.overgang !== "ingen" && skaerm.overgangMs > 0
+      ? `${skaerm.overgang === "slide" ? "signage-slide" : "signage-fade"} ${skaerm.overgangMs}ms ease-out`
+      : undefined;
+
+  return (
+    <main
+      className="fixed inset-0 overflow-hidden"
+      style={{ background: taendt ? skaerm?.baggrund ?? "#000" : "#000", cursor: forhaand ? "default" : "none" }}
+      onDoubleClick={() => document.documentElement.requestFullscreen?.().catch(() => {})}
+    >
+      <style>{`
+        @keyframes signage-fade { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes signage-slide { from { transform: translateX(100%) } to { transform: translateX(0) } }
+      `}</style>
+
+      {!data && forhaand && <Besked tekst="Skærmen findes ikke, eller playlisten kan ikke hentes." />}
+
+      {data && taendt && aktuel && (
+        <div key={`${aktuel.id}-${trin}`} className="absolute inset-0" style={{ animation }}>
+          <Visning element={aktuel} standardTilpasning={skaerm!.tilpasning} lyd={skaerm!.lyd} onSlut={naeste} />
+        </div>
+      )}
+
+      {data && forhaand && taendt && !aktuel && <Besked tekst="Ingen elementer skal vises lige nu." />}
+      {data && forhaand && !taendt && <Besked tekst="Skærmen er slukket lige nu (slået fra eller uden for tænd-tiden)." />}
+
+      {data && taendt && skaerm?.visUr && (
+        <div className="absolute right-6 top-5 rounded-xl bg-black/50 px-4 py-2 text-2xl font-semibold tabular-nums text-white">
+          {ur}
+        </div>
+      )}
+
+      {forhaand && (
+        <div className="absolute bottom-3 left-3 rounded bg-black/60 px-2 py-1 text-xs text-white">
+          Forhåndsvisning · {synlige.length} element(er) vises nu · dobbeltklik for fuld skærm
+        </div>
+      )}
+    </main>
+  );
+}
+
+function Besked({ tekst }: { tekst: string }) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center p-10 text-center text-xl text-white/70">
+      {tekst}
+    </div>
+  );
+}
+
+function Visning({
+  element: e,
+  standardTilpasning,
+  lyd,
+  onSlut,
+}: {
+  element: PlayerElement;
+  standardTilpasning: "contain" | "cover";
+  lyd: boolean;
+  onSlut: () => void;
+}) {
+  const fit = e.tilpasning ?? standardTilpasning;
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Browsere afviser afspilning med lyd uden et klik, medmindre kiosken er sat
+  // op til at tillade det. Afvises den, spilles videoen uden lyd frem for slet
+  // ikke.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = !lyd;
+    v.play().catch(() => {
+      v.muted = true;
+      v.play().catch((err) => {
+        console.error("Signage: videoen kunne ikke afspilles:", err);
+        onSlut();
+      });
+    });
+  }, [lyd, onSlut]);
+
+  if (e.type === "billede" && e.medieUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={e.medieUrl} alt={e.titel} className="h-full w-full" style={{ objectFit: fit }} />;
+  }
+
+  if (e.type === "video" && e.medieUrl) {
+    const helVideo = e.sekunder === null || e.sekunder === 0;
+    return (
+      <video
+        ref={videoRef}
+        src={e.medieUrl}
+        className="h-full w-full"
+        style={{ objectFit: fit }}
+        playsInline
+        muted
+        autoPlay
+        loop={!helVideo}
+        onEnded={helVideo ? onSlut : undefined}
+        onError={onSlut}
+      />
+    );
+  }
+
+  if (e.type === "tekst") {
+    return (
+      <div
+        className="relative flex h-full w-full flex-col justify-center px-[8vw]"
+        style={{
+          background: e.baggrund,
+          color: e.tekstfarve,
+          textAlign: e.justering === "center" ? "center" : "left",
+        }}
+      >
+        {e.medieUrl && e.medieType === "billede" && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={e.medieUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
+        )}
+        <div className="relative">
+          {e.titel && <h1 className="text-[6vw] font-extrabold uppercase leading-none tracking-tight">{e.titel}</h1>}
+          {e.tekst && <p className="mt-[3vh] whitespace-pre-line text-[2.6vw] font-medium leading-snug">{e.tekst}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  if (e.type === "web" && e.url) {
+    return <iframe src={e.url} title={e.titel || "Webside"} className="h-full w-full border-0" />;
+  }
+
+  if (e.type === "infoskaerm") {
+    return <iframe src="/infoskaerm/cafeteria" title="Infoskærm Cafeteria" className="h-full w-full border-0" />;
+  }
+
+  return null;
+}
