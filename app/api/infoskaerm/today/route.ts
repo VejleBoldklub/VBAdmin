@@ -3,6 +3,7 @@ import { supabasePublic } from "@/lib/supabase-public";
 import { getIndhold, getTodayPlan } from "@/lib/infoskaerm/data";
 import { billedBase, getDagensBilleder, getOpsaetning } from "@/lib/infoskaerm/billeder";
 import { getAktivtDesign } from "@/lib/infoskaerm/design-data";
+import { hentInfoskaermMidlertidig } from "@/lib/signage/data";
 
 // Skærmens opdateringskald. Kiosken henter denne rute hvert andet minut, så en
 // ændring i adminfladen slår igennem uden at siden genindlæses.
@@ -17,15 +18,16 @@ export const dynamic = "force-dynamic"; // altid frisk data, aldrig cachet
 
 export async function GET() {
   const client = supabasePublic();
-  const [row, billeder, opsaetning] = await Promise.all([
+  const [row, billeder, opsaetning, midlertidig] = await Promise.all([
     getTodayPlan(client),
     getDagensBilleder(client),
     getOpsaetning(client),
+    hentInfoskaermMidlertidig(client),
   ]);
   const base = billedBase(client);
 
   if (!row) {
-    return NextResponse.json({ ok: true, harPlan: false, billeder, opsaetning, billedBase: base });
+    return NextResponse.json({ ok: true, harPlan: false, billeder, opsaetning, billedBase: base, midlertidig });
   }
 
   const [content, design] = await Promise.all([
@@ -44,5 +46,6 @@ export async function GET() {
     billeder,
     opsaetning,
     billedBase: base,
+    midlertidig,
   });
 }

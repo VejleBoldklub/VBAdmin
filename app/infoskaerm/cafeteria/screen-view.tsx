@@ -11,6 +11,8 @@ import {
 } from '@/lib/infoskaerm/billeder';
 import { LAERRED_B, LAERRED_H, rensDesign, type Design } from '@/lib/infoskaerm/design';
 import { DesignLaerred, useSkala } from '@/components/infoskaerm/design-laerred';
+import Visning from '@/components/signage/visning';
+import type { Midlertidig } from '@/lib/signage/typer';
 
 // Enten er der en plan for dagen, eller også er der ikke.
 //
@@ -38,7 +40,14 @@ export type ScreenData = (
   opsaetning: Opsaetning;
   // Begyndelsen af adressen på billeder i Storage. Se billedBase().
   billedBase: string;
+  // Midlertidig visning sat fra Skærme Alliancen på skærmen "cafeteria".
+  // Den dækker hele skærmen til tidspunktet og forsvinder så af sig selv.
+  midlertidig?: Midlertidig | null;
 };
+
+function tidspunkt(): number {
+  return Date.now();
+}
 
 const POLL_INTERVAL_MS = 120_000; // 2 min, samme som den gamle Apps Script-løsning
 
@@ -103,6 +112,19 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
   const [designRamme, setDesignRamme] = useState<HTMLDivElement | null>(null);
   const designSkala = useSkala(designRamme);
 
+  // Uret til den midlertidige visning. Slutningen sættes som en timer, så den
+  // slutter til tiden og ikke først ved næste hentning.
+  const [nuMs, setNuMs] = useState(tidspunkt);
+  const [midlGang, setMidlGang] = useState(0);
+  const midlTil = data.midlertidig?.til ?? null;
+  useEffect(() => {
+    if (!midlTil) return;
+    const rest = Date.parse(midlTil) - tidspunkt();
+    if (rest <= 0 || rest > 2_000_000_000) return;
+    const id = setTimeout(() => setNuMs(tidspunkt()), rest + 50);
+    return () => clearTimeout(id);
+  }, [midlTil]);
+
   useEffect(() => {
     const id = setInterval(() => setTrin((n) => n + 1), sekunder * 1000);
     return () => clearInterval(id);
@@ -118,6 +140,7 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
 
         const json: unknown = await res.json();
         if (!cancelled && erSkaermData(json)) {
+          setNuMs(tidspunkt());
           setData(json);
         }
       } catch (err) {
@@ -188,6 +211,22 @@ export default function ScreenView({ initial }: { initial: ScreenData }) {
     background: '#F4F6FB',
     '--skala': 1,
   } as React.CSSProperties;
+
+  const midl = data.midlertidig && midlTil && Date.parse(midlTil) > nuMs ? data.midlertidig : null;
+  if (midl) {
+    return (
+      <div className="fixed inset-0 overflow-hidden" style={{ background: midl.baggrund, cursor: 'none' }}>
+        <div key={midlGang} className="absolute inset-0">
+          <Visning
+            element={midl.element}
+            standardTilpasning={midl.tilpasning}
+            lyd={midl.lyd}
+            onSlut={() => setMidlGang((n) => n + 1)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   const { billeder } = data;
   const harBilleder = billeder.length > 0;

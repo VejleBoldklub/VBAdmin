@@ -54,6 +54,10 @@ export type Skaerm = {
   taendFra: string | null;
   taendTil: string | null;
   sidstSet: string | null;
+  // Midlertidig visning: ét element vises alene indtil tidspunktet, derefter
+  // kører playlisten igen af sig selv.
+  midlertidigElementId: string | null;
+  midlertidigTil: string | null;
 };
 
 export type Medie = {
@@ -92,7 +96,37 @@ export type Element = {
 // Det, playeren får: elementet med medieadressen slået op.
 export type PlayerElement = Element & { medieUrl: string | null; medieType: "billede" | "video" | null };
 
-export type PlayerData = { skaerm: Skaerm; elementer: PlayerElement[] };
+export type PlayerData = { skaerm: Skaerm; elementer: PlayerElement[]; midlertidig: PlayerElement | null };
+
+// Varighederne, der kan vælges til en midlertidig visning, i minutter.
+export const MIDLERTIDIG_VALG: { navn: string; minutter: number }[] = [
+  { navn: "10 min", minutter: 10 },
+  { navn: "30 min", minutter: 30 },
+  { navn: "1 time", minutter: 60 },
+  { navn: "2 timer", minutter: 120 },
+  { navn: "Resten af dagen (8 timer)", minutter: 480 },
+  { navn: "1 dag", minutter: 1440 },
+  { navn: "3 dage", minutter: 4320 },
+  { navn: "1 uge", minutter: 10080 },
+];
+
+// Det, cafeteriets infoskærm skal bruge for at vise en midlertidig visning.
+export type Midlertidig = {
+  element: PlayerElement;
+  til: string;
+  tilpasning: Tilpasning;
+  lyd: boolean;
+  baggrund: string;
+};
+
+// Skærmen i Skærme Alliancen, der svarer til cafeteriets infoskærm.
+export const CAFETERIA_SLUG = "cafeteria";
+
+export const MIDLERTIDIG_MAKS_MIN = 60 * 24 * 31;
+
+export function midlertidigAktiv(til: string | null, nuMs: number): boolean {
+  return !!til && Date.parse(til) > nuMs;
+}
 
 // De felter, adminfladen sender, når et element oprettes eller rettes.
 export type ElementFelter = {

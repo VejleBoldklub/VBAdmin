@@ -8,7 +8,7 @@ import Visning from "@/components/signage/visning";
 import { SKABELONER, UGEDAGE, tomtElement, type ElementFelter, type Medie, type Skaerm } from "@/lib/signage/typer";
 import { opretElement } from "../actions";
 import NySkaerm from "../ny-skaerm";
-import { ETIKET, FELT, KNAP, KNAP_ROED, KORT, StatusPrik } from "../ui";
+import { ETIKET, FELT, KNAP, KNAP_ROED, KORT, StatusPrik, MidlertidigMaerke } from "../ui";
 
 type Props = { skaerme: Skaerm[]; antal: Record<string, number>; medier: Medie[]; nu: number };
 
@@ -90,6 +90,10 @@ export default function ScreenManager({ skaerme, antal, medier, nu }: Props) {
                 <StatusPrik skaerm={s} nu={nu} />
               </div>
               <p className="mt-1 text-xs text-slate-400">{antal[s.id] ?? 0} aktive elementer i playlisten</p>
+              <MidlertidigMaerke skaerm={s} nu={nu} />
+              <a href={`/admin/signage/skaerm/${s.id}#midlertidig`} className="mt-1 block text-xs font-semibold text-slate-300 underline hover:text-white">
+                Midlertidig visning →
+              </a>
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"

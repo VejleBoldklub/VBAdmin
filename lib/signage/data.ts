@@ -4,7 +4,10 @@ import {
   type Element,
   type ElementType,
   type Justering,
+  CAFETERIA_SLUG,
   type Medie,
+  type Midlertidig,
+  midlertidigAktiv,
   type Overgang,
   type PlayerData,
   type PlayerElement,
@@ -32,7 +35,7 @@ export function manglerTabel(fejl: PostgrestError | null): boolean {
 }
 
 const SKAERM_FELTER =
-  "id, navn, slug, placering, aktiv, tilpasning, overgang, overgang_ms, baggrund, standard_sekunder, lyd, opdater_sekunder, vis_ur, taend_fra, taend_til, sidst_set";
+  "id, navn, slug, placering, aktiv, tilpasning, overgang, overgang_ms, baggrund, standard_sekunder, lyd, opdater_sekunder, vis_ur, taend_fra, taend_til, sidst_set, midlertidig_element_id, midlertidig_til";
 
 const ELEMENT_FELTER =
   "id, skaerm_id, type, medie_id, titel, tekst, url, sekunder, tilpasning, baggrund, tekstfarve, justering, raekkefoelge, aktiv, fra_dato, til_dato, ugedage, fra_tid, til_tid";
@@ -66,6 +69,8 @@ export function tilSkaerm(r: Raekke): Skaerm {
     taendFra: tid(r.taend_fra),
     taendTil: tid(r.taend_til),
     sidstSet: typeof r.sidst_set === "string" ? r.sidst_set : null,
+    midlertidigElementId: typeof r.midlertidig_element_id === "string" ? r.midlertidig_element_id : null,
+    midlertidigTil: typeof r.midlertidig_til === "string" ? r.midlertidig_til : null,
   };
 }
 
@@ -174,7 +179,23 @@ export async function hentPlayerData(client: SupabaseClient, slug: string): Prom
   if (elFejl) throw new Error(beskrivFejl(elFejl));
 
   const elementer = (el ?? []).map(tilElement);
-  const ider = [...new Set(elementer.map((e) => e.medieId).filter((id): id is string => !!id))];
+
+  // Den midlertidige visning må gerne være et element, der er slået fra i
+  // playlisten — fx en test, der ikke skal køre fast.
+  let midlertidigt: Element | null = null;
+  if (skaerm.midlertidigElementId && midlertidigAktiv(skaerm.midlertidigTil, Date.now())) {
+    midlertidigt = elementer.find((e) => e.id === skaerm.midlertidigElementId) ?? null;
+    if (!midlertidigt) {
+      const { data: m } = await client
+        .from("signage_elementer")
+        .select(ELEMENT_FELTER)
+        .eq("id", skaerm.midlertidigElementId)
+        .maybeSingle();
+      midlertidigt = m ? tilElement(m) : null;
+    }
+  }
+
+  const ider = [...new Set([...elementer, ...(midlertidigt ? [midlertidigt] : [])].map((e) => e.medieId).filter((id): id is string => !!id))];
 
   const medier = new Map<string, Medie>();
   if (ider.length) {
@@ -189,13 +210,37 @@ export async function hentPlayerData(client: SupabaseClient, slug: string): Prom
     }
   }
 
-  const playerElementer: PlayerElement[] = elementer
-    .map((e) => {
-      const m = e.medieId ? medier.get(e.medieId) : undefined;
-      return { ...e, medieUrl: m?.url ?? null, medieType: m?.type ?? null };
-    })
-    // Et billede- eller videoelement uden fil har intet at vise.
-    .filter((e) => (e.type === "billede" || e.type === "video" ? !!e.medieUrl : true));
+  const tilPlayer = (e: Element): PlayerElement => {
+    const m = e.medieId ? medier.get(e.medieId) : undefined;
+    return { ...e, medieUrl: m?.url ?? null, medieType: m?.type ?? null };
+  };
+  // Et billede- eller videoelement uden fil har intet at vise.
+  const kanVises = (e: PlayerElement) => (e.type === "billede" || e.type === "video" ? !!e.medieUrl : true);
 
-  return { skaerm, elementer: playerElementer };
+  const playerElementer = elementer.map(tilPlayer).filter(kanVises);
+  const midlertidig = midlertidigt ? tilPlayer(midlertidigt) : null;
+
+  return { skaerm, elementer: playerElementer, midlertidig: midlertidig && kanVises(midlertidig) ? midlertidig : null };
+}
+
+// Midlertidig visning til /infoskaerm/cafeteria, hvis skærmen "cafeteria" i
+// Skærme Alliancen har en kørende. Infoskærm-elementer springes over: de ville
+// bare vise infoskærmen inde i sig selv. Fejl giver null, så infoskærmen altid
+// kan vise sig selv, selv hvis signage-tabellerne driller.
+export async function hentInfoskaermMidlertidig(client: SupabaseClient): Promise<Midlertidig | null> {
+  try {
+    const data = await hentPlayerData(client, CAFETERIA_SLUG);
+    const m = data?.midlertidig;
+    if (!data || !m || m.type === "infoskaerm" || !data.skaerm.midlertidigTil) return null;
+    return {
+      element: m,
+      til: data.skaerm.midlertidigTil,
+      tilpasning: data.skaerm.tilpasning,
+      lyd: data.skaerm.lyd,
+      baggrund: data.skaerm.baggrund,
+    };
+  } catch (err) {
+    console.error("Signage: midlertidig visning til infoskærmen kunne ikke hentes:", err);
+    return null;
+  }
 }

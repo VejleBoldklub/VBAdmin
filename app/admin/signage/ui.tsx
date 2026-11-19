@@ -148,3 +148,20 @@ export function OpsaetningMangler() {
     </div>
   );
 }
+
+// Lille mærke på skærmlisterne, når en midlertidig visning kører.
+export function MidlertidigMaerke({ skaerm, nu }: { skaerm: Skaerm; nu: number }) {
+  if (!skaerm.midlertidigElementId || !skaerm.midlertidigTil || Date.parse(skaerm.midlertidigTil) <= nu) return null;
+  const til = new Date(skaerm.midlertidigTil).toLocaleString("da-DK", {
+    timeZone: "Europe/Copenhagen",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return (
+    <p className="mt-1 inline-block rounded-md bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-200">
+      Midlertidig visning til {til}
+    </p>
+  );
+}
