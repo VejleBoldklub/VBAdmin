@@ -98,16 +98,23 @@ export type PlayerElement = Element & { medieUrl: string | null; medieType: "bil
 
 export type PlayerData = { skaerm: Skaerm; elementer: PlayerElement[]; midlertidig: PlayerElement | null };
 
-// Varighederne, der kan vælges til en midlertidig visning, i minutter.
-export const MIDLERTIDIG_VALG: { navn: string; minutter: number }[] = [
-  { navn: "10 min", minutter: 10 },
-  { navn: "30 min", minutter: 30 },
-  { navn: "1 time", minutter: 60 },
-  { navn: "2 timer", minutter: 120 },
-  { navn: "Resten af dagen (8 timer)", minutter: 480 },
-  { navn: "1 dag", minutter: 1440 },
-  { navn: "3 dage", minutter: 4320 },
-  { navn: "1 uge", minutter: 10080 },
+// Varigheden er fri: et tal og en enhed, eller et sluttidspunkt. Genvejene
+// er kun hurtigknapper til at udfylde tal og enhed.
+export const MIDLERTIDIG_ENHEDER = [
+  { kode: "min", navn: "minutter", minutter: 1 },
+  { kode: "t", navn: "timer", minutter: 60 },
+  { kode: "d", navn: "dage", minutter: 1440 },
+  { kode: "u", navn: "uger", minutter: 10080 },
+] as const;
+export type MidlertidigEnhed = (typeof MIDLERTIDIG_ENHEDER)[number]["kode"];
+
+export const MIDLERTIDIG_GENVEJE: { navn: string; antal: number; enhed: MidlertidigEnhed }[] = [
+  { navn: "10 min", antal: 10, enhed: "min" },
+  { navn: "1 time", antal: 1, enhed: "t" },
+  { navn: "2 timer", antal: 2, enhed: "t" },
+  { navn: "1 dag", antal: 1, enhed: "d" },
+  { navn: "3 dage", antal: 3, enhed: "d" },
+  { navn: "1 uge", antal: 1, enhed: "u" },
 ];
 
 // Det, cafeteriets infoskærm skal bruge for at vise en midlertidig visning.
@@ -122,7 +129,8 @@ export type Midlertidig = {
 // Skærmen i Skærme Alliancen, der svarer til cafeteriets infoskærm.
 export const CAFETERIA_SLUG = "cafeteria";
 
-export const MIDLERTIDIG_MAKS_MIN = 60 * 24 * 31;
+// Højst et år frem, så en tastefejl ikke låser skærmen for altid.
+export const MIDLERTIDIG_MAKS_MIN = 60 * 24 * 366;
 
 export function midlertidigAktiv(til: string | null, nuMs: number): boolean {
   return !!til && Date.parse(til) > nuMs;
