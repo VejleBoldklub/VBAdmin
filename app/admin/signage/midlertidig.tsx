@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import {
   CAFETERIA_SLUG,
   ELEMENT_NAVNE,
-  MIDLERTIDIG_VALG,
+  MIDLERTIDIG_ENHEDER,
+  MIDLERTIDIG_GENVEJE,
+  type MidlertidigEnhed,
   type Element,
   type Skaerm,
 } from "@/lib/signage/typer";
@@ -38,8 +40,10 @@ export default function Midlertidig({ skaerm, elementer }: { skaerm: Skaerm; ele
   const router = useRouter();
   const valgbare = elementer.filter((e) => !(skaerm.slug === CAFETERIA_SLUG && e.type === "infoskaerm"));
   const [elementId, setElementId] = useState(valgbare[0]?.id ?? "");
-  const [minutter, setMinutter] = useState(MIDLERTIDIG_VALG[0].minutter);
-  const [egneMin, setEgneMin] = useState("");
+  const [maade, setMaade] = useState<"varighed" | "indtil">("varighed");
+  const [antal, setAntal] = useState("10");
+  const [enhed, setEnhed] = useState<MidlertidigEnhed>("min");
+  const [indtil, setIndtil] = useState("");
   const [fejl, setFejl] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [nu] = useState(tidspunkt);
@@ -61,7 +65,18 @@ export default function Midlertidig({ skaerm, elementer }: { skaerm: Skaerm; ele
     });
   }
 
-  const valgtMin = minutter === -1 ? Number(egneMin) : minutter;
+  // Sluttidspunktet regnes ud i browseren, så "indtil" følger Asgers egen
+  // (danske) tid. Serveren tjekker bagefter, at det ligger i fremtiden.
+  function sluttid(): string | null {
+    if (maade === "indtil") {
+      const ms = indtil ? new Date(indtil).getTime() : NaN;
+      return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+    }
+    const n = Number(antal.replace(",", "."));
+    const faktor = MIDLERTIDIG_ENHEDER.find((e) => e.kode === enhed)?.minutter ?? 1;
+    if (!(n > 0)) return null;
+    return new Date(tidspunkt() + Math.round(n * faktor * 60_000)).toISOString();
+  }
 
   return (
     <section id="midlertidig" className={KORT} aria-label="Midlertidig visning">
@@ -93,7 +108,12 @@ export default function Midlertidig({ skaerm, elementer }: { skaerm: Skaerm; ele
           className="mt-4 grid gap-3"
           onSubmit={(e) => {
             e.preventDefault();
-            koer(() => startMidlertidig(skaerm.id, elementId, valgtMin));
+            const til = sluttid();
+            if (!til) {
+              setFejl(maade === "indtil" ? "Vælg dato og klokkeslæt." : "Skriv et antal større end 0.");
+              return;
+            }
+            koer(() => startMidlertidig(skaerm.id, elementId, til));
           }}
         >
           <label className="grid gap-1 text-sm font-semibold text-slate-200">
@@ -106,32 +126,83 @@ export default function Midlertidig({ skaerm, elementer }: { skaerm: Skaerm; ele
               ))}
             </select>
           </label>
-          <label className="grid gap-1 text-sm font-semibold text-slate-200">
-            I
-            <select value={minutter} onChange={(e) => setMinutter(Number(e.target.value))} className={FELT}>
-              {MIDLERTIDIG_VALG.map((v) => (
-                <option key={v.minutter} value={v.minutter}>
-                  {v.navn}
-                </option>
-              ))}
-              <option value={-1}>Andet antal minutter…</option>
-            </select>
-          </label>
-          {minutter === -1 && (
-            <input
-              type="number"
-              min={1}
-              max={44640}
-              value={egneMin}
-              onChange={(e) => setEgneMin(e.target.value)}
-              placeholder="Minutter, fx 45"
-              aria-label="Antal minutter"
-              className={FELT}
-            />
-          )}
+          <div className="grid gap-2">
+            <div className="flex gap-2 text-sm" role="radiogroup" aria-label="Hvordan sættes tiden">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={maade === "varighed"}
+                className={`${KNAP} ${maade === "varighed" ? "border-red-500" : ""}`}
+                onClick={() => setMaade("varighed")}
+              >
+                I et tidsrum
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={maade === "indtil"}
+                className={`${KNAP} ${maade === "indtil" ? "border-red-500" : ""}`}
+                onClick={() => setMaade("indtil")}
+              >
+                Indtil dato og klokkeslæt
+              </button>
+            </div>
+
+            {maade === "varighed" ? (
+              <>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min={0.1}
+                    step="any"
+                    inputMode="decimal"
+                    value={antal}
+                    onChange={(e) => setAntal(e.target.value)}
+                    aria-label="Antal"
+                    className={`${FELT} w-28`}
+                  />
+                  <select
+                    value={enhed}
+                    onChange={(e) => setEnhed(e.target.value as MidlertidigEnhed)}
+                    aria-label="Enhed"
+                    className={FELT}
+                  >
+                    {MIDLERTIDIG_ENHEDER.map((e) => (
+                      <option key={e.kode} value={e.kode}>
+                        {e.navn}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {MIDLERTIDIG_GENVEJE.map((g) => (
+                    <button
+                      key={g.navn}
+                      type="button"
+                      className="rounded-lg border border-[#2a3a5c] px-2.5 py-1 text-xs font-semibold text-slate-200 hover:border-slate-400"
+                      onClick={() => {
+                        setAntal(String(g.antal));
+                        setEnhed(g.enhed);
+                      }}
+                    >
+                      {g.navn}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <input
+                type="datetime-local"
+                value={indtil}
+                onChange={(e) => setIndtil(e.target.value)}
+                aria-label="Vis indtil"
+                className={FELT}
+              />
+            )}
+          </div>
           <button
             type="submit"
-            disabled={isPending || !elementId || !(valgtMin > 0)}
+            disabled={isPending || !elementId}
             className={KNAP_ROED}
           >
             {isPending ? "Starter…" : kører ? "Erstat og start" : "Start midlertidig visning"}

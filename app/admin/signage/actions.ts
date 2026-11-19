@@ -537,12 +537,14 @@ export async function sletMedie(id: string): Promise<Resultat> {
 // i playlisten, så man kan lave en test uden at den kører fast.
 // ---------------------------------------------------------------------------
 
-export async function startMidlertidig(skaermId: string, elementId: string, minutter: number): Promise<Resultat> {
+export async function startMidlertidig(skaermId: string, elementId: string, til: string): Promise<Resultat> {
   if (!(await kraevAdgang("signage"))) return nej(IKKE_ADGANG);
   if (!UUID.test(skaermId) || !UUID.test(elementId)) return nej("Ukendt skærm eller element.");
-  if (!Number.isInteger(minutter) || minutter < 1 || minutter > MIDLERTIDIG_MAKS_MIN) {
-    return nej("Vælg en varighed mellem 1 minut og 31 dage.");
-  }
+  const tilMs = typeof til === "string" ? Date.parse(til) : NaN;
+  if (!Number.isFinite(tilMs)) return nej("Sluttidspunktet kunne ikke læses.");
+  const minutterFrem = (tilMs - Date.now()) / 60_000;
+  if (minutterFrem < 1) return nej("Sluttidspunktet skal ligge mindst et minut ude i fremtiden.");
+  if (minutterFrem > MIDLERTIDIG_MAKS_MIN) return nej("Højst et år frem.");
 
   const { data: el, error: elFejl } = await supabaseAdmin
     .from("signage_elementer")
@@ -552,10 +554,9 @@ export async function startMidlertidig(skaermId: string, elementId: string, minu
   if (elFejl) return nej(beskrivFejl(elFejl));
   if (!el || el.skaerm_id !== skaermId) return nej("Elementet hører ikke til denne skærm.");
 
-  const til = new Date(Date.now() + minutter * 60_000).toISOString();
   const { error } = await supabaseAdmin
     .from("signage_skaerme")
-    .update({ midlertidig_element_id: elementId, midlertidig_til: til })
+    .update({ midlertidig_element_id: elementId, midlertidig_til: new Date(tilMs).toISOString() })
     .eq("id", skaermId);
   if (error) {
     console.error("Signage: kunne ikke starte midlertidig visning:", error);
