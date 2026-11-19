@@ -8,6 +8,7 @@ import { ETIKET, KNAP, KORT, SignageShell, StatusPrik, sidstSetTekst } from "../
 import Indstillinger from "./indstillinger";
 import Playliste from "./playliste";
 import Forhaandsvisning from "./forhaandsvisning";
+import Midlertidig from "../../midlertidig";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Skærm — Skærme Alliancen" };
@@ -62,6 +63,8 @@ export default async function SkaermSide({ params }: { params: Promise<{ id: str
         </section>
 
         <aside className="grid content-start gap-6">
+          <Midlertidig skaerm={skaerm} elementer={elementer} />
+
           <section className={KORT}>
             <p className={ETIKET}>Live forhåndsvisning</p>
             <Forhaandsvisning src={forhaand} />

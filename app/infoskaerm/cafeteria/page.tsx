@@ -2,6 +2,7 @@ import { supabasePublic } from "@/lib/supabase-public";
 import { getIndhold, getTodayPlan } from "@/lib/infoskaerm/data";
 import { billedBase, getDagensBilleder, getOpsaetning } from "@/lib/infoskaerm/billeder";
 import { getAktivtDesign } from "@/lib/infoskaerm/design-data";
+import { hentInfoskaermMidlertidig } from "@/lib/signage/data";
 import type { DagFarve } from "@/lib/infoskaerm/content";
 import ScreenView from "./screen-view";
 
@@ -29,10 +30,11 @@ export default async function CafeteriaInfoskaermPage() {
 
   // Billederne og opsætningen hentes uanset dagens plan: uden en farve kan
   // skærmen stadig vise billederne.
-  const [row, billeder, opsaetning] = await Promise.all([
+  const [row, billeder, opsaetning, midlertidig] = await Promise.all([
     getTodayPlan(client),
     getDagensBilleder(client),
     getOpsaetning(client),
+    hentInfoskaermMidlertidig(client),
   ]);
   const base = billedBase(client);
 
@@ -40,7 +42,7 @@ export default async function CafeteriaInfoskaermPage() {
   // ingen har valgt. En reserve her ville skjule en glemt indtastning — det så
   // ud som en plan, og så opdagede ingen, at der ikke var nogen.
   if (!row) {
-    return <ScreenView initial={{ harPlan: false, billeder, opsaetning, billedBase: base }} />;
+    return <ScreenView initial={{ harPlan: false, billeder, opsaetning, billedBase: base, midlertidig }} />;
   }
 
   const farve: DagFarve = row.farve;
@@ -65,6 +67,7 @@ export default async function CafeteriaInfoskaermPage() {
         billeder,
         opsaetning,
         billedBase: base,
+        midlertidig,
       }}
     />
   );

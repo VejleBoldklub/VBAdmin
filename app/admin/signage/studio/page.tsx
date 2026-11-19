@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { hentElementer, hentMedier, hentSkaerme, manglerTabel } from "@/lib/signage/data";
 import { OpsaetningMangler, SignageShell } from "../ui";
 import Studio from "./studio";
+import Midlertidig from "../midlertidig";
 
 // B · Content Studio: én skærm ad gangen, med lærredet i midten, playlisten
 // som tidslinje og egenskaberne til højre. Samme data som A og C.
@@ -29,6 +30,11 @@ export default async function StudioSide({ searchParams }: { searchParams: Promi
           elementer={elementer}
           medier={medier}
         />
+      )}
+      {valgt && (
+        <div className="mt-6 max-w-xl">
+          <Midlertidig key={`m-${valgt.id}`} skaerm={valgt} elementer={elementer} />
+        </div>
       )}
     </SignageShell>
   );

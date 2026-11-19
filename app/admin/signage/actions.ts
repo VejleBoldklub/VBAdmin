@@ -9,6 +9,7 @@ import {
   ELEMENT_TYPER,
   FARVE_FORM,
   JUSTERINGER,
+  MIDLERTIDIG_MAKS_MIN,
   MEDIE_MAKS_BYTES,
   MEDIE_TYPER,
   OVERGANGE,
@@ -526,4 +527,66 @@ export async function sletMedie(id: string): Promise<Resultat> {
 
   revalidatePath("/admin/signage/medier");
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Midlertidig visning
+//
+// Ét element vises alene på skærmen i et valgt tidsrum og afløses derefter af
+// playlisten igen. Elementet skal høre til skærmen, men må gerne være slået fra
+// i playlisten, så man kan lave en test uden at den kører fast.
+// ---------------------------------------------------------------------------
+
+export async function startMidlertidig(skaermId: string, elementId: string, minutter: number): Promise<Resultat> {
+  if (!(await kraevAdgang("signage"))) return nej(IKKE_ADGANG);
+  if (!UUID.test(skaermId) || !UUID.test(elementId)) return nej("Ukendt skærm eller element.");
+  if (!Number.isInteger(minutter) || minutter < 1 || minutter > MIDLERTIDIG_MAKS_MIN) {
+    return nej("Vælg en varighed mellem 1 minut og 31 dage.");
+  }
+
+  const { data: el, error: elFejl } = await supabaseAdmin
+    .from("signage_elementer")
+    .select("id, skaerm_id")
+    .eq("id", elementId)
+    .maybeSingle();
+  if (elFejl) return nej(beskrivFejl(elFejl));
+  if (!el || el.skaerm_id !== skaermId) return nej("Elementet hører ikke til denne skærm.");
+
+  const til = new Date(Date.now() + minutter * 60_000).toISOString();
+  const { error } = await supabaseAdmin
+    .from("signage_skaerme")
+    .update({ midlertidig_element_id: elementId, midlertidig_til: til })
+    .eq("id", skaermId);
+  if (error) {
+    console.error("Signage: kunne ikke starte midlertidig visning:", error);
+    return nej(`Kunne ikke starte: ${beskrivFejl(error)}`);
+  }
+
+  genopfriskMidlertidig(skaermId);
+  return { ok: true };
+}
+
+export async function stopMidlertidig(skaermId: string): Promise<Resultat> {
+  if (!(await kraevAdgang("signage"))) return nej(IKKE_ADGANG);
+  if (!UUID.test(skaermId)) return nej("Ukendt skærm.");
+
+  const { error } = await supabaseAdmin
+    .from("signage_skaerme")
+    .update({ midlertidig_element_id: null, midlertidig_til: null })
+    .eq("id", skaermId);
+  if (error) {
+    console.error("Signage: kunne ikke stoppe midlertidig visning:", error);
+    return nej(`Kunne ikke stoppe: ${beskrivFejl(error)}`);
+  }
+
+  genopfriskMidlertidig(skaermId);
+  return { ok: true };
+}
+
+function genopfriskMidlertidig(skaermId: string) {
+  revalidatePath("/admin/signage");
+  revalidatePath(`/admin/signage/skaerm/${skaermId}`);
+  revalidatePath("/admin/signage/studio");
+  revalidatePath("/admin/signage/enkel");
+  revalidatePath("/infoskaerm/cafeteria");
 }

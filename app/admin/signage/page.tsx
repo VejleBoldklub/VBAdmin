@@ -4,7 +4,7 @@ import { produktionsBaseUrl } from "@/lib/base-url";
 import { hentMedier, hentSkaerme, manglerTabel } from "@/lib/signage/data";
 import KopierFelt from "./kopier-felt";
 import NySkaerm from "./ny-skaerm";
-import { ETIKET, KNAP, KNAP_ROED, KORT, OpsaetningMangler, SignageShell, StatusPrik, erOnline, sidstSetTekst } from "./ui";
+import { ETIKET, KNAP, KNAP_ROED, KORT, OpsaetningMangler, SignageShell, StatusPrik, MidlertidigMaerke, erOnline, sidstSetTekst } from "./ui";
 
 // Skærme Alliancen: overblikket over alle klubbens skærme.
 //
@@ -62,6 +62,7 @@ export default async function SignageOversigt() {
                     <p className="text-xs text-slate-400">
                       {[s.placering, `${antal[s.id] ?? 0} aktive elementer`, sidstSetTekst(s)].filter(Boolean).join(" · ")}
                     </p>
+                    <MidlertidigMaerke skaerm={s} nu={nu} />
                     <div className="mt-2 max-w-xl">
                       <KopierFelt url={`${base}/signage/${s.slug}`} />
                     </div>

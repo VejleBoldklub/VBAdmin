@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { danskTid, elementVisesNu, skaermTaendt } from "@/lib/signage/plan";
-import type { PlayerData, PlayerElement } from "@/lib/signage/typer";
+import { midlertidigAktiv, type PlayerData, type PlayerElement } from "@/lib/signage/typer";
 import Visning from "@/components/signage/visning";
 
 // Playeren kører alene på skærmen i timevis. Den skal derfor kunne tåle, at
@@ -11,6 +11,10 @@ import Visning from "@/components/signage/visning";
 // element, der vises, får lov at blive færdigt).
 
 const GENINDLAES_MS = 12 * 60 * 60 * 1000;
+
+function tidspunkt(): number {
+  return Date.now();
+}
 
 export default function Player({
   slug,
@@ -26,6 +30,7 @@ export default function Player({
   const [aktuelId, setAktuelId] = useState<string | null>(null);
   const [trin, setTrin] = useState(0);
   const [ur, setUr] = useState("");
+  const [nuMs, setNuMs] = useState(tidspunkt);
 
   const opdaterSek = data?.skaerm.opdaterSekunder ?? 60;
 
@@ -36,7 +41,7 @@ export default function Player({
       try {
         const res = await fetch(`/api/signage/${slug}${forhaand ? "?forhaand=1" : ""}`, { cache: "no-store" });
         const json = await res.json();
-        if (aktiv && json.ok) setData({ skaerm: json.skaerm, elementer: json.elementer });
+        if (aktiv && json.ok) setData({ skaerm: json.skaerm, elementer: json.elementer, midlertidig: json.midlertidig ?? null });
       } catch (err) {
         console.error("Signage: kunne ikke hente playlisten, beholder den nuværende:", err);
       }
@@ -51,9 +56,24 @@ export default function Player({
 
   // Planlægningen regnes igen hvert halve minut, uret hvert sekund.
   useEffect(() => {
-    const id = window.setInterval(() => setTid(danskTid()), 30_000);
+    const id = window.setInterval(() => {
+      setTid(danskTid());
+      setNuMs(tidspunkt());
+    }, 30_000);
     return () => window.clearInterval(id);
   }, []);
+
+  // Den midlertidige visning slutter præcis til tiden, ikke ved næste hentning.
+  const midlTil = data?.midlertidig ? data.skaerm.midlertidigTil : null;
+  useEffect(() => {
+    if (!midlTil) return;
+    const rest = Date.parse(midlTil) - tidspunkt();
+    if (rest <= 0 || rest > 2_000_000_000) return;
+    const id = window.setTimeout(() => setNuMs(tidspunkt()), rest + 50);
+    return () => window.clearTimeout(id);
+  }, [midlTil]);
+
+  const midlertidig = data?.midlertidig && midlertidigAktiv(midlTil, nuMs) ? data.midlertidig : null;
 
   useEffect(() => {
     if (!data?.skaerm.visUr) return;
@@ -81,9 +101,10 @@ export default function Player({
     return () => window.clearTimeout(id);
   }, [forhaand]);
 
+  // Under en midlertidig visning vises kun det ene element, uanset plan.
   const synlige = useMemo(
-    () => (data ? data.elementer.filter((e) => elementVisesNu(e, tid)) : []),
-    [data, tid]
+    () => (midlertidig ? [midlertidig] : data ? data.elementer.filter((e) => elementVisesNu(e, tid)) : []),
+    [data, tid, midlertidig]
   );
 
   const aktuel: PlayerElement | null = useMemo(() => {
@@ -124,7 +145,7 @@ export default function Player({
     }
   }, [aktuel, synlige]);
 
-  const taendt = skaerm ? skaermTaendt(skaerm, tid) : false;
+  const taendt = midlertidig ? true : skaerm ? skaermTaendt(skaerm, tid) : false;
 
   const animation =
     skaerm && skaerm.overgang !== "ingen" && skaerm.overgangMs > 0
@@ -161,7 +182,7 @@ export default function Player({
 
       {forhaand && (
         <div className="absolute bottom-3 left-3 rounded bg-black/60 px-2 py-1 text-xs text-white">
-          Forhåndsvisning · {synlige.length} element(er) vises nu · dobbeltklik for fuld skærm
+          Forhåndsvisning · {midlertidig ? "midlertidig visning" : `${synlige.length} element(er) vises nu`} · dobbeltklik for fuld skærm
         </div>
       )}
     </main>
