@@ -16,8 +16,18 @@ export const KNAP_ROED =
 export const FELT =
   "w-full rounded-lg border border-[#2a3a5c] bg-[#0a1324] px-3 py-2 text-sm text-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500";
 
+// De tre arbejdsgange fra designprototypen. Alle tre virker på de samme
+// skærme og playlister — det er kun måden at arbejde på, der er forskellig, så
+// Asger kan vælge den, der passer ham.
+export const DESIGNS = [
+  { kode: "A", navn: "Operations Center", href: "/admin/signage" },
+  { kode: "B", navn: "Content Studio", href: "/admin/signage/studio" },
+  { kode: "C", navn: "Screen Manager", href: "/admin/signage/enkel" },
+] as const;
+
+export type Design = (typeof DESIGNS)[number]["kode"];
+
 const FANER = [
-  { href: "/admin/signage", navn: "Operations Center" },
   { href: "/admin/signage/medier", navn: "Medier" },
   { href: "/admin/signage/vejledning", navn: "Opsætning af skærm" },
   { href: "/admin/infoskaerm", navn: "Infoskærm Cafeteria" },
@@ -27,17 +37,37 @@ export function SignageShell({
   titel,
   undertitel,
   aktiv,
+  design,
   handling,
   children,
 }: {
   titel: string;
   undertitel?: string;
   aktiv?: string;
+  design?: Design;
   handling?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <main className="min-h-screen bg-[#080f1d] text-slate-100">
+      <div className="border-b border-slate-200 bg-white text-slate-900">
+        <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-2 px-5 py-2.5 sm:px-8">
+          <span className="mr-3 text-sm font-black uppercase tracking-wide">Skærme Alliancen · Designvalg</span>
+          {DESIGNS.map((d) => (
+            <Link
+              key={d.kode}
+              href={d.href}
+              aria-current={design === d.kode ? "page" : undefined}
+              className={`rounded-lg px-3 py-1.5 text-sm font-bold ${
+                design === d.kode ? "bg-[#b4122a] text-white" : "border border-slate-300 bg-white text-slate-800 hover:border-slate-500"
+              }`}
+            >
+              {d.kode} · {d.navn}
+            </Link>
+          ))}
+          <span className="ml-auto hidden text-xs text-slate-500 md:inline">Tre arbejdsgange · samme skærme og indhold</span>
+        </div>
+      </div>
       <div className="border-b border-[#1e2a44] bg-[#0b1426]">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <div className="flex items-center gap-4">

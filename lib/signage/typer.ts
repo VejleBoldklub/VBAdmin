@@ -161,3 +161,53 @@ export function lavSlug(tekst: string): string {
 export const SLUG_FORM = /^[a-z0-9]([a-z0-9-]{0,48}[a-z0-9])?$/;
 export const FARVE_FORM = /^#[0-9a-fA-F]{6}$/;
 export const TID_FORM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+export function tomtElement(type: ElementType): ElementFelter {
+  return {
+    type,
+    medieId: null,
+    titel: "",
+    tekst: "",
+    url: "",
+    sekunder: null,
+    tilpasning: null,
+    baggrund: "#b91c1c",
+    tekstfarve: "#ffffff",
+    justering: "center",
+    aktiv: true,
+    fraDato: null,
+    tilDato: null,
+    ugedage: [1, 2, 3, 4, 5, 6, 7],
+    fraTid: null,
+    tilTid: null,
+  };
+}
+
+export function felterFraElement(e: Element): ElementFelter {
+  return {
+    type: e.type,
+    medieId: e.medieId,
+    titel: e.titel,
+    tekst: e.tekst,
+    url: e.url,
+    sekunder: e.sekunder,
+    tilpasning: e.tilpasning,
+    baggrund: e.baggrund,
+    tekstfarve: e.tekstfarve,
+    justering: e.justering,
+    aktiv: e.aktiv,
+    fraDato: e.fraDato,
+    tilDato: e.tilDato,
+    ugedage: e.ugedage,
+    fraTid: e.fraTid,
+    tilTid: e.tilTid,
+  };
+}
+
+// Færdige tekst-slides at starte fra i Content Studio og Screen Manager.
+export const SKABELONER: { navn: string; felter: Partial<ElementFelter> }[] = [
+  { navn: "Velkomst", felter: { titel: "Velkommen til VB", tekst: "Cafeteria", baggrund: "#b91c1c", tekstfarve: "#ffffff" } },
+  { navn: "Kampdag", felter: { titel: "Kampdag", tekst: "VB – modstander\nLørdag kl. 15.00", baggrund: "#0b1426", tekstfarve: "#ffffff" } },
+  { navn: "Sponsorer", felter: { titel: "Tak til vores sponsorer", tekst: "", baggrund: "#ffffff", tekstfarve: "#b91c1c" } },
+  { navn: "Info", felter: { titel: "Info", tekst: "Skriv beskeden her", baggrund: "#1e293b", tekstfarve: "#ffffff", justering: "venstre" } },
+];

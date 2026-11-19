@@ -30,7 +30,7 @@ export default async function SignageOversigt() {
   const elementer = Object.values(antal).reduce((a, b) => a + b, 0);
 
   return (
-    <SignageShell titel="Operations Center" undertitel="Alle klubbens skærme samlet ét sted" aktiv="/admin/signage">
+    <SignageShell titel="Operations Center" undertitel="Alle klubbens skærme samlet ét sted" design="A">
       {fejl && manglerTabel(fejl) && <OpsaetningMangler />}
       {fejl && !manglerTabel(fejl) && (
         <div className={`${KORT} border-red-500/50 text-red-200`}>Skærmene kunne ikke hentes: {fejl.message}</div>
