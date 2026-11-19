@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { danskTid, elementVisesNu, skaermTaendt } from "@/lib/signage/plan";
 import type { PlayerData, PlayerElement } from "@/lib/signage/typer";
+import Visning from "@/components/signage/visning";
 
 // Playeren kører alene på skærmen i timevis. Den skal derfor kunne tåle, at
 // nettet forsvinder (den bliver ved med det, den har), at en video ikke kan
@@ -173,90 +174,4 @@ function Besked({ tekst }: { tekst: string }) {
       {tekst}
     </div>
   );
-}
-
-function Visning({
-  element: e,
-  standardTilpasning,
-  lyd,
-  onSlut,
-}: {
-  element: PlayerElement;
-  standardTilpasning: "contain" | "cover";
-  lyd: boolean;
-  onSlut: () => void;
-}) {
-  const fit = e.tilpasning ?? standardTilpasning;
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  // Browsere afviser afspilning med lyd uden et klik, medmindre kiosken er sat
-  // op til at tillade det. Afvises den, spilles videoen uden lyd frem for slet
-  // ikke.
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.muted = !lyd;
-    v.play().catch(() => {
-      v.muted = true;
-      v.play().catch((err) => {
-        console.error("Signage: videoen kunne ikke afspilles:", err);
-        onSlut();
-      });
-    });
-  }, [lyd, onSlut]);
-
-  if (e.type === "billede" && e.medieUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={e.medieUrl} alt={e.titel} className="h-full w-full" style={{ objectFit: fit }} />;
-  }
-
-  if (e.type === "video" && e.medieUrl) {
-    const helVideo = e.sekunder === null || e.sekunder === 0;
-    return (
-      <video
-        ref={videoRef}
-        src={e.medieUrl}
-        className="h-full w-full"
-        style={{ objectFit: fit }}
-        playsInline
-        muted
-        autoPlay
-        loop={!helVideo}
-        onEnded={helVideo ? onSlut : undefined}
-        onError={onSlut}
-      />
-    );
-  }
-
-  if (e.type === "tekst") {
-    return (
-      <div
-        className="relative flex h-full w-full flex-col justify-center px-[8vw]"
-        style={{
-          background: e.baggrund,
-          color: e.tekstfarve,
-          textAlign: e.justering === "center" ? "center" : "left",
-        }}
-      >
-        {e.medieUrl && e.medieType === "billede" && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={e.medieUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-40" />
-        )}
-        <div className="relative">
-          {e.titel && <h1 className="text-[6vw] font-extrabold uppercase leading-none tracking-tight">{e.titel}</h1>}
-          {e.tekst && <p className="mt-[3vh] whitespace-pre-line text-[2.6vw] font-medium leading-snug">{e.tekst}</p>}
-        </div>
-      </div>
-    );
-  }
-
-  if (e.type === "web" && e.url) {
-    return <iframe src={e.url} title={e.titel || "Webside"} className="h-full w-full border-0" />;
-  }
-
-  if (e.type === "infoskaerm") {
-    return <iframe src="/infoskaerm/cafeteria" title="Infoskærm Cafeteria" className="h-full w-full border-0" />;
-  }
-
-  return null;
 }

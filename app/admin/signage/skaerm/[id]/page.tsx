@@ -39,6 +39,7 @@ export default async function SkaermSide({ params }: { params: Promise<{ id: str
     <SignageShell
       titel={skaerm.navn}
       undertitel={[skaerm.placering, sidstSetTekst(skaerm)].filter(Boolean).join(" · ")}
+      design="A"
       handling={<StatusPrik skaerm={skaerm} nu={tidspunkt()} />}
     >
       <Link href="/admin/signage" className="text-sm font-semibold text-slate-400 hover:text-white">
