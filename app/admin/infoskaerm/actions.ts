@@ -37,7 +37,9 @@ export async function gemDag(
   farve: DagFarve,
   ekstraBesked: string
 ): Promise<GemResultat> {
-  if (!(await kraevAdgang("infoskaerm"))) {
+  // Dagens farve kan også sættes fra Skærme Alliancen, så adgang til det
+  // modul er nok. Helene har infoskærm-modulet, Asger signage.
+  if (!(await kraevAdgang("infoskaerm")) && !(await kraevAdgang("signage"))) {
     console.error("Afvist forsøg på at ændre infoskærmens ugeplan uden gyldig admin-adgang.");
     return { ok: false, fejl: IKKE_ADMIN };
   }

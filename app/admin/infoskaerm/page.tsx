@@ -5,6 +5,7 @@ import KioskLink from "./kiosk-link";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { getUpcomingPlan, todayKey } from "@/lib/infoskaerm/data";
 import DayRow from "./day-row";
+import { dageFra, labelFor } from "@/lib/infoskaerm/dato";
 import { harAdgangTil, hentBruger } from "@/lib/adgang";
 
 // Ugeplanen bag cafeteriets infoskærm. Ruten ligger under /admin og er dermed
@@ -13,33 +14,6 @@ import { harAdgangTil, hentBruger } from "@/lib/adgang";
 export const dynamic = "force-dynamic";
 
 const ANTAL_DAGE = 14;
-
-// Dagene regnes ud fra dagens dato i Europe/Copenhagen, ikke serverens.
-//
-// Vercel kører i UTC, og en liste bygget på serverens dato ville i timerne efter
-// dansk midnat starte en dag for tidligt — mens getUpcomingPlan henter fra
-// dagens danske dato. Listen ville så vise en dag, der ikke kunne hentes data
-// til, og resten ville stå forskudt.
-//
-// Der regnes i hele døgn med Date.UTC frem for at lægge timer til, så
-// sommertidsskiftet ikke kan give to ens eller en manglende dag.
-function dageFra(start: string, antal: number): string[] {
-  const [aar, maaned, dag] = start.split("-").map(Number);
-
-  return Array.from({ length: antal }, (_, i) =>
-    new Date(Date.UTC(aar, maaned - 1, dag + i)).toISOString().slice(0, 10)
-  );
-}
-
-function labelFor(dato: string): string {
-  // Middag UTC, så datoen ikke kan tippe til nabodøgnet under formateringen.
-  return new Date(dato + "T12:00:00Z").toLocaleDateString("da-DK", {
-    timeZone: "Europe/Copenhagen",
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-  });
-}
 
 export default async function InfoskaermAdminPage() {
   const { raekker, fejl } = await getUpcomingPlan(supabaseAdmin, ANTAL_DAGE);

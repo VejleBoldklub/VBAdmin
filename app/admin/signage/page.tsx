@@ -4,7 +4,7 @@ import { produktionsBaseUrl } from "@/lib/base-url";
 import { hentMedier, hentSkaerme, manglerTabel } from "@/lib/signage/data";
 import KopierFelt from "./kopier-felt";
 import NySkaerm from "./ny-skaerm";
-import { ETIKET, KNAP, KORT, OpsaetningMangler, SignageShell, StatusPrik, erOnline, sidstSetTekst } from "./ui";
+import { ETIKET, KNAP, KNAP_ROED, KORT, OpsaetningMangler, SignageShell, StatusPrik, erOnline, sidstSetTekst } from "./ui";
 
 // Skærme Alliancen: overblikket over alle klubbens skærme.
 //
@@ -103,6 +103,9 @@ export default async function SignageOversigt() {
               den kan lægges ind i enhver playliste som et element.
             </p>
             <div className="mt-3 grid gap-2">
+              <Link href="/admin/signage/dagens-farve" className={KNAP_ROED}>
+                Dagens farve (Rød / Gul / Grøn) →
+              </Link>
               <Link href="/admin/infoskaerm" className={KNAP}>
                 Ugeplan og kost →
               </Link>
