@@ -1,7 +1,8 @@
 import type { PostgrestError, SupabaseClient } from "@supabase/supabase-js";
 import {
-  DAY_CONTENT,
+  STANDARD_DAGTYPER,
   erIndholdRow,
+  standardIndhold,
   fraDagIndhold,
   tilDagIndhold,
   type DagFarve,
@@ -24,8 +25,6 @@ export interface UgeplanRow {
   ekstra_besked: string;
 }
 
-const FARVER: readonly DagFarve[] = ["Rød", "Gul", "Grøn"];
-
 // Rækker fra databasen er ukendte data ved systemgrænsen og valideres, før de
 // bruges som UgeplanRow. Farven har ganske vist en check-constraint i skemaet,
 // men typen her må ikke hvile på en antagelse om, at skemaet altid er i takt med
@@ -41,7 +40,7 @@ function erUgeplanRow(vaerdi: unknown): vaerdi is UgeplanRow {
     typeof r.id === "string" &&
     typeof r.dato === "string" &&
     typeof r.farve === "string" &&
-    FARVER.includes(r.farve as DagFarve) &&
+    r.farve.trim() !== "" &&
     typeof r.ekstra_besked === "string"
   );
 }
@@ -102,10 +101,10 @@ export async function getIndhold(
 
   if (error) {
     console.error("infoskaerm_indhold fetch fejl:", error);
-    return DAY_CONTENT[farve];
+    return standardIndhold(farve);
   }
 
-  return erIndholdRow(data) ? tilDagIndhold(data) : DAY_CONTENT[farve];
+  return erIndholdRow(data) ? tilDagIndhold(data) : standardIndhold(farve);
 }
 
 // Alle tre farver til adminfladens formular.
@@ -116,11 +115,8 @@ export async function getIndhold(
 export async function getAltIndhold(
   client: SupabaseClient
 ): Promise<{ indhold: Record<DagFarve, IndholdRow>; fejl: string | null }> {
-  const reserve = {
-    Rød: fraDagIndhold("Rød", DAY_CONTENT["Rød"]),
-    Gul: fraDagIndhold("Gul", DAY_CONTENT["Gul"]),
-    Grøn: fraDagIndhold("Grøn", DAY_CONTENT["Grøn"]),
-  };
+  const reserve: Record<DagFarve, IndholdRow> = {};
+  for (const f of STANDARD_DAGTYPER) reserve[f] = fraDagIndhold(f, standardIndhold(f));
 
   const { data, error } = await client.from("infoskaerm_indhold").select(INDHOLD_KOLONNER);
 
@@ -177,4 +173,67 @@ export async function getUpcomingPlan(
     raekker: Array.isArray(data) ? data.filter(erUgeplanRow) : [],
     fejl: null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Dagtyper
+//
+// De tre standardtyper kommer altid med, også hvis tabellen ikke kan læses.
+// Oprettede typer (fx "Rød 2") følger efter i den rækkefølge, de er oprettet.
+// ---------------------------------------------------------------------------
+
+export interface Dagtype {
+  farve: DagFarve;
+  kortnavn: string;
+  farvekode: string;
+}
+
+export async function getDagtyper(client: SupabaseClient): Promise<Dagtype[]> {
+  const typer: Dagtype[] = STANDARD_DAGTYPER.map((f) => {
+    const s = standardIndhold(f);
+    return { farve: f, kortnavn: s.shortName, farvekode: s.color };
+  });
+
+  const { data, error } = await client.from("infoskaerm_indhold").select("*");
+
+  if (error) {
+    console.error("infoskaerm_indhold dagtyper-fejl:", error);
+    return typer;
+  }
+
+  const raekker = (Array.isArray(data) ? data : [])
+    .filter(erIndholdRow)
+    .map((r) => ({
+      r,
+      orden:
+        typeof (r as unknown as { raekkefoelge?: unknown }).raekkefoelge === "number"
+          ? ((r as unknown as { raekkefoelge: number }).raekkefoelge)
+          : 100,
+    }))
+    .sort((a, b) => a.orden - b.orden || a.r.farve.localeCompare(b.r.farve, "da"));
+
+  for (const { r } of raekker) {
+    const kendt = typer.find((t) => t.farve === r.farve);
+    if (kendt) {
+      kendt.kortnavn = r.kortnavn;
+      kendt.farvekode = r.farvekode;
+    } else {
+      typer.push({ farve: r.farve, kortnavn: r.kortnavn, farvekode: r.farvekode });
+    }
+  }
+
+  return typer;
+}
+
+// Om en dagtype findes. Standardtyperne findes altid.
+export async function findesDagtype(client: SupabaseClient, farve: string): Promise<boolean> {
+  if ((STANDARD_DAGTYPER as readonly string[]).includes(farve)) return true;
+
+  const { data, error } = await client
+    .from("infoskaerm_indhold")
+    .select("farve")
+    .eq("farve", farve)
+    .maybeSingle();
+
+  return !error && data !== null;
 }

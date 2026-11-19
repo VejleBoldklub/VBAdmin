@@ -2,13 +2,8 @@
 
 import { useState, useTransition } from "react";
 import type { DagFarve } from "@/lib/infoskaerm/content";
+import type { Dagtype } from "@/lib/infoskaerm/data";
 import { gemDag } from "./actions";
-
-const FARVER: { value: DagFarve; label: string; kort: string; dot: string }[] = [
-  { value: "Rød", label: "Rød · Performance", kort: "Rød", dot: "#B91C1C" },
-  { value: "Gul", label: "Gul · Recovery", kort: "Gul", dot: "#D6A800" },
-  { value: "Grøn", label: "Grøn · Health", kort: "Grøn", dot: "#2E8B2E" },
-];
 
 const KNAP =
   "rounded-lg border px-3 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2";
@@ -18,6 +13,7 @@ export default function DayRow({
   labelDato,
   initialFarve,
   initialBesked,
+  dagtyper,
 }: {
   dato: string;
   labelDato: string;
@@ -25,7 +21,15 @@ export default function DayRow({
   // samme som Grøn, og adminfladen må ikke få det til at ligne det.
   initialFarve: DagFarve | null;
   initialBesked: string;
+  // Rød, Gul og Grøn plus de typer, der er oprettet i Skærme Alliancen.
+  dagtyper: Dagtype[];
 }) {
+  const FARVER = dagtyper.map((t) => ({
+    value: t.farve,
+    label: t.kortnavn && t.kortnavn !== t.farve ? `${t.farve} · ${t.kortnavn}` : t.farve,
+    kort: t.farve,
+    dot: t.farvekode,
+  }));
   const [farve, setFarve] = useState<DagFarve | null>(initialFarve);
   const [besked, setBesked] = useState(initialBesked);
   const [gemt, setGemt] = useState(false);

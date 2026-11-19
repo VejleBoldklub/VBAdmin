@@ -3,7 +3,7 @@ import { AdminPageShell } from "@/components/admin-page-shell";
 import { produktionsBaseUrl } from "@/lib/base-url";
 import KioskLink from "./kiosk-link";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getUpcomingPlan, todayKey } from "@/lib/infoskaerm/data";
+import { getDagtyper, getUpcomingPlan, todayKey } from "@/lib/infoskaerm/data";
 import DayRow from "./day-row";
 import { dageFra, labelFor } from "@/lib/infoskaerm/dato";
 import { harAdgangTil, hentBruger } from "@/lib/adgang";
@@ -16,7 +16,10 @@ export const dynamic = "force-dynamic";
 const ANTAL_DAGE = 14;
 
 export default async function InfoskaermAdminPage() {
-  const { raekker, fejl } = await getUpcomingPlan(supabaseAdmin, ANTAL_DAGE);
+  const [{ raekker, fejl }, dagtyper] = await Promise.all([
+    getUpcomingPlan(supabaseAdmin, ANTAL_DAGE),
+    getDagtyper(supabaseAdmin),
+  ]);
   const efterDato = new Map(raekker.map((r) => [r.dato, r]));
   const dage = dageFra(todayKey(), ANTAL_DAGE);
 
@@ -97,6 +100,7 @@ export default async function InfoskaermAdminPage() {
               labelDato={labelFor(dato)}
               initialFarve={row?.farve ?? null}
               initialBesked={row?.ekstra_besked ?? ""}
+              dagtyper={dagtyper}
             />
           );
         })}

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { AdminPageShell } from "@/components/admin-page-shell";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getAltIndhold } from "@/lib/infoskaerm/data";
-import type { DagFarve } from "@/lib/infoskaerm/content";
+import { getAltIndhold, getDagtyper } from "@/lib/infoskaerm/data";
+import { fraDagIndhold, standardIndhold } from "@/lib/infoskaerm/content";
 import IndholdForm from "./indhold-form";
 
 // Kostindholdet bag infoskærmen, én formular pr. farve.
@@ -11,10 +11,12 @@ import IndholdForm from "./indhold-form";
 // kontrollerer derudover sin egen adgang — se actions.ts.
 export const dynamic = "force-dynamic";
 
-const FARVER: readonly DagFarve[] = ["Rød", "Gul", "Grøn"];
-
 export default async function InfoskaermIndholdPage() {
-  const { indhold, fejl } = await getAltIndhold(supabaseAdmin);
+  const [{ indhold, fejl }, dagtyper] = await Promise.all([
+    getAltIndhold(supabaseAdmin),
+    getDagtyper(supabaseAdmin),
+  ]);
+  const FARVER = dagtyper.map((t) => t.farve);
 
   return (
     <AdminPageShell eyebrow="Infoskærm Cafeteria" title="Indhold">
@@ -47,7 +49,7 @@ export default async function InfoskaermIndholdPage() {
       )}
 
       {FARVER.map((farve) => (
-        <IndholdForm key={farve} start={indhold[farve]} />
+        <IndholdForm key={farve} start={indhold[farve] ?? fraDagIndhold(farve, standardIndhold(farve))} />
       ))}
     </AdminPageShell>
   );

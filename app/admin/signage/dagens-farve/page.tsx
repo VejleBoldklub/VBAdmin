@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getUpcomingPlan, todayKey } from "@/lib/infoskaerm/data";
+import { getDagtyper, getUpcomingPlan, todayKey } from "@/lib/infoskaerm/data";
 import { dageFra, labelFor } from "@/lib/infoskaerm/dato";
 import DayRow from "@/app/admin/infoskaerm/day-row";
 import { ETIKET, KNAP, SignageShell } from "../ui";
@@ -16,7 +16,10 @@ export const metadata = { title: "Dagens farve — Skærme Alliancen" };
 const ANTAL_DAGE = 14;
 
 export default async function DagensFarve() {
-  const { raekker, fejl } = await getUpcomingPlan(supabaseAdmin, ANTAL_DAGE);
+  const [{ raekker, fejl }, dagtyper] = await Promise.all([
+    getUpcomingPlan(supabaseAdmin, ANTAL_DAGE),
+    getDagtyper(supabaseAdmin),
+  ]);
   const efterDato = new Map(raekker.map((r) => [r.dato, r]));
   const dage = dageFra(todayKey(), ANTAL_DAGE);
 
@@ -29,6 +32,9 @@ export default async function DagensFarve() {
           to minutter.
         </p>
         <div className="ml-auto flex flex-wrap gap-2">
+          <Link href="/admin/signage/dagtyper" className={KNAP}>
+            Dagtyper (fx Rød 2) →
+          </Link>
           <Link href="/admin/infoskaerm/indhold" className={KNAP}>
             Kostindhold →
           </Link>
@@ -55,6 +61,7 @@ export default async function DagensFarve() {
               labelDato={labelFor(dato)}
               initialFarve={row?.farve ?? null}
               initialBesked={row?.ekstra_besked ?? ""}
+              dagtyper={dagtyper}
             />
           );
         })}

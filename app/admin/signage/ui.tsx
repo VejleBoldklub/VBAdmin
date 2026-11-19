@@ -29,6 +29,7 @@ export type Design = (typeof DESIGNS)[number]["kode"];
 
 const FANER = [
   { href: "/admin/signage/dagens-farve", navn: "Dagens farve" },
+  { href: "/admin/signage/dagtyper", navn: "Dagtyper" },
   { href: "/admin/signage/medier", navn: "Medier" },
   { href: "/admin/signage/vejledning", navn: "Opsætning af skærm" },
   { href: "/admin/infoskaerm", navn: "Infoskærm Cafeteria" },

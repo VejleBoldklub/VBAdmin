@@ -8,6 +8,8 @@ import { rensDesign, type Design } from "./design";
 
 export type GemtDesign = { design: Design | null; aktiv: boolean };
 
+export const INTET_DESIGN: GemtDesign = { design: null, aktiv: false };
+
 // Dagens design til skærmen, eller null.
 //
 // Null både når der intet aktivt design er, og når opslaget fejler eller
@@ -35,11 +37,8 @@ export async function getAktivtDesign(
 export async function getAlleDesigns(
   client: SupabaseClient
 ): Promise<{ designs: Record<DagFarve, GemtDesign>; fejl: string | null }> {
-  const designs: Record<DagFarve, GemtDesign> = {
-    Rød: { design: null, aktiv: false },
-    Gul: { design: null, aktiv: false },
-    Grøn: { design: null, aktiv: false },
-  };
+  // Typer uden række mangler i opslaget; kaldstedet bruger INTET_DESIGN.
+  const designs: Record<DagFarve, GemtDesign> = {};
 
   const { data, error } = await client
     .from("infoskaerm_design")
@@ -51,8 +50,8 @@ export async function getAlleDesigns(
   }
 
   for (const r of Array.isArray(data) ? data : []) {
-    if (r.farve === "Rød" || r.farve === "Gul" || r.farve === "Grøn") {
-      designs[r.farve as DagFarve] = { design: rensDesign(r), aktiv: r.aktiv === true };
+    if (typeof r.farve === "string" && r.farve !== "") {
+      designs[r.farve] = { design: rensDesign(r), aktiv: r.aktiv === true };
     }
   }
 
