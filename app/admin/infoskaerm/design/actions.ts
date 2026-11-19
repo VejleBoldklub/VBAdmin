@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { kraevAdgang } from "@/lib/adgang";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { beskrivSupabaseFejl } from "@/lib/infoskaerm/data";
+import { beskrivSupabaseFejl, findesDagtype } from "@/lib/infoskaerm/data";
 import { BUCKET } from "@/lib/infoskaerm/billeder";
 import { billedtype, FIL_MAKS } from "@/lib/infoskaerm/billedtype";
 import { billedStier, rensDesign } from "@/lib/infoskaerm/design";
@@ -19,8 +19,6 @@ import type { GemResultat } from "@/lib/infoskaerm/types";
 const ADMIN_STI = "/admin/infoskaerm/design";
 const SKAERM_STI = "/infoskaerm/cafeteria";
 
-const FARVER: readonly DagFarve[] = ["Rød", "Gul", "Grøn"];
-
 const IKKE_ADMIN =
   "Du er ikke logget ind som administrator længere. Genindlæs siden og prøv igen.";
 
@@ -34,7 +32,9 @@ export async function gemDesign(
     return { ok: false, fejl: IKKE_ADMIN };
   }
 
-  if (!FARVER.includes(farve)) return { ok: false, fejl: "Ukendt farve." };
+  if (typeof farve !== "string" || !(await findesDagtype(supabaseAdmin, farve))) {
+    return { ok: false, fejl: "Ukendt farve." };
+  }
   if (typeof aktiv !== "boolean") return { ok: false, fejl: "Designet kunne ikke gemmes." };
 
   // Designet kommer fra browseren og renses efter samme regler, som skærmen

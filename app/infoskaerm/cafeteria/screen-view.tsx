@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { DAY_CONTENT, type DagFarve, type DagIndhold } from '@/lib/infoskaerm/content';
+import type { DagFarve, DagIndhold } from '@/lib/infoskaerm/content';
 import {
   erOpsaetning,
   erSkaermBillede,
@@ -75,7 +75,7 @@ function erSkaermData(vaerdi: unknown): vaerdi is ScreenData & { ok: true } {
   return (
     v.harPlan === true &&
     typeof v.farve === 'string' &&
-    v.farve in DAY_CONTENT &&
+    v.farve !== '' &&
     typeof v.navn === 'string' &&
     typeof v.ekstraBesked === 'string' &&
     typeof v.content === 'object' &&

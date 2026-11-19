@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { AdminPageShell } from "@/components/admin-page-shell";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { getAltIndhold } from "@/lib/infoskaerm/data";
-import { tilDagIndhold, type DagFarve } from "@/lib/infoskaerm/content";
+import { getAltIndhold, getDagtyper } from "@/lib/infoskaerm/data";
+import { fraDagIndhold, standardIndhold, tilDagIndhold, type DagFarve } from "@/lib/infoskaerm/content";
 import { billedBase } from "@/lib/infoskaerm/billeder";
-import { getAlleDesigns } from "@/lib/infoskaerm/design-data";
+import { getAlleDesigns, INTET_DESIGN } from "@/lib/infoskaerm/design-data";
 import DesignEditor from "./design-editor";
 
 // Designeditoren til infoskærmen, én farve ad gangen.
@@ -14,25 +14,27 @@ import DesignEditor from "./design-editor";
 // actions.ts.
 export const dynamic = "force-dynamic";
 
-const FARVER: readonly DagFarve[] = ["Rød", "Gul", "Grøn"];
-
-const PRIK: Record<DagFarve, string> = { Rød: "#B91C1C", Gul: "#D6A800", Grøn: "#2E8B2E" };
-
 export default async function InfoskaermDesignPage({
   searchParams,
 }: {
   searchParams: Promise<{ farve?: string }>;
 }) {
   const { farve: valgtFarve } = await searchParams;
-  const farve: DagFarve = FARVER.find((f) => f === valgtFarve) ?? "Rød";
-
-  const [{ designs, fejl }, { indhold }] = await Promise.all([
+  const [{ designs, fejl }, { indhold }, dagtyper] = await Promise.all([
     getAlleDesigns(supabaseAdmin),
     getAltIndhold(supabaseAdmin),
+    getDagtyper(supabaseAdmin),
   ]);
 
+  const FARVER: DagFarve[] = dagtyper.map((t) => t.farve);
+  const PRIK: Record<DagFarve, string> = Object.fromEntries(
+    dagtyper.map((t) => [t.farve, t.farvekode])
+  );
+  const farve: DagFarve = FARVER.find((f) => f === valgtFarve) ?? "Rød";
+  const designFor = (f: DagFarve) => designs[f] ?? INTET_DESIGN;
+
   const andre = FARVER.filter((f) => f !== farve).flatMap((f) => {
-    const d = designs[f].design;
+    const d = designFor(f).design;
     return d ? [{ farve: f, design: d }] : [];
   });
 
@@ -64,7 +66,7 @@ export default async function InfoskaermDesignPage({
             >
               <span className="h-2.5 w-2.5 rounded-full" style={{ background: PRIK[f] }} />
               {f}
-              {designs[f].aktiv && (
+              {designFor(f).aktiv && (
                 <span className="text-xs font-normal opacity-75">· vises</span>
               )}
             </Link>
@@ -92,9 +94,9 @@ export default async function InfoskaermDesignPage({
       <DesignEditor
         key={farve}
         farve={farve}
-        start={designs[farve].design}
-        startAktiv={designs[farve].aktiv}
-        indhold={tilDagIndhold(indhold[farve])}
+        start={designFor(farve).design}
+        startAktiv={designFor(farve).aktiv}
+        indhold={tilDagIndhold(indhold[farve] ?? fraDagIndhold(farve, standardIndhold(farve)))}
         billedBase={billedBase(supabaseAdmin)}
         andre={andre}
       />

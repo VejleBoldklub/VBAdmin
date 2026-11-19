@@ -4,7 +4,17 @@
 // selv skal kunne redigeres fra Admin senere, kan dette flyttes til en
 // infoskaerm_indhold-tabel i en senere fase.
 
-export type DagFarve = 'Rød' | 'Gul' | 'Grøn';
+// En dagtype hedder det samme som sin farve. De tre standardtyper findes
+// altid; Skærme Alliancen kan oprette flere (fx "Rød 2"), som ligger som rækker
+// i infoskaerm_indhold. Derfor er typen en streng og ikke en fast union.
+export type DagFarve = string;
+
+export const STANDARD_DAGTYPER = ['Rød', 'Gul', 'Grøn'] as const;
+type StandardDagtype = (typeof STANDARD_DAGTYPER)[number];
+
+export function erStandardDagtype(farve: string): farve is StandardDagtype {
+  return (STANDARD_DAGTYPER as readonly string[]).includes(farve);
+}
 
 export interface DagBlock {
   titleDa: string;
@@ -24,7 +34,7 @@ export interface DagIndhold {
   blocks: DagBlock[];
 }
 
-export const DAY_CONTENT: Record<DagFarve, DagIndhold> = {
+export const DAY_CONTENT: Record<StandardDagtype, DagIndhold> = {
   Rød: {
     title: 'Rød',
     subtitleDa: 'Performance (MD-1 og MD)',
@@ -116,8 +126,16 @@ export const DAY_CONTENT: Record<DagFarve, DagIndhold> = {
   },
 };
 
+// Det hardcodede indhold for en dagtype. En oprettet type uden egen række
+// (eller hvis opslaget fejler) låner Grøns kostråd, men beholder sit navn, så
+// skærmen aldrig står tom.
+export function standardIndhold(farve: DagFarve): DagIndhold {
+  if (erStandardDagtype(farve)) return DAY_CONTENT[farve];
+  return { ...DAY_CONTENT['Grøn'], title: farve, shortName: farve };
+}
+
 export function farveTilNavn(farve: DagFarve): string {
-  return DAY_CONTENT[farve].shortName;
+  return standardIndhold(farve).shortName;
 }
 
 // ---------------------------------------------------------------------------
@@ -183,7 +201,7 @@ export function erIndholdRow(vaerdi: unknown): vaerdi is IndholdRow {
 
   return (
     typeof r.farve === "string" &&
-    r.farve in DAY_CONTENT &&
+    r.farve.trim() !== "" &&
     typeof r.titel === "string" &&
     typeof r.undertitel_da === "string" &&
     typeof r.undertitel_en === "string" &&

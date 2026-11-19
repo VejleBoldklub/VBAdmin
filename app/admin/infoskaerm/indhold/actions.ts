@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { kraevAdgang } from "@/lib/adgang";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { beskrivSupabaseFejl } from "@/lib/infoskaerm/data";
-import type { DagFarve, IndholdBlokRow, IndholdRow } from "@/lib/infoskaerm/content";
+import { beskrivSupabaseFejl, findesDagtype } from "@/lib/infoskaerm/data";
+import type { IndholdBlokRow, IndholdRow } from "@/lib/infoskaerm/content";
 import type { GemResultat } from "@/lib/infoskaerm/types";
 
 // Redigering af kostindholdet pr. farve.
@@ -16,7 +16,6 @@ import type { GemResultat } from "@/lib/infoskaerm/types";
 const ADMIN_STI = "/admin/infoskaerm/indhold";
 const SKAERM_STI = "/infoskaerm/cafeteria";
 
-const FARVER: readonly DagFarve[] = ["Rød", "Gul", "Grøn"];
 const HEX = /^#[0-9A-Fa-f]{6}$/;
 
 // Grænserne er sat efter skærmen, ikke efter databasen. Teksten vises med meget
@@ -55,7 +54,7 @@ export async function gemIndhold(raekke: IndholdRow): Promise<GemResultat> {
     return { ok: false, fejl: IKKE_ADMIN };
   }
 
-  if (!raekke || !FARVER.includes(raekke.farve)) {
+  if (!raekke || typeof raekke.farve !== "string" || !(await findesDagtype(supabaseAdmin, raekke.farve))) {
     return { ok: false, fejl: "Ukendt farve." };
   }
 

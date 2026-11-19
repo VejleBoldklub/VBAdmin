@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { kraevAdgang } from "@/lib/adgang";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { beskrivSupabaseFejl } from "@/lib/infoskaerm/data";
+import { beskrivSupabaseFejl, findesDagtype } from "@/lib/infoskaerm/data";
 import type { DagFarve } from "@/lib/infoskaerm/content";
 import type { GemResultat } from "@/lib/infoskaerm/types";
 import { erGyldigDato } from "@/lib/infoskaerm/dato";
@@ -20,8 +20,6 @@ import { erGyldigDato } from "@/lib/infoskaerm/dato";
 
 const ADMIN_STI = "/admin/infoskaerm";
 const SKAERM_STI = "/infoskaerm/cafeteria";
-
-const FARVER: readonly DagFarve[] = ["Rød", "Gul", "Grøn"];
 
 // Beskeden vises på en skærm i cafeteriet med meget stor skrift. Længere end
 // dette bliver alligevel ikke læseligt, og grænsen holder samtidig en tastefejl
@@ -48,8 +46,8 @@ export async function gemDag(
     return { ok: false, fejl: GENERISK };
   }
 
-  if (!FARVER.includes(farve)) {
-    return { ok: false, fejl: GENERISK };
+  if (typeof farve !== "string" || !(await findesDagtype(supabaseAdmin, farve))) {
+    return { ok: false, fejl: "Dagtypen findes ikke længere. Genindlæs siden." };
   }
 
   const renBesked = ekstraBesked.trim();
