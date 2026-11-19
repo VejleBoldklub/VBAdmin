@@ -8,6 +8,7 @@ export const MODUL_NAVNE: Record<Modul, string> = {
   baneplan: "Baneplan",
   lokalebooking: "Lokalebooking",
   infoskaerm: "Infoskærm",
+  signage: "Skærme Alliancen",
 };
 
 // Afkrydsning pr. modul. Slået fra for administratorer, som har adgang til alt

@@ -8,7 +8,7 @@
 //
 // Nøglerne skal svare til check-constraintet på admin_users.allowed_modules og
 // til modulkortene i app/page.tsx. Tilføjes et modul, skal alle tre følges ad.
-export const MODULER = ["baneplan", "lokalebooking", "infoskaerm"] as const;
+export const MODULER = ["baneplan", "lokalebooking", "infoskaerm", "signage"] as const;
 
 export type Modul = (typeof MODULER)[number];
 
