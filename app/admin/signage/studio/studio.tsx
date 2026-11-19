@@ -60,6 +60,10 @@ export default function Studio({ skaerm, skaerme, elementer, medier }: Props) {
     };
   }, [udkast, valgtElement, medieEfterId, skaerm.id]);
 
+  // Editoren melder også sin startværdi. Kun en reel ændring er et udkast.
+  const aendret =
+    !!udkast && (valg?.slags === "nyt" || !valgtElement || JSON.stringify(udkast) !== JSON.stringify(felterFraElement(valgtElement)));
+
   const onAendring = useCallback((f: ElementFelter) => setUdkast(f), []);
   const ingenting = useCallback(() => {}, []);
 
@@ -125,7 +129,7 @@ export default function Studio({ skaerm, skaerme, elementer, medier }: Props) {
           <div className="mb-3 flex items-center justify-between">
             <p className={ETIKET}>Redigeringslærred</p>
             <p className="text-xs text-slate-400">
-              {skaerm.navn} · 16:9 · {udkast ? "Udkast – ikke gemt endnu" : "Forhåndsvisning"}
+              {skaerm.navn} · 16:9 · {aendret ? "Udkast – ikke gemt endnu" : "Forhåndsvisning"}
             </p>
           </div>
           <Laerred baggrund={skaerm.baggrund}>
